@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged to format and lint staged files
+npx lint-staged
+
+# Run unit tests
+npm run test:unit
+
+# Run TypeScript compilation check
+npm run compile 
