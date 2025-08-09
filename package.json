@@ -31,8 +31,33 @@
   "contributes": {
     "commands": [
       {
-        "command": "ks-vscode.helloWorld",
-        "title": "Hello World",
+        "command": "ks-vscode.saveValueToVault",
+        "title": "Save in Keeper Security",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.getValueFromVault",
+        "title": "Get from Keeper Security",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.generatePassword",
+        "title": "Generate Password",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.runSecurely",
+        "title": "Run Securely",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.chooseFolder",
+        "title": "Choose Folder",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.openLogs",
+        "title": "Open Logs",
         "category": "Keeper Security"
       }
     ],
@@ -42,10 +67,11 @@
         "title": "Keeper Security",
         "id": "keeper-security",
         "properties": {
-          "Keeper Security.ks-vscode.enabled": {
+          "keeper-security.debug.enabled": {
+            "order": 1,
             "type": "boolean",
-            "default": true,
-            "description": "Enable Keeper Security features"
+            "default": false,
+            "description": "Log debugger data. Reload required."
           }
         }
       }
@@ -94,9 +120,9 @@
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
+    "vsce": "^2.15.0",
     "webpack": "^5.99.7",
-    "webpack-cli": "^6.0.1",
-    "vsce": "^2.15.0"
+    "webpack-cli": "^6.0.1"
   },
   "lint-staged": {
     "*.{ts,js}": [
@@ -106,5 +132,8 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "dotenv": "^17.2.0"
   }
 }

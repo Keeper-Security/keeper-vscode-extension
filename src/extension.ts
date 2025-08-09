@@ -1,19 +1,40 @@
 import * as vscode from 'vscode';
+import pckg from '../package.json';
+import { configuration, ConfigurationKey, Core } from './services';
+import { logger } from './utils/logger';
+import { DEBUG } from './utils/constants';
+import { CONFIG_NAMESPACE } from './utils/constants';
+import { workspace } from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  try {
+    // Configure first
+    configuration.configure(context);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "ks-vscode" is now active!');
+    logger.logInfo(`Starting Keeper Security for VS Code.`);
+    logger.logInfo(`Extension Version: ${pckg.version}.`);
 
-	let disposable = vscode.commands.registerCommand('ks-vscode.helloWorld', () => {
-		vscode.window.showInformationMessage('Extension is loading!');
-	});
+    // Add more detailed diagnostic logging
+    const debugSetting = configuration.get<boolean>(ConfigurationKey.DebugEnabled);
+    const debugConstant = DEBUG;
 
-	context.subscriptions.push(disposable);
+    if (debugSetting || debugConstant) {
+      logger.setOutputLevel("DEBUG");
+      logger.logDebug("Debug logging enabled");
+    }
+
+    // Initialize core with all services
+    new Core(context);
+
+    logger.logInfo("Keeper Security extension activated successfully");
+
+  } catch (error) {
+    logger.logError("Failed to activate extension", error);
+    throw error;
+  }
+
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate() {
+  logger.logInfo("Keeper Security extension deactivated");
+}
