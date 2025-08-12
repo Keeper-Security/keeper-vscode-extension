@@ -1,76 +1,35 @@
 import { Position, Range, TextDocument } from "vscode";
-import { Parser, ParserMatch } from "./parser";
-
-// YAML-specific patterns for secret detection
-const YAML_SECRET_PATTERNS = [
-    // API Keys
-    { pattern: /^sk-[a-zA-Z0-9]{20,}$/, type: 'api_key' },
-    { pattern: /^pk_[a-zA-Z0-9]{20,}$/, type: 'api_key' },
-    { pattern: /^[a-zA-Z0-9]{32,}$/, type: 'api_key' },
-    
-    // Database URLs
-    { pattern: /^(mongodb|postgresql|mysql|redis):\/\/[^@]+@[^:]+:\d+\/[^?]+/, type: 'database_url' },
-    { pattern: /^[a-zA-Z]+:\/\/[^@]+@[^:]+:\d+\//, type: 'database_url' },
-    
-    // JWT Tokens
-    { pattern: /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/, type: 'jwt_token' },
-    
-    // Bearer Tokens
-    { pattern: /^Bearer\s+[a-zA-Z0-9._-]+$/, type: 'bearer_token' },
-    
-    // Passwords
-    { pattern: /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,}$/, type: 'password' },
-    
-    // UUIDs
-    { pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, type: 'uuid' },
-    
-    // Base64 encoded secrets
-    { pattern: /^[A-Za-z0-9+/]{20,}={0,2}$/, type: 'base64_secret' },
-    
-    // Hex encoded secrets
-    { pattern: /^[0-9a-fA-F]{32,}$/, type: 'hex_secret' },
-    
-    // Docker registry passwords
-    { pattern: /^[a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/, type: 'docker_auth' },
-    
-    // Cloud provider keys
-    { pattern: /^AKIA[0-9A-Z]{16}$/, type: 'aws_access_key' },
-    { pattern: /^[0-9a-zA-Z/+]{40}$/, type: 'aws_secret_key' },
-    { pattern: /^ya29\.[0-9A-Za-z\-_]+$/, type: 'google_oauth' }
-];
-
-// Common YAML keys that might contain secrets
-const YAML_SECRET_KEY_PATTERNS = [
-    /api[_-]?key/i,
-    /secret/i,
-    /password/i,
-    /token/i,
-    /key/i,
-    /auth/i,
-    /credential/i,
-    /private/i,
-    /signature/i,
-    /salt/i,
-    /hash/i,
-    /access[_-]?key/i,
-    /secret[_-]?key/i,
-    /client[_-]?secret/i,
-    /app[_-]?secret/i
-];
+import { Parser } from "./parser";
+import { logger } from "../../utils/logger";
+import { 
+    isSecretValue, 
+    isSecretKey, 
+    isPlaceholder 
+} from "../patterns/secretPatterns";
 
 export default class YamlConfigParser extends Parser {
+    public constructor(document: TextDocument) {
+        super(document);
+        logger.logDebug(`YamlConfigParser constructor called for document: ${this.document.fileName}`);
+    }
+
     public parse(): void {
+        logger.logDebug(`YamlConfigParser.parse starting for document: ${this.document.fileName}`);        
         try {
             const text = this.document.getText();
             const lines = text.split('\n');
+            logger.logDebug(`YamlConfigParser: Processing ${lines.length} lines`);
             
             for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                 const line = lines[lineIndex];
                 this.processYamlLine(line, lineIndex);
             }
         } catch (error) {
+            logger.logDebug(`YamlConfigParser: Failed to parse YAML - ${error instanceof Error ? error.message : 'Unknown error'}`);
             // Invalid YAML, skip parsing
         }
+        
+        logger.logDebug(`YamlConfigParser.parse completed for document: ${this.document.fileName}, found ${this.matches.length} secrets`);
     }
 
     private processYamlLine(line: string, lineIndex: number): void {
@@ -85,6 +44,7 @@ export default class YamlConfigParser extends Parser {
             const { key, value, keyStart, valueStart, valueEnd } = keyValueMatch;
             
             if (this.isSecret(key, value)) {
+                logger.logDebug(`YamlConfigParser: Secret detected at line ${lineIndex + 1} - key: ${key}, valueLength: ${value.length}`);
                 const range = new Range(
                     new Position(lineIndex, valueStart),
                     new Position(lineIndex, valueEnd)
@@ -94,6 +54,7 @@ export default class YamlConfigParser extends Parser {
                     range,
                     fieldValue: value
                 });
+                logger.logDebug(`YamlConfigParser: Added match for line ${lineIndex + 1}`);
             }
         }
     }
@@ -181,48 +142,17 @@ export default class YamlConfigParser extends Parser {
             return false;
         }
 
-        // Skip if too short
-        if (value.length < 8) {
-            return false;
-        }
-
         // Skip if looks like a placeholder
-        if (this.isPlaceholder(value)) {
+        if (isPlaceholder(value)) {
             return false;
         }
 
-        // Check if the key suggests it's a secret
-        const isSecretKey = YAML_SECRET_KEY_PATTERNS.some(pattern => pattern.test(key));
-
-        // Check if the value matches secret patterns
-        const isSecretValue = YAML_SECRET_PATTERNS.some(({ pattern }) => pattern.test(value));
+        // Use centralized pattern matching
+        const isSecretKeyMatch = isSecretKey(key);
+        const isSecretValueMatch = isSecretValue(value);
 
         // Simple logic: if key OR value suggests secret, show CodeLens
-        return isSecretKey || isSecretValue;
-    }
-
-    private isPlaceholder(value: string): boolean {
-        const placeholderPatterns = [
-            /^<.*>$/,
-            /^\[.*\]$/,
-            /^\{.*\}$/,
-            /^placeholder$/i,
-            /^example$/i,
-            /^your_.*$/i,
-            /^enter_.*$/i,
-            /^test.*$/i,
-            /^demo.*$/i,
-            /^sample.*$/i,
-            /^temp.*$/i,
-            /^fake.*$/i,
-            /^mock.*$/i,
-            /^xxx.*$/i,
-            /^123.*$/,
-            /^password.*$/i,
-            /^secret.*$/i
-        ];
-
-        return placeholderPatterns.some(pattern => pattern.test(value));
+        return isSecretKeyMatch || isSecretValueMatch;
     }
 
     private isCommentOrEmpty(line: string): boolean {

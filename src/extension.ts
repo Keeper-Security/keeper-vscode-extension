@@ -1,12 +1,10 @@
-import * as vscode from 'vscode';
 import pckg from '../package.json';
 import { configuration, ConfigurationKey, Core } from './services';
 import { logger } from './utils/logger';
 import { DEBUG } from './utils/constants';
-import { CONFIG_NAMESPACE } from './utils/constants';
-import { workspace } from 'vscode';
+import { ExtensionContext } from 'vscode';
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: ExtensionContext) {
   try {
     // Configure first
     configuration.configure(context);

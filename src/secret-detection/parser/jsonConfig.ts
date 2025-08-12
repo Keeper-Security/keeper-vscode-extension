@@ -1,26 +1,45 @@
 import { Position, Range, TextDocument } from "vscode";
 import { Parser } from "./parser";
+import { logger } from "../../utils/logger";
+import { isSecretValue } from "../patterns/secretPatterns";
 
 export default class JsonConfigParser extends Parser {
+    public constructor(document: TextDocument) {
+        super(document);
+        logger.logDebug(`JsonConfigParser constructor called for document: ${document.fileName}`);
+    }
+
     public parse(): void {
+        logger.logDebug(`JsonConfigParser.parse starting for document: ${this.document.fileName}`);
+        
         try {
             const text = this.document.getText();
             const json = JSON.parse(text);
+            logger.logDebug(`JsonConfigParser: Successfully parsed JSON with ${Object.keys(json).length} top-level keys`);
             
             this.findSecretsInObject(json, '', 0);
         } catch (error) {
+            logger.logDebug(`JsonConfigParser: Failed to parse JSON - ${error instanceof Error ? error.message : 'Unknown error'}`);
             // Invalid JSON, skip parsing
         }
+        
+        logger.logDebug(`JsonConfigParser.parse completed for document: ${this.document.fileName}, found ${this.matches.length} secrets`);
     }
 
     private findSecretsInObject(obj: any, path: string, lineOffset: number): void {
+        logger.logDebug(`JsonConfigParser.findSecretsInObject: Processing path: ${path}, objectKeys: ${Object.keys(obj).length}`);
+        
         for (const [key, value] of Object.entries(obj)) {
             const currentPath = path ? `${path}.${key}` : key;
             
-            if (typeof value === 'string' && this.isSecretValue(value)) {
+            if (typeof value === 'string' && this.isSecret(value)) {
+                logger.logDebug(`JsonConfigParser: Secret detected at path: ${currentPath}, valueLength: ${value.length}`);
                 const range = this.findValueRange(key, value);
                 if (range) {
                     this.matches.push({ range, fieldValue: value });
+                    logger.logDebug(`JsonConfigParser: Added match for path: ${currentPath}`);
+                } else {
+                    logger.logDebug(`JsonConfigParser: Failed to find range for path: ${currentPath}`);
                 }
             } else if (typeof value === 'object' && value !== null) {
                 this.findSecretsInObject(value, currentPath, lineOffset);
@@ -28,28 +47,19 @@ export default class JsonConfigParser extends Parser {
         }
     }
 
-    private isSecretValue(value: string): boolean {
+    private isSecret(value: string): boolean {
+        logger.logDebug(`JsonConfigParser.isSecretValue checking valueLength: ${value.length}`);
+        
         // Skip if already a Keeper reference
         if (value.startsWith('keeper://')) {
+            logger.logDebug(`JsonConfigParser.isSecretValue: Value is already a keeper reference`);
             return false;
         }
 
-        // Skip if too short
-        if (value.length < 8) {
-            return false;
-        }
-
-        const secretPatterns = [
-            /^sk-[a-zA-Z0-9]{20,}$/,
-            /^pk_[a-zA-Z0-9]{20,}$/,
-            /^[a-zA-Z0-9]{32,}$/,
-            /^Bearer\s+[a-zA-Z0-9._-]+$/,
-            /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/,
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-            /^[A-Za-z0-9+/]{20,}={0,2}$/
-        ];
-        
-        return secretPatterns.some(pattern => pattern.test(value));
+        // Use centralized pattern matching
+        const result = isSecretValue(value);
+        logger.logDebug(`JsonConfigParser.isSecretValue result: ${result}`);
+        return result;
     }
 
     private findValueRange(key: string, value: string): Range | null {

@@ -1,7 +1,5 @@
-import { window, ExtensionContext } from "vscode";
-import { CliService } from "../../services/cli";
-import { StatusBarSpinner } from "../../utils/helper";
-import { BaseCommandHandler } from "./BaseCommandHandler";
+import { window } from "vscode";
+import { BaseCommandHandler } from "./baseCommandHandler";
 import { KEEPER_NOTATION_FIELD_TYPES } from "../../utils/constants";
 import { createKeeperReference } from "../../utils/helper";
 import { logger } from "../../utils/logger";
@@ -10,16 +8,22 @@ import { IField } from "../../types";
 
 export class GetValueHandler extends BaseCommandHandler {
     async execute(): Promise<void> {
+        logger.logDebug("GetValueHandler.execute called");
+        
         if (!await this.canExecute()) {
+            logger.logDebug("GetValueHandler.execute: canExecute returned false, aborting");
             return;
         }
 
         try {
+            logger.logDebug("GetValueHandler: Showing spinner for secret retrieval");
             this.spinner.show("Retrieving secrets...");
 
             // List available records
+            logger.logDebug("GetValueHandler: Executing list command to get available records");
             const records = await this.cliService.executeCommanderCommand('list', ['--format=json']);
             const recordsList = JSON.parse(records);
+            logger.logDebug(`GetValueHandler: Retrieved ${recordsList.length} records from vault`);
 
             this.spinner.hide();
 
@@ -30,13 +34,19 @@ export class GetValueHandler extends BaseCommandHandler {
             );
 
             if (!selectedRecord) {
+                logger.logDebug("GetValueHandler: User cancelled record selection");
                 return;
             }
+            logger.logDebug(`GetValueHandler: User selected record - title length: ${selectedRecord.label?.length || 0}, UID length: ${selectedRecord.value?.length || 0}`);
+
+            logger.logDebug("GetValueHandler: Showing spinner for record details retrieval");
             this.spinner.show("Retrieving secrets details...");
 
             // Get record details
+            logger.logDebug(`GetValueHandler: Executing get command for record UID length: ${selectedRecord.value?.length || 0}`);
             const recordDetails = await this.cliService.executeCommanderCommand('get', [selectedRecord.value, '--format=json']);
             const details = JSON.parse(recordDetails);
+            logger.logDebug(`GetValueHandler: Retrieved record details with ${details.fields?.length || 0} fields and ${details.custom?.length || 0} custom fields`);
 
             this.spinner.hide();
 
@@ -49,8 +59,10 @@ export class GetValueHandler extends BaseCommandHandler {
             const selectedField = await window.showQuickPick(fieldsToShow, { title: `Available fields from record: ${selectedRecord.label}`, placeHolder: 'Which field do you want to retrieve?', ignoreFocusOut: true });
 
             if (!selectedField) {
+                logger.logDebug("GetValueHandler: User cancelled field selection");
                 return;
             }
+            logger.logDebug(`GetValueHandler: User selected field - label length: ${selectedField.label?.length || 0}, type: ${selectedField.fieldType}`);
 
             const recordRef = createKeeperReference(selectedRecord.value.trim(), selectedField.fieldType, selectedField.label);
             if (!recordRef) {
@@ -59,15 +71,18 @@ export class GetValueHandler extends BaseCommandHandler {
             }
 
             // Insert the Keeper Notation reference at the cursor position
+            logger.logDebug(`GetValueHandler: Inserting reference at cursor position - reference length: ${recordRef?.length || 0}`);
             const editor = window.activeTextEditor;
             if (editor) {
                 await editor.edit(editBuilder => {
                     editBuilder.insert(editor.selection.active, recordRef);
                 });
+                logger.logDebug("GetValueHandler: Reference inserted successfully");
             }
 
             window.showInformationMessage(`Reference of "${selectedField.label}" field of secret "${selectedRecord.label}" retrieved successfully!`);
         } catch (error: any) {
+            logger.logError(`GetValueHandler.execute failed: ${error.message}`, error);
             window.showErrorMessage(`Failed to get value: ${error.message}`);
         } finally {
             this.spinner.hide();

@@ -1,34 +1,46 @@
 import { ExtensionContext, Disposable, workspace, languages, TextDocument, CodeLens } from 'vscode';
 import { logger } from '../utils/logger';
-import { SecretDetectionCodeLensProvider } from '../providers/SecretDetectionCodeLensProvider';
 import { documentMatcher } from '../utils/helper';
 import { Parser } from '../secret-detection/parser/parser';
 import JsonConfigParser from '../secret-detection/parser/jsonConfig';
 import DotEnvParser from '../secret-detection/parser/dotEnv';
 import YamlConfigParser from '../secret-detection/parser/yamlConfig';
 import CodeParser from '../secret-detection/parser/codeParser';
-// Import other parsers as needed
+import { SecretDetectionCodeLensProvider } from '../providers/secretDetectionCodeLensProvider';
+import { configuration, ConfigurationKey } from './configurations';
 
 export class SecretDetectionService {
     private subscriptions: Disposable[] = [];
     private codeLensProvider!: SecretDetectionCodeLensProvider;
 
     public constructor(private context: ExtensionContext) {
+        logger.logDebug("Initializing SecretDetectionService");
         this.initialize();
+        logger.logDebug("SecretDetectionService initialization completed");
+
+        configuration.onDidChange(this.initialize.bind(this));
     }
 
     private initialize(): void {
+        logger.logDebug("Starting secret detection initialization");
         // Clean up existing subscriptions
         for(const subscription of this.subscriptions) {
             subscription.dispose();
         }
 
+        if (!configuration.get<boolean>(ConfigurationKey.SecretDetectionEnabled)) {
+            logger.logDebug("Secret detection is disabled in the extension settings");
+            return;
+        }
+
         // Create CodeLens provider with parser-based detection
+        logger.logDebug("Creating CodeLens provider");
         this.codeLensProvider = new SecretDetectionCodeLensProvider(
             this.createParserFactory()
         );
 
         // Register the provider
+        logger.logDebug("Registering CodeLens provider and event listeners");
         this.subscriptions = [
             languages.registerCodeLensProvider(
                 { scheme: 'file' },
@@ -36,64 +48,53 @@ export class SecretDetectionService {
             ),
             // Add refresh listeners
             workspace.onDidSaveTextDocument(() => {
+                logger.logDebug("Document saved, refreshing CodeLens");
                 this.codeLensProvider.refresh();
             }),
-            // workspace.onDidChangeTextDocument(() => {
-            //     // Debounced refresh for better performance
-            //     this.debouncedRefresh();
-            // })
         ];
+        logger.logDebug("Secret detection initialization completed");
     }
 
     private createParserFactory() {
         return (document: TextDocument): Parser | null => {
             const matchDocument = documentMatcher(document);
+            logger.logDebug(`Creating parser for document: ${document.fileName}`);
             
             // Environment files
             if (matchDocument(['plaintext'], ['env', 'env.local', 'env.production'])) {
+                logger.logDebug("Using DotEnv parser");
                 return new DotEnvParser(document);
             }
             
             // JSON configuration files
             if (matchDocument(['json'], ['json'])) {
+                logger.logDebug("Using JsonConfig parser");
                 return new JsonConfigParser(document);
             }
             
             // YAML configuration files
             if (matchDocument(['yaml'], ['yml', 'yaml'])) {
+                logger.logDebug("Using YamlConfig parser");
                 return new YamlConfigParser(document);
             }
             
             // Code files
             if (matchDocument(['javascript', 'typescript', 'python', 'go', 'java', 'csharp', 'php', 'ruby'], 
                              ['js', 'ts', 'jsx', 'tsx', 'py', 'go', 'java', 'cs', 'php', 'rb'])) {
+                logger.logDebug("Using Code parser");
                 return new CodeParser(document);
             }
             
+            logger.logDebug("No suitable parser found for document type");
             return null; // No parser for this file type
         };
     }
 
-    private debouncedRefresh = debounce(() => {
-        this.codeLensProvider.refresh();
-    }, 300);
-
     public dispose(): void {
+        logger.logDebug("Disposing SecretDetectionService");
         for(const subscription of this.subscriptions) {
             subscription.dispose();
         }
+        logger.logDebug("SecretDetectionService disposal completed");
     }
 }
-
-// Utility function for debouncing
-function debounce(func: Function, wait: number) {
-    let timeout: NodeJS.Timeout;
-    return function executedFunction(...args: any[]) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-} 

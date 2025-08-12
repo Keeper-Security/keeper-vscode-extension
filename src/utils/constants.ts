@@ -31,7 +31,7 @@ export const HELPER_MESSAGES = {
     OPEN_INSTALLATION_DOCS: "Open Installation Documentation",
     OPEN_AUTHENTICATION_DOCS: "Open Authentication Documentation",
     CLI_NOT_INSTALLED: "Keeper Commander CLI is not installed. Please install it first.",
-    CLI_NOT_AUTHENTICATED: "Keeper Commander CLI is not authenticated with persistent login session. Please authenticate first.",
+    CLI_NOT_AUTHENTICATED: "Keeper Commander CLI is not authenticated with persistent login or biometric authentication. Please authenticate first.",
     CLI_READY: "Keeper Security Extension is ready to use!",
 } as const;
 
@@ -101,7 +101,7 @@ export enum KEEPER_FIELD_TYPES {
     MULTILINE = "multiline",
     SECRET = "secret",
     ONETIME_CODE = "oneTimeCode",
-    
+
     // Complex Types
     HOST = "host",
     ADDRESS = "address",
@@ -111,11 +111,11 @@ export enum KEEPER_FIELD_TYPES {
     PAYMENT_CARD = "paymentCard",
     BANK_ACCOUNT = "bankAccount",
     KEY_PAIR = "keyPair",
-    
+
     // Special Types
     FILE = "file",
     DATE = "date",
-    
+
     // PAM Specific
     PAM_HOSTNAME = "pamHostname",
     PAM_USERNAME = "pamUsername",
@@ -163,3 +163,6 @@ export const FIELD_PATTERNS = {
     ADDRESS: /address|street|city|state|zip/i,
     NAME: /name|first|last|middle|full_name/i,
 } as const;
+
+export const DOTENV_LINE =
+    /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^\n\r#]+)?\s*(?:#.*)?$/;

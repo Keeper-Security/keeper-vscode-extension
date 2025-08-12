@@ -1,8 +1,9 @@
 import { ExtensionContext } from "vscode";
 import { CliService } from "../../services/cli";
 import { StatusBarSpinner } from "../../utils/helper";
-import { BaseCommandHandler } from "./BaseCommandHandler";
-import { StorageManager } from "../storage/StorageManager";
+import { BaseCommandHandler } from "./baseCommandHandler";
+import { StorageManager } from "../storage/storageManager";
+import { logger } from "../../utils/logger";
 
 export class ChooseFolderHandler extends BaseCommandHandler {
     private storageManager: StorageManager;
@@ -18,10 +19,15 @@ export class ChooseFolderHandler extends BaseCommandHandler {
     }
 
     async execute(): Promise<void> {
+        logger.logDebug("ChooseFolderHandler.execute called");
+        
         if (!await this.canExecute()) {
+            logger.logDebug("ChooseFolderHandler.execute: canExecute returned false, aborting");
             return;
         }
 
+        logger.logDebug("ChooseFolderHandler: Starting folder selection process");
         await this.storageManager.chooseFolder();
+        logger.logDebug("ChooseFolderHandler: Folder selection completed");
     }
 } 

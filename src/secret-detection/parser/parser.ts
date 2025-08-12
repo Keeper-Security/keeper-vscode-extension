@@ -1,4 +1,4 @@
-import { CodeLens, Range, TextDocument } from "vscode";
+import { Range, TextDocument } from "vscode";
 
 export interface ParserMatch {
 	range: Range;

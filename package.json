@@ -72,6 +72,12 @@
             "type": "boolean",
             "default": false,
             "description": "Log debugger data. Reload required."
+          },
+          "keeper-security.editor.secretDetection": {
+            "order": 2,
+            "type": "boolean",
+            "default": true,
+            "description": "Suggest storing a value when it looks like a secret."
           }
         }
       }
@@ -106,7 +112,7 @@
     "@types/jest": "^29.5.12",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "@types/vscode": "^1.102.0",
+    "@types/vscode": "^1.99.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.11",

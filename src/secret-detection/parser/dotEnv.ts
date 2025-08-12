@@ -1,16 +1,22 @@
 import { Position, Range, TextDocument } from "vscode";
 import { Parser } from "./parser";
-
-// Hat tip: https://github.com/motdotla/dotenv
-export const DOTENV_LINE =
-	/^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^\n\r#]+)?\s*(?:#.*)?$/;
+import { logger } from "../../utils/logger";
+import { DOTENV_LINE } from "../../utils/constants";
+import { 
+    isSecretValue, 
+    isSecretKey, 
+    isPlaceholder 
+} from "../patterns/secretPatterns";
 
 export default class DotEnvParser extends Parser {
 	public constructor(document: TextDocument) {
 		super(document);
+		logger.logDebug(`DotEnvParser constructor called for document: ${document.fileName}`);
 	}
 
 	public parse(): void {
+		logger.logDebug(`DotEnvParser.parse starting for document: ${this.document.fileName}`);
+
 		for (
 			let lineNumber = 0;
 			lineNumber < this.document.lineCount;
@@ -32,11 +38,13 @@ export default class DotEnvParser extends Parser {
 			fieldValue = fieldValue.replace(/^(["'`])([\S\s]*)\1$/gm, "$2");
 
 			if (fieldValue.length === 0 || fieldValue.startsWith('keeper://')) {
+				logger.logDebug(`DotEnvParser: Skipping line ${lineNumber + 1} - empty value or keeper reference`);
 				continue;
 			}
 
 			// Check if it's a secret
 			if (this.isSecret(keyValue, fieldValue)) {
+				logger.logDebug(`DotEnvParser: Secret detected at line ${lineNumber + 1} - key: ${keyValue}, valueLength: ${fieldValue.length}`);
 				const index = lineValue.indexOf(fieldValue);
 				const range = new Range(
 					new Position(lineNumber, index),
@@ -46,67 +54,27 @@ export default class DotEnvParser extends Parser {
 				this.matches.push({ range, fieldValue });
 			}
 		}
+
+		logger.logDebug(`DotEnvParser.parse completed for document: ${this.document.fileName}, found ${this.matches.length} secrets`);
 	}
 
 	private isSecret(key: string, value: string): boolean {
-		// Skip if too short
-		if (value.length < 8) {
-			return false;
-		}
+		logger.logDebug(`DotEnvParser.isSecret checking - key: ${key}, valueLength: ${value.length}`);
 
 		// Skip if looks like a placeholder
-		if (this.isPlaceholder(value)) {
+		if (isPlaceholder(value)) {
+			logger.logDebug(`DotEnvParser.isSecret: Value appears to be placeholder`);
 			return false;
 		}
 
-		// Check if the key suggests it's a secret
-		const secretKeyPatterns = [
-			/api[_-]?key/i,
-			/secret/i,
-			/password/i,
-			/token/i,
-			/key/i,
-			/auth/i,
-			/credential/i,
-			/private/i
-		];
-
-		const isSecretKey = secretKeyPatterns.some(pattern => pattern.test(key));
-
-		// Check if the value matches secret patterns
-		const secretValuePatterns = [
-			/^sk-[a-zA-Z0-9]{20,}$/,
-			/^pk_[a-zA-Z0-9]{20,}$/,
-			/^[a-zA-Z0-9]{32,}$/,
-			/^Bearer\s+[a-zA-Z0-9._-]+$/,
-			/^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/,
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-			/^[A-Za-z0-9+/]{20,}={0,2}$/
-		];
-
-		const isSecretValue = secretValuePatterns.some(pattern => pattern.test(value));
+		// Use centralized pattern matching
+		const isSecretKeyMatch = isSecretKey(key);
+		const isSecretValueMatch = isSecretValue(value);
 
 		// Simple logic: if key OR value suggests secret, show CodeLens
-		return isSecretKey || isSecretValue;
-	}
+		const result = isSecretKeyMatch || isSecretValueMatch;
+		logger.logDebug(`DotEnvParser.isSecret result: ${result} (key suggests secret: ${isSecretKeyMatch}, value suggests secret: ${isSecretValueMatch})`);
 
-	private isPlaceholder(value: string): boolean {
-		const placeholderPatterns = [
-			/^<.*>$/,
-			/^\[.*\]$/,
-			/^\{.*\}$/,
-			/^placeholder$/i,
-			/^example$/i,
-			/^your_.*$/i,
-			/^enter_.*$/i,
-			/^test.*$/i,
-			/^demo.*$/i,
-			/^sample.*$/i,
-			/^temp.*$/i,
-			/^fake.*$/i,
-			/^mock.*$/i
-		];
-
-		return placeholderPatterns.some(pattern => pattern.test(value));
+		return result;
 	}
 } 
