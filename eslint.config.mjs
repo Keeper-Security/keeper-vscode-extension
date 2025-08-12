@@ -20,9 +20,21 @@ export default [{
             format: ["camelCase", "PascalCase"],
         }],
 
+        // Core ESLint rules (not TypeScript-specific)
         curly: "warn",
         eqeqeq: "warn",
         "no-throw-literal": "warn",
         semi: "warn",
+        "prefer-const": "error",           
+        "no-unused-vars": "error",         
+        
+        // TypeScript-specific rules
+        "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+        "@typescript-eslint/no-explicit-any": "error",              
+        "@typescript-eslint/explicit-function-return-type": "warn",                                
+        "@typescript-eslint/no-non-null-assertion": "warn",      
+        
+        // Code quality rules
+        "object-shorthand": "error"
     },
 }];

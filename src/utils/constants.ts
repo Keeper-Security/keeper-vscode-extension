@@ -1,4 +1,4 @@
-export const DEBUG = process.env.NODE_ENV === "development";
+export const DEBUG = process.env["NODE_ENV"] === "development";
 
 export const EXTENSION_NAME = "Keeper Security";
 export const EXTENSION_ID = "ks-vscode";

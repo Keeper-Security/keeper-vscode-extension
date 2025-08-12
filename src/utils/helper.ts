@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { IFolder, IVaultFolder } from "../types";
 import { KEEPER_NOTATION_FIELD_TYPES, KEEPER_NOTATION_PATTERNS } from "./constants";
 import { logger } from "./logger";
-import { StatusBarAlignment, TextDocument, window } from "vscode";
+import { StatusBarAlignment, StatusBarItem, TextDocument, window } from "vscode";
 
 export function validateKeeperReference(reference: string): boolean {
     logger.logDebug(`Validating keeper reference: ${reference}`);
@@ -60,9 +61,7 @@ export function parseKeeperReference(reference: string): { recordUid: string, fi
 }
 
 export class StatusBarSpinner {
-    private statusBarItem: any;
-    private spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    private currentIndex = 0;
+    private statusBarItem: StatusBarItem;
     private interval: NodeJS.Timeout | null = null;
     private currentMessage: string = '';
 
@@ -73,19 +72,19 @@ export class StatusBarSpinner {
     public show(message: string): void {
         logger.logDebug(`Showing spinner with message: ${message}`);
         this.currentMessage = message;
-        this.statusBarItem.text = `${this.spinnerChars[this.currentIndex]} ${message}`;
+        this.statusBarItem.text = `$(sync~spin) ${message}`;
+        this.statusBarItem.tooltip = message;
         this.statusBarItem.show();
 
         this.interval = setInterval(() => {
-            this.currentIndex = (this.currentIndex + 1) % this.spinnerChars.length;
-            this.statusBarItem.text = `${this.spinnerChars[this.currentIndex]} ${this.currentMessage}`;
+            this.statusBarItem.text = `$(sync~spin) ${this.currentMessage}`;
         }, 100);
     }
 
     public updateMessage(message: string): void {
         logger.logDebug(`Updating spinner message to: ${message}`);
         this.currentMessage = message;
-        this.statusBarItem.text = `${this.spinnerChars[this.currentIndex]} ${message}`;
+        this.statusBarItem.text = `$(sync~spin) ${message}`;
     }
 
     public hide(): void {
@@ -116,7 +115,7 @@ export function resolveFolderPaths(folders: IVaultFolder[]): IFolder[] {
 
         while (currentParentUid !== "/") {
             const parent = folderMap.get(currentParentUid);
-            if (!parent) break;
+            if (!parent) {break;}
             pathParts.unshift(parent.name);
             currentParentUid = parent.parent_uid;
         }
