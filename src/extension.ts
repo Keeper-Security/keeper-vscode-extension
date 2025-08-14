@@ -2,9 +2,9 @@ import pckg from '../package.json';
 import { configuration, ConfigurationKey, Core } from './services';
 import { logger } from './utils/logger';
 import { DEBUG } from './utils/constants';
-import { ExtensionContext } from 'vscode';
+import { ExtensionContext, window } from 'vscode';
 
-export function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext): void {
   try {
     // Configure first
     configuration.configure(context);
@@ -12,7 +12,7 @@ export function activate(context: ExtensionContext) {
     logger.logInfo(`Starting Keeper Security for VS Code.`);
     logger.logInfo(`Extension Version: ${pckg.version}.`);
 
-    // Add more detailed diagnostic logging
+    // Set debug mode if debug setting is enabled or debug constant is enabled
     const debugSetting = configuration.get<boolean>(ConfigurationKey.DebugEnabled);
     const debugConstant = DEBUG;
 
@@ -28,11 +28,11 @@ export function activate(context: ExtensionContext) {
 
   } catch (error) {
     logger.logError("Failed to activate extension", error);
-    throw error;
+    window.showErrorMessage(`Keeper Security extension failed to activate: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
 }
 
-export function deactivate() {
+export function deactivate(): void {
   logger.logInfo("Keeper Security extension deactivated");
 }

@@ -23,14 +23,14 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
     }
 
     async execute(): Promise<void> {
-        logger.logDebug("GeneratePasswordHandler.execute called");
-        
-        if (!await this.canExecute()) {
-            logger.logDebug("GeneratePasswordHandler.execute: canExecute returned false, aborting");
-            return;
-        }
-
         try {
+            logger.logDebug("GeneratePasswordHandler.execute called");
+
+            if (!await this.canExecute()) {
+                logger.logDebug("GeneratePasswordHandler.execute: canExecute returned false, aborting");
+                return;
+            }
+
             // Get secret name from user
             logger.logDebug("GeneratePasswordHandler: Getting secret name from user");
             const recordName = await CommandUtils.getSecretNameFromUser(COMMANDS.GENERATE_PASSWORD);
@@ -55,7 +55,6 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
             }
             logger.logDebug(`GeneratePasswordHandler: Password generated successfully, length: ${password.length}`);
 
-            let recordUid: string;
             const currentStorage = this.storageManager.getCurrentStorage();
 
             const args = [
@@ -70,7 +69,7 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
             }
 
             logger.logDebug(`GeneratePasswordHandler: Executing record-add command with ${args.length} arguments`);
-            recordUid = await this.cliService.executeCommanderCommand('record-add', args);
+            const recordUid = await this.cliService.executeCommanderCommand('record-add', args);
             logger.logDebug(`GeneratePasswordHandler: Record created successfully with UID length: ${recordUid?.length || 0}`);
 
             // Create a Keeper Notation reference for the password
@@ -91,9 +90,9 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
             }
 
             window.showInformationMessage(`Password generated and saved to keeper vault at "${currentStorage?.name}" folder successfully!`);
-        } catch (error: any) {
-            logger.logError(`GeneratePasswordHandler.execute failed: ${error.message}`, error);
-            window.showErrorMessage(`Failed to generate password: ${error.message}`);
+        } catch (error: unknown) {
+            logger.logError(`GeneratePasswordHandler.execute failed: ${error instanceof Error ? error.message : 'Unknown error'}`, error);
+            window.showErrorMessage(`Failed to generate password: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             this.spinner.hide();
         }

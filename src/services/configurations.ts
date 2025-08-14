@@ -40,7 +40,7 @@ class Configuration {
 		return value;
 	}
 
-    public set(section: ConfigurationKey | string, value: any): Thenable<void> {
+    public set(section: ConfigurationKey | string, value: unknown): Thenable<void> {
 		logger.logDebug(`Setting configuration value for ${section}: ${value}`);
 		return workspace.getConfiguration(CONFIG_NAMESPACE).update(section, value);
 	}

@@ -24,14 +24,9 @@ export class SaveValueHandler extends BaseCommandHandler {
     }
 
     async execute(secretValue?: string, range?: Range, documentUri?: Uri): Promise<void> {
-        logger.logDebug(`SaveValueHandler.execute called - hasSecretValue: ${!!secretValue}, hasRange: ${!!range}, hasUri: ${!!documentUri}`);
-        
-        if (!await this.canExecute()) {
-            logger.logDebug("SaveValueHandler.execute: canExecute returned false, aborting");
-            return;
-        }
-
         try {
+            logger.logDebug(`SaveValueHandler.execute called - hasSecretValue: ${!!secretValue}, hasRange: ${!!range}, hasUri: ${!!documentUri}`);
+
             let selectedText: string | undefined;
             let editor = window.activeTextEditor;
 
@@ -44,7 +39,7 @@ export class SaveValueHandler extends BaseCommandHandler {
                     const document = await workspace.openTextDocument(documentUri);
                     editor = await window.showTextDocument(document);
                 }
-                
+
                 // Set the selection to the detected range
                 if (editor) {
                     editor.selection = new Selection(range.start, range.end);
@@ -61,9 +56,17 @@ export class SaveValueHandler extends BaseCommandHandler {
                 logger.logDebug(`SaveValueHandler: Selected text length: ${selectedText.length}`);
             }
 
+            // Trim the selected text
+            selectedText = selectedText?.trim();
+
             // Validate that we have text to save
             if (!selectedText) {
-                window.showErrorMessage("No secret value found to save.");
+                window.showErrorMessage("No value found to save.");
+                return;
+            }
+
+            if (!await this.canExecute()) {
+                logger.logDebug("SaveValueHandler.execute: canExecute returned false, aborting");
                 return;
             }
 
@@ -81,7 +84,6 @@ export class SaveValueHandler extends BaseCommandHandler {
 
             this.spinner.show("Saving secret to keeper vault...");
 
-            let recordUid: string;
             const currentStorage = this.storageManager.getCurrentStorage();
 
             /**
@@ -95,7 +97,7 @@ export class SaveValueHandler extends BaseCommandHandler {
 
             const args = [
                 `--title="${recordName}"`,
-               `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
+                `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
                 `"c.${CommandUtils.getFieldType(recordFieldName)}.${recordFieldName}"="${selectedText}"`
             ];
 
@@ -105,7 +107,7 @@ export class SaveValueHandler extends BaseCommandHandler {
             }
 
             logger.logDebug(`SaveValueHandler: Executing record-add command with ${args.length} arguments`);
-            recordUid = await this.cliService.executeCommanderCommand('record-add', args);
+            const recordUid = await this.cliService.executeCommanderCommand('record-add', args);
             logger.logDebug(`SaveValueHandler: Record created successfully with UID length: ${recordUid?.length || 0}`);
 
             // Create a Keeper Notation reference for the secret
@@ -129,9 +131,9 @@ export class SaveValueHandler extends BaseCommandHandler {
             }
 
             window.showInformationMessage(`Secret saved to keeper vault at "${currentStorage?.name}" folder successfully!`);
-        } catch (error: any) {
-            logger.logError(`SaveValueHandler.execute failed: ${error.message}`, error);
-            window.showErrorMessage(`Failed to save secret: ${error.message}`);
+        } catch (error: unknown) {
+            logger.logError(`SaveValueHandler.execute failed: ${error instanceof Error ? error.message : 'Unknown error'}`, error);
+            window.showErrorMessage(`Failed to save secret: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             this.spinner.hide();
         }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { commands, ExtensionContext } from "vscode";
 import { COMMANDS } from "../utils/constants";
 import { CliService } from "../services/cli";

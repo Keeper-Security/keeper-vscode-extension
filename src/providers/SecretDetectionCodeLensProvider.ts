@@ -14,7 +14,7 @@ export class SecretDetectionCodeLensProvider implements vscode.CodeLensProvider 
         this._onDidChangeCodeLenses.fire();
     }
 
-    public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+    public provideCodeLenses(document: vscode.TextDocument): vscode.ProviderResult<vscode.CodeLens[]> {
         const codeLenses: vscode.CodeLens[] = [];
         
         try {

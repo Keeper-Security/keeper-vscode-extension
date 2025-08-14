@@ -20,7 +20,7 @@ export default [{
             format: ["camelCase", "PascalCase"],
         }],
 
-        // Core ESLint rules (not TypeScript-specific)
+        // Core ESLint rules
         curly: "warn",
         eqeqeq: "warn",
         "no-throw-literal": "warn",
@@ -29,9 +29,11 @@ export default [{
         "no-unused-vars": "error",         
         
         // TypeScript-specific rules
-        "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
         "@typescript-eslint/no-explicit-any": "error",              
-        "@typescript-eslint/explicit-function-return-type": "warn",                                
+        "@typescript-eslint/explicit-function-return-type": "warn",     
+        "@typescript-eslint/no-unused-vars": ["warn", { 
+            args: "none",
+        }],               
         "@typescript-eslint/no-non-null-assertion": "warn",      
         
         // Code quality rules

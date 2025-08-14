@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { KEEPER_NOTATION_FIELD_TYPES } from "../../utils/constants";
 import { logger } from "../../utils/logger";
 

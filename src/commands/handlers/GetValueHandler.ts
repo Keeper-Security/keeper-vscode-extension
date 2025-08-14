@@ -4,32 +4,32 @@ import { KEEPER_NOTATION_FIELD_TYPES } from "../../utils/constants";
 import { createKeeperReference } from "../../utils/helper";
 import { logger } from "../../utils/logger";
 import { COMMANDS } from "../../utils/constants";
-import { IField } from "../../types";
+import { ICliListCommandResponse, IField } from "../../types";
 
 export class GetValueHandler extends BaseCommandHandler {
     async execute(): Promise<void> {
-        logger.logDebug("GetValueHandler.execute called");
-        
-        if (!await this.canExecute()) {
-            logger.logDebug("GetValueHandler.execute: canExecute returned false, aborting");
-            return;
-        }
-
         try {
+            logger.logDebug("GetValueHandler.execute called");
+
+            if (!await this.canExecute()) {
+                logger.logDebug("GetValueHandler.execute: canExecute returned false, aborting");
+                return;
+            }
+
             logger.logDebug("GetValueHandler: Showing spinner for secret retrieval");
             this.spinner.show("Retrieving secrets...");
 
             // List available records
             logger.logDebug("GetValueHandler: Executing list command to get available records");
             const records = await this.cliService.executeCommanderCommand('list', ['--format=json']);
-            const recordsList = JSON.parse(records);
+            const recordsList: ICliListCommandResponse[] = JSON.parse(records);
             logger.logDebug(`GetValueHandler: Retrieved ${recordsList.length} records from vault`);
 
             this.spinner.hide();
 
             // Show picker for available records
-            const selectedRecord: any = await window.showQuickPick(
-                recordsList.map((r: any) => ({ label: r.title, value: r["record_uid"] })),
+            const selectedRecord = await window.showQuickPick(
+                recordsList.map((record) => ({ label: record.title, value: record["record_uid"] })),
                 { title: 'Available records from Keeper Vault', placeHolder: 'Select a record', ignoreFocusOut: true }
             );
 
@@ -81,9 +81,9 @@ export class GetValueHandler extends BaseCommandHandler {
             }
 
             window.showInformationMessage(`Reference of "${selectedField.label}" field of secret "${selectedRecord.label}" retrieved successfully!`);
-        } catch (error: any) {
-            logger.logError(`GetValueHandler.execute failed: ${error.message}`, error);
-            window.showErrorMessage(`Failed to get value: ${error.message}`);
+        } catch (error: unknown) {
+            logger.logError(`GetValueHandler.execute failed: ${error instanceof Error ? error.message : 'Unknown error'}`, error);
+            window.showErrorMessage(`Failed to get value: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             this.spinner.hide();
         }

@@ -13,7 +13,7 @@ export function validateKeeperReference(reference: string): boolean {
 
 export function createKeeperReference(recordUid: string, fieldType: KEEPER_NOTATION_FIELD_TYPES, itemName: string): string | null {
     logger.logDebug(`Creating keeper reference - recordUid: ${recordUid}, fieldType: ${fieldType}, itemName: ${itemName}`);
-    
+
     if (!recordUid) {
         logger.logError("recordUid is required to create a keeper reference");
         return null;
@@ -44,7 +44,7 @@ export function promisifyExec(fn: Function): (...args: any[]) => Promise<{ stdou
 
 export function parseKeeperReference(reference: string): { recordUid: string, fieldType: KEEPER_NOTATION_FIELD_TYPES, itemName: string } | null {
     logger.logDebug(`Parsing keeper reference: ${reference}`);
-    
+
     // Check if the reference is vaild keeper notation
     if (!validateKeeperReference(reference)) {
         logger.logError(`Invalid keeper notation reference: ${reference}`);
@@ -115,7 +115,7 @@ export function resolveFolderPaths(folders: IVaultFolder[]): IFolder[] {
 
         while (currentParentUid !== "/") {
             const parent = folderMap.get(currentParentUid);
-            if (!parent) {break;}
+            if (!parent) { break; }
             pathParts.unshift(parent.name);
             currentParentUid = parent.parent_uid;
         }
@@ -129,12 +129,22 @@ export function resolveFolderPaths(folders: IVaultFolder[]): IFolder[] {
             folderPath: pathParts.join(" / ")
         };
     });
-    
+
     logger.logDebug(`Resolved paths for ${result.length} folders`);
     return result;
 }
 
 export const documentMatcher =
-    (document: TextDocument) => (ids: string[], exts: string[]) =>
+    (document: TextDocument): ((ids: string[], exts: string[]) => boolean) => (ids: string[], exts: string[]) =>
         ids.includes(document.languageId) ||
         exts.some((ext) => document.fileName.endsWith(`.${ext}`));
+
+/**
+* Check if a file is an environment file using dynamic patterns
+*/
+export const isEnvironmentFile = (filename: string): boolean => {
+    const lowerFilename = filename.toLowerCase();
+
+    // Single regex for all .env variants
+    return /^\.?env(?:\.|$|\.(?:[a-zA-Z0-9_-]+))?$/.test(lowerFilename);
+}

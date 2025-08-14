@@ -1,6 +1,6 @@
 import { window, workspace } from "vscode";
 import { KEEPER_NOTATION_FIELD_TYPES } from "../../utils/constants";
-import { parseKeeperReference, validateKeeperReference } from "../../utils/helper";
+import { isEnvironmentFile, parseKeeperReference, validateKeeperReference } from "../../utils/helper";
 import { logger } from "../../utils/logger";
 import fs from 'fs';
 import path from 'path';
@@ -44,9 +44,9 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
             window.showInformationMessage(`Command started with secrets injected`);
 
-        } catch (error: any) {
-            logger.logError(`RunSecurelyHandler.execute failed: ${error.message}`, error);
-            window.showErrorMessage(`Failed to run securely: ${error.message}`);
+        } catch (error: unknown) {
+            logger.logError(`RunSecurelyHandler.execute failed: ${error instanceof Error ? error.message : 'Unknown error'}`, error);
+            window.showErrorMessage(`Failed to run securely: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             this.spinner.hide();
         }
@@ -79,7 +79,11 @@ export class RunSecurelyHandler extends BaseCommandHandler {
             throw new Error('No workspace selected');
         }
 
-        const selectedWorkspace = workspaceFolders.find(folder => folder.name === selected)!;
+        const selectedWorkspace = workspaceFolders.find(folder => folder.name === selected);
+        if (!selectedWorkspace) {
+            logger.logDebug("RunSecurelyHandler.selectWorkspace: User selected workspace not found");
+            throw new Error('Workspace not found');
+        }
         logger.logDebug(`RunSecurelyHandler.selectWorkspace: User selected workspace - name length: ${selectedWorkspace.name?.length || 0}`);
         return selectedWorkspace.uri.fsPath;
     }
@@ -157,7 +161,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     /**
      * Group Keeper references by recordUid for batch processing
      */
-    private groupKeeperReferences(envConfig: any): Map<string, Array<{
+    private groupKeeperReferences(envConfig: Record<string, string>): Map<string, Array<{
         key: string;
         fieldType: KEEPER_NOTATION_FIELD_TYPES;
         itemName: string;
@@ -181,7 +185,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
                 if (!recordGroups.has(recordUid)) {
                     recordGroups.set(recordUid, []);
                 }
-                recordGroups.get(recordUid)!.push({ key, fieldType, itemName });
+                recordGroups.get(recordUid)?.push({ key, fieldType, itemName });
             }
         }
 
@@ -212,7 +216,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
                         resolvedEnv[key] = `keeper://${recordUid}/${fieldType}/${itemName}`;
                     }
                 });
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.logError(`Failed to fetch record ${recordUid}:`, error);
                 references.forEach(({ key }) => {
                     resolvedEnv[key] = `keeper://${recordUid}/error/failed_to_fetch`;
@@ -255,11 +259,11 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
             for (const item of items) {
                 const fullPath = path.join(workspaceRoot, item);
-                const stat = fs.statSync(fullPath);
+                const stat = fs.statSync(fullPath); 
 
                 if (stat.isFile()) {
                     // Check if this file matches environment file patterns
-                    if (this.isEnvironmentFile(item)) {
+                    if (isEnvironmentFile(item)) {
                         foundFiles.push(fullPath);
                     }
                 }
@@ -269,20 +273,10 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
             return foundFiles;
 
-        } catch (error) {
+        } catch (error: unknown) {
             logger.logError(`Failed to find environment files: ${error}`);
             return [];
         }
 
-    }
-
-    /**
-     * Check if a file is an environment file using dynamic patterns
-     */
-    private isEnvironmentFile(filename: string): boolean {
-        const lowerFilename = filename.toLowerCase();
-        
-        // Single regex for all .env variants
-        return /^\.?env(?:\.|$|\.(?:[a-zA-Z0-9_-]+))?$/.test(lowerFilename);
     }
 } 

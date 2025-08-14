@@ -58,6 +58,7 @@ export class CliService {
     private shellReady = false;
     private shellReadyPromise: Promise<void> | null = null;
 
+    // @ts-ignore
     public constructor(private context: ExtensionContext, private spinner: StatusBarSpinner) { }
 
     // Lazy initialization method
@@ -121,8 +122,8 @@ export class CliService {
             logger.logInfo(`Keeper Commander CLI Installed: YES`);
 
             return isInstalled;
-        } catch (error: any) {
-            logger.logError("Keeper Commander CLI Installation check failed:", error.message || error);
+        } catch (error: unknown) {
+            logger.logError("Keeper Commander CLI Installation check failed:", error instanceof Error ? error.message : 'Unknown error');
             return false;
         }
     }
@@ -164,8 +165,8 @@ export class CliService {
             logger.logInfo('Keeper Commander CLI Authenticated: NO');
             return false;
 
-        } catch (error: any) { 
-            logger.logError("Keeper Commander CLI Authentication check failed:", error?.message || error);
+        } catch (error: unknown) { 
+            logger.logError("Keeper Commander CLI Authentication check failed:", error instanceof Error ? error.message : 'Unknown error');
             return false;
         }
     }
@@ -271,7 +272,7 @@ export class CliService {
             });
 
             // TEMP listeners: consume startup noise only for readiness detection
-            const onStdoutStartup = (chunk: Buffer) => {
+            const onStdoutStartup = (chunk: Buffer): void => {
                 const data = chunk.toString();
                 if (data.includes('My Vault>') || data.includes('$')) {
                     this.persistentProcess?.stdout?.off('data', onStdoutStartup);
@@ -291,7 +292,7 @@ export class CliService {
             // readiness promise with timeout
             this.shellReadyPromise = new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => reject(new Error('Shell ready timeout')), 60000);
-                const onReady = (chunk: Buffer) => {
+                const onReady = (chunk: Buffer): void => {
                     const data = chunk.toString();
                     if (data.includes('My Vault>') || data.includes('$')) {
                         clearTimeout(timeout);
@@ -311,31 +312,18 @@ export class CliService {
         }
     }
 
-    private async waitForShellReady(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Shell ready timeout'));
-            }, 60000);
-
-            const onData = (data: string) => {
-                if (data.includes('My Vault>') || data.includes('$')) {
-                    clearTimeout(timeout);
-                    this.processEmitter.removeListener('stdout', onData);
-                    resolve();
-                }
-            };
-
-            this.processEmitter.on('stdout', onData);
-        });
-    }
-
     private async processNextCommand(): Promise<void> {
         if (this.isProcessing || this.commandQueue.length === 0) {
             return;
         }
 
         this.isProcessing = true;
-        const { id, command, args, resolve, reject } = this.commandQueue.shift()!;
+        const commandItem = this.commandQueue.shift();
+        if (!commandItem) {
+            return;
+        }
+
+        const { command, args, resolve, reject } = commandItem;
 
         try {
             const result = await this.executeCommandInProcess(command, args);
@@ -352,13 +340,13 @@ export class CliService {
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error('Command execution timeout'));
-            }, 30000);
+            }, 60000);
 
             let output = '';
             let errorOutput = '';
             let biometricPromptHandled = false;
 
-            const onStdout = (data: string) => {
+            const onStdout = (data: string): void => {
                 const dataStr = data.toString();
 
                 // Handle biometric prompt
@@ -379,19 +367,79 @@ export class CliService {
                     }
                 }
 
+                // Check for "Not logged in" error
+                if (dataStr.includes('Not logged in')) {
+                    logger.logError("Keeper shell session expired - user not logged in");
+                    cleanup();
+                    
+                    // Reset authentication state and persistent process
+                    this.isAuthenticated = false;
+                    this.usePersistentProcess = false;
+                    this.isInitialized = false;
+                    
+                    // Kill the expired process
+                    if (this.persistentProcess) {
+                        this.persistentProcess.kill();
+                        this.persistentProcess = null;
+                    }
+                    
+                    // Clear command queue
+                    this.commandQueue.forEach(({ reject }) => {
+                        reject(new Error('Authentication expired'));
+                    });
+                    this.commandQueue = [];
+                    this.isProcessing = false;
+                    
+                    // Show authentication error to user
+                    this.promptManualAuthenticationError();
+                    
+                    reject(new Error('Authentication expired. Please log in again.'));
+                    return;
+                }
+
                 // Add to output if not biometric prompt
                 if (!dataStr.includes('Press Ctrl+C to skip biometric')) {
                     output += dataStr;
                 }
             };
 
-            const onStderr = (data: string) => {
+            const onStderr = (data: string): void => {
                 const dataStr = data.toString();
+                // Check for "Not logged in" in stderr as well
+                if (dataStr.includes('Not logged in')) {
+                    logger.logError("Keeper shell session expired - user not logged in (stderr)");
+                    cleanup();
+                    
+                    // Reset authentication state and persistent process
+                    this.isAuthenticated = false;
+                    this.usePersistentProcess = false;
+                    this.isInitialized = false;
+                    
+                    // Kill the expired process
+                    if (this.persistentProcess) {
+                        this.persistentProcess.kill();
+                        this.persistentProcess = null;
+                    }
+                    
+                    // Clear command queue
+                    this.commandQueue.forEach(({ reject }) => {
+                        reject(new Error('Authentication expired'));
+                    });
+                    this.commandQueue = [];
+                    this.isProcessing = false;
+                    
+                    // Show authentication error to user
+                    this.promptManualAuthenticationError();
+                    
+                    reject(new Error('Authentication expired. Please log in again.'));
+                    return;
+                }
+                
                 // accumulate; will be cleaned at the end
                 errorOutput += dataStr;
             };
 
-            const cleanup = () => {
+            const cleanup = (): void => {
                 clearTimeout(timeout);
                 this.processEmitter.removeListener('stdout', onStdout);
                 this.processEmitter.removeListener('stderr', onStderr);
@@ -404,7 +452,7 @@ export class CliService {
             this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
 
             // Wait for command completion
-            const checkCompletion = () => {
+            const checkCompletion = (): void => {
                 if (output.includes('My Vault>') || output.includes('$')) {
                     cleanup();
 

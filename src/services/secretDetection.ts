@@ -1,6 +1,6 @@
-import { ExtensionContext, Disposable, workspace, languages, TextDocument, CodeLens } from 'vscode';
+import { ExtensionContext, Disposable, workspace, languages, TextDocument } from 'vscode';
 import { logger } from '../utils/logger';
-import { documentMatcher } from '../utils/helper';
+import { documentMatcher, isEnvironmentFile } from '../utils/helper';
 import { Parser } from '../secret-detection/parser/parser';
 import JsonConfigParser from '../secret-detection/parser/jsonConfig';
 import DotEnvParser from '../secret-detection/parser/dotEnv';
@@ -8,11 +8,13 @@ import YamlConfigParser from '../secret-detection/parser/yamlConfig';
 import CodeParser from '../secret-detection/parser/codeParser';
 import { SecretDetectionCodeLensProvider } from '../providers/secretDetectionCodeLensProvider';
 import { configuration, ConfigurationKey } from './configurations';
+import path from 'path';
 
 export class SecretDetectionService {
     private subscriptions: Disposable[] = [];
     private codeLensProvider!: SecretDetectionCodeLensProvider;
 
+     // @ts-ignore
     public constructor(private context: ExtensionContext) {
         logger.logDebug("Initializing SecretDetectionService");
         this.initialize();
@@ -24,7 +26,7 @@ export class SecretDetectionService {
     private initialize(): void {
         logger.logDebug("Starting secret detection initialization");
         // Clean up existing subscriptions
-        for(const subscription of this.subscriptions) {
+        for (const subscription of this.subscriptions) {
             subscription.dispose();
         }
 
@@ -59,32 +61,32 @@ export class SecretDetectionService {
         return (document: TextDocument): Parser | null => {
             const matchDocument = documentMatcher(document);
             logger.logDebug(`Creating parser for document: ${document.fileName}`);
-            
+
             // Environment files
-            if (matchDocument(['plaintext'], ['env', 'env.local', 'env.production'])) {
+            if (isEnvironmentFile(path.basename(document.fileName))) {
                 logger.logDebug("Using DotEnv parser");
                 return new DotEnvParser(document);
             }
-            
+
             // JSON configuration files
             if (matchDocument(['json'], ['json'])) {
                 logger.logDebug("Using JsonConfig parser");
                 return new JsonConfigParser(document);
             }
-            
+
             // YAML configuration files
             if (matchDocument(['yaml'], ['yml', 'yaml'])) {
                 logger.logDebug("Using YamlConfig parser");
                 return new YamlConfigParser(document);
             }
-            
+
             // Code files
-            if (matchDocument(['javascript', 'typescript', 'python', 'go', 'java', 'csharp', 'php', 'ruby'], 
-                             ['js', 'ts', 'jsx', 'tsx', 'py', 'go', 'java', 'cs', 'php', 'rb'])) {
+            if (matchDocument(['javascript', 'typescript', 'python', 'go', 'java', 'csharp', 'php', 'ruby'],
+                ['js', 'ts', 'jsx', 'tsx', 'py', 'go', 'java', 'cs', 'php', 'rb'])) {
                 logger.logDebug("Using Code parser");
                 return new CodeParser(document);
             }
-            
+
             logger.logDebug("No suitable parser found for document type");
             return null; // No parser for this file type
         };
@@ -92,7 +94,7 @@ export class SecretDetectionService {
 
     public dispose(): void {
         logger.logDebug("Disposing SecretDetectionService");
-        for(const subscription of this.subscriptions) {
+        for (const subscription of this.subscriptions) {
             subscription.dispose();
         }
         logger.logDebug("SecretDetectionService disposal completed");

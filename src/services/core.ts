@@ -8,10 +8,8 @@ import { logger } from "../utils/logger";
 
 export class Core {
     private cliService!: CliService;
-    private commandService!: CommandService;
     private spinner: StatusBarSpinner;
     private storageManager!: StorageManager;
-    private secretDetectionService!: SecretDetectionService;
 
     public constructor(public context: ExtensionContext) {
         logger.logDebug("Initializing Core service");
@@ -27,14 +25,19 @@ export class Core {
 
     private initializeServices(): void {
         logger.logDebug("Starting service initialization");
+        
         this.cliService = new CliService(this.context, this.spinner);
         logger.logDebug("CLI service initialized");
+
         this.storageManager = new StorageManager(this.context, this.cliService, this.spinner);
         logger.logDebug("Storage manager initialized");
-        this.commandService = new CommandService(this.context, this.cliService, this.spinner, this.storageManager);
+
+        new CommandService(this.context, this.cliService, this.spinner, this.storageManager);
         logger.logDebug("Command service initialized");
-        this.secretDetectionService = new SecretDetectionService(this.context);
+
+        new SecretDetectionService(this.context);
         logger.logDebug("Secret detection service initialized");
+
         logger.logDebug("All services initialized successfully");
     }
 

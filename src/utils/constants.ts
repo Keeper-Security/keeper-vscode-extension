@@ -4,7 +4,7 @@ export const EXTENSION_NAME = "Keeper Security";
 export const EXTENSION_ID = "ks-vscode";
 export const CONFIG_NAMESPACE = "keeper-security";
 
-const makeCommand = (command: string) => `${EXTENSION_ID}.${command}`;
+const makeCommand = (command: string): string => `${EXTENSION_ID}.${command}`;
 
 export const COMMANDS = {
     AUTHENTICATE: makeCommand("authenticate"),
@@ -31,7 +31,7 @@ export const HELPER_MESSAGES = {
     OPEN_INSTALLATION_DOCS: "Open Installation Documentation",
     OPEN_AUTHENTICATION_DOCS: "Open Authentication Documentation",
     CLI_NOT_INSTALLED: "Keeper Commander CLI is not installed. Please install it first.",
-    CLI_NOT_AUTHENTICATED: "Keeper Commander CLI is not authenticated with persistent login or biometric authentication. Please authenticate first.",
+    CLI_NOT_AUTHENTICATED: "Keeper Commander CLI is not authenticated with persistent login or biometric authentication or Please try again.",
     CLI_READY: "Keeper Security Extension is ready to use!",
 } as const;
 

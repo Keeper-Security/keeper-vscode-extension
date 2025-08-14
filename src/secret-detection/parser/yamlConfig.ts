@@ -41,7 +41,7 @@ export default class YamlConfigParser extends Parser {
         // Parse YAML key-value pairs
         const keyValueMatch = this.parseYamlKeyValue(line);
         if (keyValueMatch) {
-            const { key, value, keyStart, valueStart, valueEnd } = keyValueMatch;
+            const { key, value, valueStart, valueEnd } = keyValueMatch;
             
             if (this.isSecret(key, value)) {
                 logger.logDebug(`YamlConfigParser: Secret detected at line ${lineIndex + 1} - key: ${key}, valueLength: ${value.length}`);

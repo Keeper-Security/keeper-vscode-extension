@@ -26,7 +26,7 @@ export default class JsonConfigParser extends Parser {
         logger.logDebug(`JsonConfigParser.parse completed for document: ${this.document.fileName}, found ${this.matches.length} secrets`);
     }
 
-    private findSecretsInObject(obj: any, path: string, lineOffset: number): void {
+    private findSecretsInObject(obj: Record<string, unknown>, path: string, lineOffset: number): void {
         logger.logDebug(`JsonConfigParser.findSecretsInObject: Processing path: ${path}, objectKeys: ${Object.keys(obj).length}`);
         
         for (const [key, value] of Object.entries(obj)) {
@@ -42,7 +42,7 @@ export default class JsonConfigParser extends Parser {
                     logger.logDebug(`JsonConfigParser: Failed to find range for path: ${currentPath}`);
                 }
             } else if (typeof value === 'object' && value !== null) {
-                this.findSecretsInObject(value, currentPath, lineOffset);
+                this.findSecretsInObject(value as Record<string, unknown>, currentPath, lineOffset);
             }
         }
     }

@@ -7,7 +7,7 @@ class Logger {
 
 	private logLevel: LogLevel = "INFO";
 
-	public setOutputLevel(logLevel: LogLevel) {
+	public setOutputLevel(logLevel: LogLevel): void {
 		this.logLevel = logLevel;
 	}
 
@@ -35,7 +35,7 @@ class Logger {
 		}
 	}
 
-	public logError(message: string, error?: unknown) {
+	public logError(message: string, error?: unknown): void {
 		if (this.logLevel === "NONE") {
 			return;
 		}
@@ -54,7 +54,7 @@ class Logger {
 		}
 	}
 
-	public show() {
+	public show(): void {
 		this.outputChannel.show();
 	}
 
