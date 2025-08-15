@@ -1,549 +1,613 @@
-import { env, ExtensionContext, Uri, window } from "vscode";
-import { logger } from "../utils/logger";
-import { promisifyExec, StatusBarSpinner } from "../utils/helper";
-import { exec, spawn, ChildProcess } from "child_process";
-import { EventEmitter } from "events";
-import { KEEPER_COMMANDER_DOCS_URLS } from "../utils/constants";
-import { HELPER_MESSAGES } from "../utils/constants";
+import { env, ExtensionContext, Uri, window } from 'vscode';
+import { logger } from '../utils/logger';
+import { promisifyExec, StatusBarSpinner } from '../utils/helper';
+import { exec, spawn, ChildProcess } from 'child_process';
+import { EventEmitter } from 'events';
+import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
+import { HELPER_MESSAGES } from '../utils/constants';
 
 const BENIGN_PATTERNS = [
-    /Logging in to Keeper Commander/i,
-    /Attempting biometric authentication/i,
-    /Successfully authenticated with Biometric Login/i,
-    /Press Ctrl\+C to skip biometric/i,
-    /and use default login method/i,
-    /Syncing\.\.\./i,
-    /Decrypted\s*\[\d+\]\s*record\(s\)/i,
-    /keeper shell/i,
-    /^\r$/ // stray carriage returns
+  /Logging in to Keeper Commander/i,
+  /Attempting biometric authentication/i,
+  /Successfully authenticated with Biometric Login/i,
+  /Press Ctrl\+C to skip biometric/i,
+  /and use default login method/i,
+  /Syncing\.\.\./i,
+  /Decrypted\s*\[\d+\]\s*record\(s\)/i,
+  /keeper shell/i,
+  /^\r$/, // stray carriage returns
 ];
 
 function cleanCommanderNoise(text: string): string {
-    if (!text) { return ''; }
-    let out = text;
-    for (const rx of BENIGN_PATTERNS) {
-        out = out.replace(new RegExp(rx.source + '.*?(\\n|$)', 'gim'), '');
-    }
-    return out.trim();
+  if (!text) {
+    return '';
+  }
+  let out = text;
+  for (const rx of BENIGN_PATTERNS) {
+    out = out.replace(new RegExp(rx.source + '.*?(\\n|$)', 'gim'), '');
+  }
+  return out.trim();
 }
 
 function isRealError(text: string): boolean {
-    const t = text.trim();
-    if (!t) { return false; }
-    // if only benign lines remain, treat as non-error
-    const cleaned = cleanCommanderNoise(t);
-    if (!cleaned) { return false; }
-    // conservative error keywords
-    return /(error|failed|exception|traceback)/i.test(cleaned);
+  const t = text.trim();
+  if (!t) {
+    return false;
+  }
+  // if only benign lines remain, treat as non-error
+  const cleaned = cleanCommanderNoise(t);
+  if (!cleaned) {
+    return false;
+  }
+  // conservative error keywords
+  return /(error|failed|exception|traceback)/i.test(cleaned);
 }
 
 export class CliService {
-    private isInstalled: boolean = false;
-    private isAuthenticated: boolean = false;
+  private isInstalled: boolean = false;
+  private isAuthenticated: boolean = false;
 
-    // Lazy initialization properties
-    private persistentProcess: ChildProcess | null = null;
-    private processEmitter = new EventEmitter();
-    private commandQueue: Array<{
-        id: string;
-        command: string;
-        args: string[];
-        resolve: (value: string) => void;
-        reject: (error: Error) => void;
-    }> = [];
-    private isProcessing = false;
-    private isInitialized = false; // Track if we've ever initialized
-    private usePersistentProcess = false; // Flag to switch to persistent mode
+  // Lazy initialization properties
+  private persistentProcess: ChildProcess | null = null;
+  private processEmitter = new EventEmitter();
+  private commandQueue: Array<{
+    id: string;
+    command: string;
+    args: string[];
+    resolve: (value: string) => void;
+    reject: (error: Error) => void;
+  }> = [];
+  private isProcessing = false;
+  private isInitialized = false; // Track if we've ever initialized
+  private usePersistentProcess = false; // Flag to switch to persistent mode
 
-    private shellReady = false;
-    private shellReadyPromise: Promise<void> | null = null;
+  private shellReady = false;
+  private shellReadyPromise: Promise<void> | null = null;
 
+
+  public constructor(
     // @ts-ignore
-    public constructor(private context: ExtensionContext, private spinner: StatusBarSpinner) { }
+    private context: ExtensionContext,
+    private spinner: StatusBarSpinner
+  ) {}
 
-    // Lazy initialization method
-    private async lazyInitialize(): Promise<void> {
-        if (this.isInitialized) {
-            logger.logDebug("CliService.lazyInitialize: Already initialized, skipping");
-            return;
-        }
-
-        try {
-            logger.logDebug("CliService.lazyInitialize: Starting initialization");
-            this.spinner.show("Initializing Keeper Security Extension...");
-
-            // Check both installation and authentication concurrently
-            logger.logDebug("CliService.lazyInitialize: Checking commander installation and authentication");
-            const [isInstalled, isAuthenticated] = await Promise.all([
-                this.checkCommanderInstallation(),
-                this.checkCommanderAuth()
-            ]);
-
-            this.isInstalled = isInstalled;
-            this.isAuthenticated = isAuthenticated;
-            logger.logDebug(`CliService.lazyInitialize: Installation check: ${isInstalled}, Authentication check: ${isAuthenticated}`);
-
-            if (!isInstalled) {
-                logger.logError("Keeper Commander CLI is not installed");
-                this.spinner.hide();
-                await this.promptCommanderInstallationError();
-                return;
-            }
-
-            if (!isAuthenticated) {
-                logger.logError("Keeper Commander CLI is not authenticated");
-                this.spinner.hide();
-                await this.promptManualAuthenticationError();
-                return;
-            }
-
-            // After successful auth check, switch to persistent process mode
-            logger.logDebug("CliService.lazyInitialize: Switching to persistent process mode");
-            this.usePersistentProcess = true;
-            this.isInitialized = true;
-
-            logger.logInfo("Keeper Security Extension initialized successfully");
-
-        } catch (error) {
-            logger.logError("Failed to initialize Keeper Security Extension status", error);
-            this.isInstalled = false;
-            this.isAuthenticated = false;
-        } finally {
-            this.spinner.hide();
-        }
+  // Lazy initialization method
+  private async lazyInitialize(): Promise<void> {
+    if (this.isInitialized) {
+      logger.logDebug(
+        'CliService.lazyInitialize: Already initialized, skipping'
+      );
+      return;
     }
 
-    private async checkCommanderInstallation(): Promise<boolean> {
-        try {
-            // Use the legacy method for initial checks
-            const stdout = await this.executeCommanderCommandLegacy('--version');
+    try {
+      logger.logDebug('CliService.lazyInitialize: Starting initialization');
+      this.spinner.show('Initializing Keeper Security Extension...');
 
-            const isInstalled = stdout.includes('version');
-            logger.logInfo(`Keeper Commander CLI Installed: YES`);
+      // Check both installation and authentication concurrently
+      logger.logDebug(
+        'CliService.lazyInitialize: Checking commander installation and authentication'
+      );
+      const [isInstalled, isAuthenticated] = await Promise.all([
+        this.checkCommanderInstallation(),
+        this.checkCommanderAuth(),
+      ]);
 
-            return isInstalled;
-        } catch (error: unknown) {
-            logger.logError("Keeper Commander CLI Installation check failed:", error instanceof Error ? error.message : 'Unknown error');
-            return false;
-        }
+      this.isInstalled = isInstalled;
+      this.isAuthenticated = isAuthenticated;
+      logger.logDebug(
+        `CliService.lazyInitialize: Installation check: ${isInstalled}, Authentication check: ${isAuthenticated}`
+      );
+
+      if (!isInstalled) {
+        logger.logError('Keeper Commander CLI is not installed');
+        this.spinner.hide();
+        await this.promptCommanderInstallationError();
+        return;
+      }
+
+      if (!isAuthenticated) {
+        logger.logError('Keeper Commander CLI is not authenticated');
+        this.spinner.hide();
+        await this.promptManualAuthenticationError();
+        return;
+      }
+
+      // After successful auth check, switch to persistent process mode
+      logger.logDebug(
+        'CliService.lazyInitialize: Switching to persistent process mode'
+      );
+      this.usePersistentProcess = true;
+      this.isInitialized = true;
+
+      logger.logInfo('Keeper Security Extension initialized successfully');
+    } catch (error) {
+      logger.logError(
+        'Failed to initialize Keeper Security Extension status',
+        error
+      );
+      this.isInstalled = false;
+      this.isAuthenticated = false;
+    } finally {
+      this.spinner.hide();
     }
+  }
 
-    private async checkCommanderAuth(): Promise<boolean> {
-        /**
-         * TODO: IN FUTURE WE WILL NOT USE this-device command, WILL USE 'whoami' command instead
-         */
-        try {
-            // Create timeout promise
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Must be asking for interactive login')), 15000);
-            });
-            
-            // Create execution promise
-            const execPromise = this.executeCommanderCommandLegacyRaw('this-device');
-            
-            // Race between execution and timeout
-            const { stdout, stderr } = await Promise.race([execPromise, timeoutPromise]);
+  private async checkCommanderInstallation(): Promise<boolean> {
+    try {
+      // Use the legacy method for initial checks
+      const stdout = await this.executeCommanderCommandLegacy('--version');
 
-            const out = `${stdout}\n${stderr}`;
-            const persistentOn = /Persistent Login:\s*ON/i.test(out);
+      const isInstalled = stdout.includes('version');
+      logger.logInfo(`Keeper Commander CLI Installed: YES`);
 
-            const biometricHints = [
-                /Press Ctrl\+C to skip biometric/i,
-                /Attempting biometric authentication/i,
-                /Successfully authenticated with Biometric Login/i,
-                /Syncing\.\.\./i,
-                /Decrypted\s*\[\d+\]\s*record\(s\)/i
-            ];
-            const biometricDetected = biometricHints.some(rx => rx.test(out));
-
-            if (persistentOn || biometricDetected) {
-                const mode = persistentOn ? 'Persistent' : 'Biometric';
-                logger.logInfo(`Keeper Commander CLI Authenticated: YES (${mode})`);
-                return true;
-            }
-
-            logger.logInfo('Keeper Commander CLI Authenticated: NO');
-            return false;
-
-        } catch (error: unknown) { 
-            logger.logError("Keeper Commander CLI Authentication check failed:", error instanceof Error ? error.message : 'Unknown error');
-            return false;
-        }
+      return isInstalled;
+    } catch (error: unknown) {
+      logger.logError(
+        'Keeper Commander CLI Installation check failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
     }
+  }
 
-    // add a raw executor (no cleaning)
-    private async executeCommanderCommandLegacyRaw(
-        command: string,
-        args: string[] = []
-    ): Promise<{ stdout: string; stderr: string }> {
-        const fullCommand = `keeper ${command} ${args.join(' ')}`;
-        const { stdout, stderr } = await promisifyExec(exec)(fullCommand);
-        return { stdout: String(stdout || ''), stderr: String(stderr || '') };
-    }
-
-    // keep the cleaned version for normal use
-    private async executeCommanderCommandLegacy(command: string, args: string[] = []): Promise<string> {
-        try {
-            const { stdout, stderr } = await this.executeCommanderCommandLegacyRaw(command, args);
-            const cleanStdout = cleanCommanderNoise(stdout);
-            const cleanStderr = cleanCommanderNoise(stderr);
-            if (isRealError(cleanStderr)) { throw new Error(cleanStderr); }
-            return cleanStdout || stdout;
-        } catch (error) {
-            logger.logError(`Legacy commander command failed`, error);
-            throw error;
-        }
-    }
-
-    // Main command execution method with lazy initialization
-    public async executeCommanderCommand(command: string, args: string[] = []): Promise<string> {
-        logger.logDebug(`CliService.executeCommanderCommand called: ${command} with ${args.length} arguments`);
-        
-        if (!this.isInitialized) {
-            await this.lazyInitialize();
-        }
-
-        // If initialization failed or persistent process is disabled, use legacy method
-        if (!this.usePersistentProcess) {
-            logger.logInfo(`Using legacy mode for command: ${command}`);
-            return this.executeCommanderCommandLegacy(command, args);
-        }
-
-        // Use persistent process for subsequent commands
-        try {
-            return await this.executeCommanderCommandPersistent(command, args);
-        } catch (error) {
-            logger.logError(`Persistent process failed, falling back to legacy mode:`, error);
-            this.usePersistentProcess = false;
-            return this.executeCommanderCommandLegacy(command, args);
-        }
-    }
-
-    // Persistent process command execution
-    private async executeCommanderCommandPersistent(command: string, args: string[] = []): Promise<string> {
-        await this.ensurePersistentProcess();
-
-        return new Promise((resolve, reject) => {
-            const commandId = Math.random().toString(36).substr(2, 9);
-
-            this.commandQueue.push({
-                id: commandId,
-                command,
-                args,
-                resolve,
-                reject
-            });
-
-            this.processNextCommand();
-        });
-    }
-
-    // ensurePersistentProcess: await readiness even if process exists
-    private async ensurePersistentProcess(): Promise<void> {
-        if (!this.persistentProcess || this.persistentProcess.killed) {
-            await this.createPersistentProcess();
-        }
-        if (!this.shellReady && this.shellReadyPromise) {
-            await this.shellReadyPromise; // gate all commands until prompt
-        }
-    }
-
-    // createPersistentProcess: don't forward stdout/stderr until ready
-    private async createPersistentProcess(): Promise<void> {
-        try {
-            logger.logInfo("Creating persistent Keeper Commander process...");
-
-            this.shellReady = false;
-            this.shellReadyPromise = null;
-
-            this.persistentProcess = spawn('keeper', ['shell'], {
-                stdio: ['pipe', 'pipe', 'pipe'],
-                shell: false
-            });
-
-            this.persistentProcess.on('error', (error) => {
-                logger.logError('Persistent process error:', error);
-                this.handleProcessError();
-            });
-
-            this.persistentProcess.on('exit', (code) => {
-                logger.logInfo(`Persistent process exited with code: ${code}`);
-                this.handleProcessExit();
-            });
-
-            // TEMP listeners: consume startup noise only for readiness detection
-            const onStdoutStartup = (chunk: Buffer): void => {
-                const data = chunk.toString();
-                if (data.includes('My Vault>') || data.includes('$')) {
-                    this.persistentProcess?.stdout?.off('data', onStdoutStartup);
-                    // after ready, attach the real forwarders
-                    this.persistentProcess?.stdout?.on('data', (d) => {
-                        this.processEmitter.emit('stdout', d.toString());
-                    });
-                    this.persistentProcess?.stderr?.on('data', (d) => {
-                        this.processEmitter.emit('stderr', d.toString());
-                    });
-                    this.shellReady = true;
-                    // resolve shellReadyPromise if used
-                }
-            };
-            this.persistentProcess.stdout?.on('data', onStdoutStartup);
-
-            // readiness promise with timeout
-            this.shellReadyPromise = new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Shell ready timeout')), 60000);
-                const onReady = (chunk: Buffer): void => {
-                    const data = chunk.toString();
-                    if (data.includes('My Vault>') || data.includes('$')) {
-                        clearTimeout(timeout);
-                        this.persistentProcess?.stdout?.off('data', onReady);
-                        resolve();
-                    }
-                };
-                this.persistentProcess?.stdout?.on('data', onReady);
-            });
-
-            await this.shellReadyPromise;
-            logger.logInfo("Persistent Keeper Commander process ready");
-
-        } catch (error) {
-            logger.logError('Failed to create persistent process:', error);
-            throw error;
-        }
-    }
-
-    private async processNextCommand(): Promise<void> {
-        if (this.isProcessing || this.commandQueue.length === 0) {
-            return;
-        }
-
-        this.isProcessing = true;
-        const commandItem = this.commandQueue.shift();
-        if (!commandItem) {
-            return;
-        }
-
-        const { command, args, resolve, reject } = commandItem;
-
-        try {
-            const result = await this.executeCommandInProcess(command, args);
-            resolve(result);
-        } catch (error) {
-            reject(error as Error);
-        } finally {
-            this.isProcessing = false;
-            this.processNextCommand(); // Process next command
-        }
-    }
-
-    private async executeCommandInProcess(command: string, args: string[]): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Command execution timeout'));
-            }, 60000);
-
-            let output = '';
-            let errorOutput = '';
-            let biometricPromptHandled = false;
-
-            const onStdout = (data: string): void => {
-                const dataStr = data.toString();
-
-                // Handle biometric prompt
-                if (dataStr.includes('Press Ctrl+C to skip biometric')) {
-                    if (!biometricPromptHandled) {
-                        biometricPromptHandled = true;
-                        logger.logInfo("Biometric prompt detected, sending Ctrl+C to skip...");
-
-                        // Send Ctrl+C to skip biometric
-                        this.persistentProcess?.stdin?.write('\x03');
-
-                        // Wait and re-send command
-                        setTimeout(() => {
-                            this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
-                        }, 500);
-
-                        return;
-                    }
-                }
-
-                // Check for "Not logged in" error
-                if (dataStr.includes('Not logged in')) {
-                    logger.logError("Keeper shell session expired - user not logged in");
-                    cleanup();
-                    
-                    // Reset authentication state and persistent process
-                    this.isAuthenticated = false;
-                    this.usePersistentProcess = false;
-                    this.isInitialized = false;
-                    
-                    // Kill the expired process
-                    if (this.persistentProcess) {
-                        this.persistentProcess.kill();
-                        this.persistentProcess = null;
-                    }
-                    
-                    // Clear command queue
-                    this.commandQueue.forEach(({ reject }) => {
-                        reject(new Error('Authentication expired'));
-                    });
-                    this.commandQueue = [];
-                    this.isProcessing = false;
-                    
-                    // Show authentication error to user
-                    this.promptManualAuthenticationError();
-                    
-                    reject(new Error('Authentication expired. Please log in again.'));
-                    return;
-                }
-
-                // Add to output if not biometric prompt
-                if (!dataStr.includes('Press Ctrl+C to skip biometric')) {
-                    output += dataStr;
-                }
-            };
-
-            const onStderr = (data: string): void => {
-                const dataStr = data.toString();
-                // Check for "Not logged in" in stderr as well
-                if (dataStr.includes('Not logged in')) {
-                    logger.logError("Keeper shell session expired - user not logged in (stderr)");
-                    cleanup();
-                    
-                    // Reset authentication state and persistent process
-                    this.isAuthenticated = false;
-                    this.usePersistentProcess = false;
-                    this.isInitialized = false;
-                    
-                    // Kill the expired process
-                    if (this.persistentProcess) {
-                        this.persistentProcess.kill();
-                        this.persistentProcess = null;
-                    }
-                    
-                    // Clear command queue
-                    this.commandQueue.forEach(({ reject }) => {
-                        reject(new Error('Authentication expired'));
-                    });
-                    this.commandQueue = [];
-                    this.isProcessing = false;
-                    
-                    // Show authentication error to user
-                    this.promptManualAuthenticationError();
-                    
-                    reject(new Error('Authentication expired. Please log in again.'));
-                    return;
-                }
-                
-                // accumulate; will be cleaned at the end
-                errorOutput += dataStr;
-            };
-
-            const cleanup = (): void => {
-                clearTimeout(timeout);
-                this.processEmitter.removeListener('stdout', onStdout);
-                this.processEmitter.removeListener('stderr', onStderr);
-            };
-
-            this.processEmitter.on('stdout', onStdout);
-            this.processEmitter.on('stderr', onStderr);
-
-            // Send command to process
-            this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
-
-            // Wait for command completion
-            const checkCompletion = (): void => {
-                if (output.includes('My Vault>') || output.includes('$')) {
-                    cleanup();
-
-                    // remove prompt tail
-                    let combinedOut = output.replace(/My Vault>.*$/s, '').trim();
-
-                    // remove the echoed command
-                    const commandToRemove = `${command} ${args.join(' ')}`;
-                    combinedOut = combinedOut.replace(new RegExp(`${commandToRemove}\\s*`, 'g'), '');
-
-                    // clean benign noise from both streams
-                    const cleanOut = cleanCommanderNoise(combinedOut);
-                    const cleanErr = cleanCommanderNoise(errorOutput);
-
-                    if (isRealError(cleanErr)) {
-                        reject(new Error(cleanErr));
-                    } else {
-                        resolve(cleanOut || combinedOut);
-                    }
-                } else {
-                    setTimeout(checkCompletion, 100);
-                }
-            };
-
-            checkCompletion();
-        });
-    }
-
-    private handleProcessError(): void {
-        this.persistentProcess = null;
-        // Reject all pending commands
-        this.commandQueue.forEach(({ reject }) => {
-            reject(new Error('Process error occurred'));
-        });
-        this.commandQueue = [];
-        this.isProcessing = false;
-    }
-
-    private handleProcessExit(): void {
-        this.persistentProcess = null;
-        // Reject all pending commands
-        this.commandQueue.forEach(({ reject }) => {
-            reject(new Error('Process exited'));
-        });
-        this.commandQueue = [];
-        this.isProcessing = false;
-    }
-
-    private async promptCommanderInstallationError(): Promise<void> {
-        const action = await window.showErrorMessage(
-            HELPER_MESSAGES.CLI_NOT_INSTALLED,
-            HELPER_MESSAGES.OPEN_INSTALLATION_DOCS,
+  private async checkCommanderAuth(): Promise<boolean> {
+    /**
+     * TODO: IN FUTURE WE WILL NOT USE this-device command, WILL USE 'whoami' command instead
+     */
+    try {
+      // Create timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Must be asking for interactive login')),
+          15000
         );
+      });
 
-        if (action === HELPER_MESSAGES.OPEN_INSTALLATION_DOCS) {
-            const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.INSTALLATION);
-            env.openExternal(docsUrl);
-        }
-    }
+      // Create execution promise
+      const execPromise = this.executeCommanderCommandLegacyRaw('this-device');
 
-    private async promptManualAuthenticationError(): Promise<void> {
-        const action = await window.showErrorMessage(
-            HELPER_MESSAGES.CLI_NOT_AUTHENTICATED,
-            HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS
-        );
+      // Race between execution and timeout
+      const { stdout, stderr } = await Promise.race([
+        execPromise,
+        timeoutPromise,
+      ]);
 
-        if (action === HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS) {
-            const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.AUTHENTICATION);
-            env.openExternal(docsUrl);
-        }
-    }
+      const out = `${stdout}\n${stderr}`;
+      const persistentOn = /Persistent Login:\s*ON/i.test(out);
 
-    public async isCLIReady(): Promise<boolean> {
-        // Lazy initialize if not done yet
-        if (!this.isInitialized) {
-            await this.lazyInitialize();
-        }
+      const biometricHints = [
+        /Press Ctrl\+C to skip biometric/i,
+        /Attempting biometric authentication/i,
+        /Successfully authenticated with Biometric Login/i,
+        /Syncing\.\.\./i,
+        /Decrypted\s*\[\d+\]\s*record\(s\)/i,
+      ];
+      const biometricDetected = biometricHints.some((rx) => rx.test(out));
 
-        if (!this.isInstalled || !this.isAuthenticated) {
-            return false;
-        }
-
+      if (persistentOn || biometricDetected) {
+        const mode = persistentOn ? 'Persistent' : 'Biometric';
+        logger.logInfo(`Keeper Commander CLI Authenticated: YES (${mode})`);
         return true;
+      }
+
+      logger.logInfo('Keeper Commander CLI Authenticated: NO');
+      return false;
+    } catch (error: unknown) {
+      logger.logError(
+        'Keeper Commander CLI Authentication check failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  // add a raw executor (no cleaning)
+  private async executeCommanderCommandLegacyRaw(
+    command: string,
+    args: string[] = []
+  ): Promise<{ stdout: string; stderr: string }> {
+    const fullCommand = `keeper ${command} ${args.join(' ')}`;
+    const { stdout, stderr } = await promisifyExec(exec)(fullCommand);
+    return { stdout: String(stdout || ''), stderr: String(stderr || '') };
+  }
+
+  // keep the cleaned version for normal use
+  private async executeCommanderCommandLegacy(
+    command: string,
+    args: string[] = []
+  ): Promise<string> {
+    try {
+      const { stdout, stderr } = await this.executeCommanderCommandLegacyRaw(
+        command,
+        args
+      );
+      const cleanStdout = cleanCommanderNoise(stdout);
+      const cleanStderr = cleanCommanderNoise(stderr);
+      if (isRealError(cleanStderr)) {
+        throw new Error(cleanStderr);
+      }
+      return cleanStdout || stdout;
+    } catch (error) {
+      logger.logError(`Legacy commander command failed`, error);
+      throw error;
+    }
+  }
+
+  // Main command execution method with lazy initialization
+  public async executeCommanderCommand(
+    command: string,
+    args: string[] = []
+  ): Promise<string> {
+    logger.logDebug(
+      `CliService.executeCommanderCommand called: ${command} with ${args.length} arguments`
+    );
+
+    if (!this.isInitialized) {
+      await this.lazyInitialize();
     }
 
-    public dispose(): void {
-        if (this.persistentProcess) {
+    // If initialization failed or persistent process is disabled, use legacy method
+    if (!this.usePersistentProcess) {
+      logger.logInfo(`Using legacy mode for command: ${command}`);
+      return this.executeCommanderCommandLegacy(command, args);
+    }
+
+    // Use persistent process for subsequent commands
+    try {
+      return await this.executeCommanderCommandPersistent(command, args);
+    } catch (error) {
+      logger.logError(
+        `Persistent process failed, falling back to legacy mode:`,
+        error
+      );
+      this.usePersistentProcess = false;
+      return this.executeCommanderCommandLegacy(command, args);
+    }
+  }
+
+  // Persistent process command execution
+  private async executeCommanderCommandPersistent(
+    command: string,
+    args: string[] = []
+  ): Promise<string> {
+    await this.ensurePersistentProcess();
+
+    return new Promise((resolve, reject) => {
+      const commandId = Math.random().toString(36).substr(2, 9);
+
+      this.commandQueue.push({
+        id: commandId,
+        command,
+        args,
+        resolve,
+        reject,
+      });
+
+      this.processNextCommand();
+    });
+  }
+
+  // ensurePersistentProcess: await readiness even if process exists
+  private async ensurePersistentProcess(): Promise<void> {
+    if (!this.persistentProcess || this.persistentProcess.killed) {
+      await this.createPersistentProcess();
+    }
+    if (!this.shellReady && this.shellReadyPromise) {
+      await this.shellReadyPromise; // gate all commands until prompt
+    }
+  }
+
+  // createPersistentProcess: don't forward stdout/stderr until ready
+  private async createPersistentProcess(): Promise<void> {
+    try {
+      logger.logInfo('Creating persistent Keeper Commander process...');
+
+      this.shellReady = false;
+      this.shellReadyPromise = null;
+
+      this.persistentProcess = spawn('keeper', ['shell'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false,
+      });
+
+      this.persistentProcess.on('error', (error) => {
+        logger.logError('Persistent process error:', error);
+        this.handleProcessError();
+      });
+
+      this.persistentProcess.on('exit', (code) => {
+        logger.logInfo(`Persistent process exited with code: ${code}`);
+        this.handleProcessExit();
+      });
+
+      // TEMP listeners: consume startup noise only for readiness detection
+      const onStdoutStartup = (chunk: Buffer): void => {
+        const data = chunk.toString();
+        if (data.includes('My Vault>') || data.includes('$')) {
+          this.persistentProcess?.stdout?.off('data', onStdoutStartup);
+          // after ready, attach the real forwarders
+          this.persistentProcess?.stdout?.on('data', (d) => {
+            this.processEmitter.emit('stdout', d.toString());
+          });
+          this.persistentProcess?.stderr?.on('data', (d) => {
+            this.processEmitter.emit('stderr', d.toString());
+          });
+          this.shellReady = true;
+          // resolve shellReadyPromise if used
+        }
+      };
+      this.persistentProcess.stdout?.on('data', onStdoutStartup);
+
+      // readiness promise with timeout
+      this.shellReadyPromise = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error('Shell ready timeout')),
+          60000
+        );
+        const onReady = (chunk: Buffer): void => {
+          const data = chunk.toString();
+          if (data.includes('My Vault>') || data.includes('$')) {
+            clearTimeout(timeout);
+            this.persistentProcess?.stdout?.off('data', onReady);
+            resolve();
+          }
+        };
+        this.persistentProcess?.stdout?.on('data', onReady);
+      });
+
+      await this.shellReadyPromise;
+      logger.logInfo('Persistent Keeper Commander process ready');
+    } catch (error) {
+      logger.logError('Failed to create persistent process:', error);
+      throw error;
+    }
+  }
+
+  private async processNextCommand(): Promise<void> {
+    if (this.isProcessing || this.commandQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+    const commandItem = this.commandQueue.shift();
+    if (!commandItem) {
+      return;
+    }
+
+    const { command, args, resolve, reject } = commandItem;
+
+    try {
+      const result = await this.executeCommandInProcess(command, args);
+      resolve(result);
+    } catch (error) {
+      reject(error as Error);
+    } finally {
+      this.isProcessing = false;
+      this.processNextCommand(); // Process next command
+    }
+  }
+
+  private async executeCommandInProcess(
+    command: string,
+    args: string[]
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Command execution timeout'));
+      }, 60000);
+
+      let output = '';
+      let errorOutput = '';
+      let biometricPromptHandled = false;
+
+      const onStdout = (data: string): void => {
+        const dataStr = data.toString();
+
+        // Handle biometric prompt
+        if (dataStr.includes('Press Ctrl+C to skip biometric')) {
+          if (!biometricPromptHandled) {
+            biometricPromptHandled = true;
+            logger.logInfo(
+              'Biometric prompt detected, sending Ctrl+C to skip...'
+            );
+
+            // Send Ctrl+C to skip biometric
+            this.persistentProcess?.stdin?.write('\x03');
+
+            // Wait and re-send command
+            setTimeout(() => {
+              this.persistentProcess?.stdin?.write(
+                `${command} ${args.join(' ')}\n`
+              );
+            }, 500);
+
+            return;
+          }
+        }
+
+        // Check for "Not logged in" error
+        if (dataStr.includes('Not logged in')) {
+          logger.logError('Keeper shell session expired - user not logged in');
+          cleanup();
+
+          // Reset authentication state and persistent process
+          this.isAuthenticated = false;
+          this.usePersistentProcess = false;
+          this.isInitialized = false;
+
+          // Kill the expired process
+          if (this.persistentProcess) {
             this.persistentProcess.kill();
             this.persistentProcess = null;
+          }
+
+          // Clear command queue
+          this.commandQueue.forEach(({ reject }) => {
+            reject(new Error('Authentication expired'));
+          });
+          this.commandQueue = [];
+          this.isProcessing = false;
+
+          // Show authentication error to user
+          this.promptManualAuthenticationError();
+
+          reject(new Error('Authentication expired. Please log in again.'));
+          return;
         }
-        this.commandQueue = [];
-        this.isProcessing = false;
+
+        // Add to output if not biometric prompt
+        if (!dataStr.includes('Press Ctrl+C to skip biometric')) {
+          output += dataStr;
+        }
+      };
+
+      const onStderr = (data: string): void => {
+        const dataStr = data.toString();
+        // Check for "Not logged in" in stderr as well
+        if (dataStr.includes('Not logged in')) {
+          logger.logError(
+            'Keeper shell session expired - user not logged in (stderr)'
+          );
+          cleanup();
+
+          // Reset authentication state and persistent process
+          this.isAuthenticated = false;
+          this.usePersistentProcess = false;
+          this.isInitialized = false;
+
+          // Kill the expired process
+          if (this.persistentProcess) {
+            this.persistentProcess.kill();
+            this.persistentProcess = null;
+          }
+
+          // Clear command queue
+          this.commandQueue.forEach(({ reject }) => {
+            reject(new Error('Authentication expired'));
+          });
+          this.commandQueue = [];
+          this.isProcessing = false;
+
+          // Show authentication error to user
+          this.promptManualAuthenticationError();
+
+          reject(new Error('Authentication expired. Please log in again.'));
+          return;
+        }
+
+        // accumulate; will be cleaned at the end
+        errorOutput += dataStr;
+      };
+
+      const cleanup = (): void => {
+        clearTimeout(timeout);
+        this.processEmitter.removeListener('stdout', onStdout);
+        this.processEmitter.removeListener('stderr', onStderr);
+      };
+
+      this.processEmitter.on('stdout', onStdout);
+      this.processEmitter.on('stderr', onStderr);
+
+      // Send command to process
+      this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
+
+      // Wait for command completion
+      const checkCompletion = (): void => {
+        if (output.includes('My Vault>') || output.includes('$')) {
+          cleanup();
+
+          // remove prompt tail
+          let combinedOut = output.replace(/My Vault>.*$/s, '').trim();
+
+          // remove the echoed command
+          const commandToRemove = `${command} ${args.join(' ')}`;
+          combinedOut = combinedOut.replace(
+            new RegExp(`${commandToRemove}\\s*`, 'g'),
+            ''
+          );
+
+          // clean benign noise from both streams
+          const cleanOut = cleanCommanderNoise(combinedOut);
+          const cleanErr = cleanCommanderNoise(errorOutput);
+
+          if (isRealError(cleanErr)) {
+            reject(new Error(cleanErr));
+          } else {
+            resolve(cleanOut || combinedOut);
+          }
+        } else {
+          setTimeout(checkCompletion, 100);
+        }
+      };
+
+      checkCompletion();
+    });
+  }
+
+  private handleProcessError(): void {
+    this.persistentProcess = null;
+    // Reject all pending commands
+    this.commandQueue.forEach(({ reject }) => {
+      reject(new Error('Process error occurred'));
+    });
+    this.commandQueue = [];
+    this.isProcessing = false;
+  }
+
+  private handleProcessExit(): void {
+    this.persistentProcess = null;
+    // Reject all pending commands
+    this.commandQueue.forEach(({ reject }) => {
+      reject(new Error('Process exited'));
+    });
+    this.commandQueue = [];
+    this.isProcessing = false;
+  }
+
+  private async promptCommanderInstallationError(): Promise<void> {
+    const action = await window.showErrorMessage(
+      HELPER_MESSAGES.CLI_NOT_INSTALLED,
+      HELPER_MESSAGES.OPEN_INSTALLATION_DOCS
+    );
+
+    if (action === HELPER_MESSAGES.OPEN_INSTALLATION_DOCS) {
+      const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.INSTALLATION);
+      env.openExternal(docsUrl);
     }
+  }
+
+  private async promptManualAuthenticationError(): Promise<void> {
+    const action = await window.showErrorMessage(
+      HELPER_MESSAGES.CLI_NOT_AUTHENTICATED,
+      HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS
+    );
+
+    if (action === HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS) {
+      const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.AUTHENTICATION);
+      env.openExternal(docsUrl);
+    }
+  }
+
+  public async isCLIReady(): Promise<boolean> {
+    // Lazy initialize if not done yet
+    if (!this.isInitialized) {
+      await this.lazyInitialize();
+    }
+
+    if (!this.isInstalled || !this.isAuthenticated) {
+      return false;
+    }
+
+    return true;
+  }
+
+  public dispose(): void {
+    if (this.persistentProcess) {
+      this.persistentProcess.kill();
+      this.persistentProcess = null;
+    }
+    this.commandQueue = [];
+    this.isProcessing = false;
+  }
 }
