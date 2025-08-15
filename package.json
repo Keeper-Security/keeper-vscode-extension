@@ -1,29 +1,36 @@
 {
   "name": "ks-vscode",
   "displayName": "Keeper Security",
-  "description": "Keeper Security integration for VS Code",
+  "description": "Never commit secrets to your code again - secure them in Keeper vault",
   "version": "1.0.0",
   "license": "MIT",
   "publisher": "keeper-security",
+  "galleryBanner": {
+    "color": "#1a365d",
+    "theme": "dark"
+  },
   "icon": "keeper_logo.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/keeper-security/ks-vscode.git"
+    "url": "EDIT_GITHUB_URL_HERE"
+  },
+  "homepage": "EDIT_HOMEPAGE_URL_HERE",
+  "bugs": {
+    "url": "EDIT_GITHUB_ISSUES_URL_HERE"
   },
   "keywords": [
     "keeper",
     "security",
     "password",
-    "vscode"
+    "secrets",
+    "dotenv"
   ],
   "engines": {
-    "vscode": "^1.99.0",
-    "node": ">=18.0.0"
+    "vscode": "^1.99.0"
   },
   "categories": [
-    "Other",
-    "Snippets",
-    "Security"
+    "Security",
+    "Other"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -85,26 +92,18 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p tsconfig.test.json --outDir out",
-    "watch-tests": "tsc -p tsconfig.test.json -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "webpack": "webpack --mode production --devtool hidden-source-map",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "test": "vscode-test",
-    "test:unit": "jest",
-    "test:unit:watch": "jest --watch",
-    "test:unit:coverage": "jest --coverage",
-    "test:integration": "vscode-test",
-    "test:all": "npm run test:unit && npm run test:integration",
+    "pre-commit": "npm run lint && npm run test",
     "clean": "rm -rf dist out coverage",
-    "prepare": "husky install",
-    "pre-commit": "npm run lint && npm run test:unit",
-    "pre-push": "npm run test:all",
-    "package:vsix": "vsce package",
+    "vscode:prepublish": "npm run webpack",
+    "package": "vsce package",
     "publish:patch": "vsce publish patch",
     "publish:minor": "vsce publish minor",
     "publish:major": "vsce publish major"
@@ -119,10 +118,10 @@
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.25.1",
-    "husky": "^8.0.3",
+    "glob": "^11.0.3",
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0",
-    "lint-staged": "^15.5.2",
+    "mocha": "^11.7.1",
     "prettier": "^3.6.2",
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.2",
@@ -130,15 +129,6 @@
     "vsce": "^2.15.0",
     "webpack": "^5.99.7",
     "webpack-cli": "^6.0.1"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
   },
   "dependencies": {
     "dotenv": "^17.2.0"

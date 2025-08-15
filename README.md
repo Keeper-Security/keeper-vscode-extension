@@ -7,7 +7,6 @@
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
 - [Usage](#usage)
-- [Secret Reference Format](#secret-reference-format)
 - [Extension Settings](#extension-settings)
 - [Troubleshooting](#troubleshooting)
 - [Common Issues](#common-issues)
@@ -15,78 +14,65 @@
 
 ## Overview
 
-A comprehensive VS Code extension that integrates Keeper Security vault functionality
-directly into the development workflow. The extension provides secure secret management 
-capabilities including saving, retrieving, generating, and running commands with secrets from Keeper Security vault.
+A comprehensive VS Code extension that integrates Keeper Security vault functionality directly into the development workflow. The extension provides secure secret management capabilities including saving, retrieving, generating, and running commands with secrets from Keeper Security vault.
 
 The goal is to enable developers to manage secrets securely without leaving their development environment, while maintaining the highest security standards and providing seamless integration with existing Keeper Security infrastructure.
 
 ## Features
 
-- **Secret Management**: Save, retrieve, and generate secrets directly from VS Code
-- **Secret Detection**: Automatically detect potential secrets in .env file
-- **Secure Execution**: Run commands with secrets injected from Keeper Security
-- **Multiple Authentication Methods**: Base64, Token authentication
-- **Error Handling**: Graceful error handling with helpful messages
-- **CodeLens Integration**: Provide inline prompts for secret management
+- **Secret Management**: Save, retrieve, and generate secrets directly from VS Code using Keeper Security vault
+- **Advanced Secret Detection**: Automatically detect potential secrets across multiple file types:
+  - **Configuration Files**: .env, JSON, YAML files
+  - **Pattern Recognition**: API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more
+- **Secure Execution**: Run commands with secrets injected from Keeper vault
+- **Comprehensive Logging**: Built-in logging system with debug mode support
 
 ## Prerequisites
 
-- **Keeper Secrets Manager access** (See the [Quick Start Guide](https://docs.keeper.io/en/keeperpam/secrets-manager/quick-start-guide) for more details)
-  - Secrets Manager add-on enabled for your Keeper subscription
-  - Membership in a Role with the Secrets Manager enforcement policy enabled
-- A Keeper [Secrets Manager Application](https://docs.keeper.io/en/keeperpam/secrets-manager/about/terminology#application) with secrets shared to it 
-  - See the [Quick Start Guide](https://docs.keeper.io/en/keeperpam/secrets-manager/quick-start-guide#2.-create-an-application) for instructions on creating an Application
-- An initialized Keeper [Secrets Manager Configuration](https://docs.keeper.io/en/keeperpam/secrets-manager/about/secrets-manager-configuration)
-  - VS Code extension accepts Base64, Token format configurations
-
-- System Requirements
-  - **Node.js**: 18.0.0 or later
+- **Keeper Commander CLI**: Must be installed and authenticated on your system
+  - Download from [Keeper Commander Installation Guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup)
+  - Authenticate using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
+- **Keeper Security Account**: Active subscription with vault access
+- **System Requirements**:
   - **VS Code**: 1.99.0 or later
 
 ## Setup
 
 ### Install the extension
 
-From the VS Code Marketplace or GitHub install the latest version of the extension.
+From the VS Code Marketplace
 
+### Install Keeper Commander CLI
+
+1. Follow the [Keeper Commander Installation Guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup)
+2. Ensure the CLI is accessible from your system PATH
+3. Open terminal/command prompt and run `keeper login`
+4. Enter your Keeper Security credentials
+5. Verify installation with `keeper --version`
+
+### Authenticate with Keeper Commander CLI
+1. Open terminal/command prompt
+2. Run `keeper login` and enter your credentials
+3. Authenticate using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
+
+### Verify Extension Access
+1. Open VS Code Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Type `Keeper Security` to see all available commands
 
 ## Usage
-
-### Authentication
-
-The extension supports two authentication methods for connecting to Keeper Security:
-
-#### 1. Base64 Configuration Authentication
-
-This method uses a base64-encoded configuration string that contains your Keeper Security credentials.
-
-**Steps:**
-1. Open VS Code Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Type `Keeper Security: Authenticate` and select it
-3. Choose "base64" from the authentication method dropdown
-4. Enter your base64 configuration string
-
-#### 2. Token Authentication
-
-This method uses a one-time token for authentication.
-
-**Steps:**
-1. Open VS Code Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Type `Keeper Security: Authenticate` and select it
-3. Choose "token" from the authentication method dropdown
-4. Enter your one-time token
 
 ### Available Commands
 
 Once authenticated, you can access the following commands through the Command Palette:
 
-| Command | Description |
-|---------|-------------|
-| **Save in Keeper Security** | Save selected text as secret in vault saveValueToVault` |
-| **Get from Keeper Security** | Insert existing secrets from vault getValueFromVault` |
-| **Generate Password** | Generate and store secure passwords |
-| **Run Securely** | Execute commands with injected secrets |
+| Command | Description | Use Case |
+|---------|-------------|----------|
+| **Save in Keeper Security** | Save selected text as secret in vault | Replace hardcoded secrets with vault references |
+| **Get from Keeper Security** | Insert existing secrets from vault | Retrieve stored secrets without exposing values |
+| **Generate Password** | Generate and store secure passwords | Create new secure credentials |
+| **Run Securely** | Execute commands with injected secrets | Run applications with vault credentials |
+| **Choose Folder** | Select vault folder for storing secrets in there | To store secret in specific folder |
+| **Open Logs** | View extension activity logs | Debug and monitor extension operations |
 
 ### Command Details
 
@@ -97,24 +83,24 @@ Once authenticated, you can access the following commands through the Command Pa
     **Purpose**: Save selected text as a secret in Keeper Security vault and replace it with a reference.
 
     **Steps**:
-    1. Select text containing a secret (password, token, API key)
+    1. Select text containing a secret (password, token, API key, ...etc)
     2. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
     3. Type `Keeper Security: Save in Keeper Vault` and select it
     4. Extension will authenticate with Keeper Security (if needed)
-    5. Extension creates new item in Keeper vault
-    6. Selected text is replaced with secret reference (`keeper://...`)
-    7. User receives confirmation of successful save
+    5. Enter record / field name 
+    6. Extension creates new item in Keeper vault
+    7. Selected text is replaced with secret reference (`keeper://...`)
 
-    **Example**:
-    ```javascript
-    // Before: Selected text
-    const apiKey = "sk-1234567890abcdef";
+**Example**:
+```javascript
+// Before: Selected text
+const apiKey = "sk-1234567890abcdef";
 
-    // After: Replaced with reference
-    const apiKey = "keeper://vault/api-keys/openai";
-    ```
+// After: Replaced with reference
+const apiKey = "keeper://vault/api-keys/openai";
+```
 
-2. Detect Secrets Automatically
+2. **Automatic Secret Detection**
 
     **Purpose**: Automatically detect potential secrets in your code for easy identification and securing.
 
@@ -122,14 +108,12 @@ Once authenticated, you can access the following commands through the Command Pa
     - Extension scans files for known secret patterns
     - Provides CodeLens for detected secrets
     - CodeLens shows `Save in Keeper Security` option
-    - Different detection rules for `.env` files vs regular code files
-    - Click CodeLens to save detected secret
+    - Click CodeLens and follow prompts to save detected secret
+    - The secret reference will be automatically replaced with detected secret
 
-    **Example Detection Patterns**:
-    - API keys: `sk-`, `pk_`, `Bearer `, etc.
-    - Passwords: `password`, `passwd`, `pwd`
-    - Tokens: `token`, `secret`, `key`
-    - Environment variables: `API_KEY`, `SECRET_`, `PASSWORD`
+    **Supported File Types**:
+    - **Environment Files**: `.env`, `.env.*`
+    - **Configuration Files**: `config.json`, `package.json`, `docker-compose.yml`
 
 #### Retrieve Secrets from Keeper Vault
 
@@ -138,8 +122,8 @@ Once authenticated, you can access the following commands through the Command Pa
 **Steps**:
 1. Open Command Palette
 2. Type `Keeper Security: Get from Keeper Vault` and select it
-3. Extension shows list of available Keeper items
-4. Select specific item and field
+3. Extension shows list of available records
+4. Select specific `record` and then `field` that you want to use
 5. Extension inserts secret reference at cursor position
 
 **Reference Format**: `keeper://vault/item/field`
@@ -150,63 +134,62 @@ Once authenticated, you can access the following commands through the Command Pa
 const databasePassword = |
 
 // After selecting from vault
-const databasePassword = keeper://vault/database/production/password
+const databasePassword = keeper://record_id/field/password
 ```
 
 #### Generate New Random Password
 
-**Purpose**: Generate secure passwords and store them in Keeper Security without leaving VS Code.
+**Purpose**: Generate secure passwords and store them in Keeper Security vault.
 
 **Steps**:
 1. Open Command Palette
 2. Type `Keeper Security: Generate Password` and select it
-3. Provide name for new item (e.g., "Database Password", "API Key")
-4. Extension creates item in Keeper vault
-5. Extension inserts secret reference at cursor position
-
-**Generated Password Features**:
-- Cryptographically secure random generation
-- Configurable length and complexity
-- Automatic storage in Keeper vault
-- Reference format: `keeper://vault/generated/[item-name]`
+3. Enter `record` / `field` name
+4. Password reference is inserted at cursor position
 
 #### Run Commands Securely
 
-**Purpose**: Run commands with secrets injected from Keeper Security for secure application execution.
+**Purpose**: Run commands with secrets injected from Keeper Security vault.
 
 **Steps**:
 1. Open Command Palette
 2. Type `Keeper Security: Run Securely` and select it
-3. Extension reads `.env` file with `keeper://` references
-4. Extension resolves secrets from Keeper vault
-5. Extension creates isolated terminal with injected secrets
-6. User can run any command with secrets available as environment variables
+3. Enter command to run
+4. Extension creates terminal with injected secrets and executes command
 
-**Example `.env` file**:
-```env
-DATABASE_URL=keeper://vault/database/production/url
-API_KEY=keeper://vault/api/keys/openai
-SECRET_TOKEN=keeper://vault/tokens/jwt
-```
+#### Choose Folder
 
-**Usage**:
-```bash
-# Secrets are automatically available as environment variables
-npm start
-# DATABASE_URL, API_KEY, SECRET_TOKEN are injected
-```
+**Purpose**: Specify the vault folder where secrets for this workspace will be stored.
 
-### Secret Reference Format
+**Steps**:
+1. Open Command Palette
+2. Type `Keeper Security: Choose Folder` and select it
+3. Extension displays available vault folders
+4. Select desired folder for this workspace
+5. Future `Save in Keeper Security` and `Generate Password` operations will use the selected folder to store secret
 
-Visit [Keeper Notation](https://docs.keeper.io/en/keeperpam/secrets-manager/about/keeper-notation) Docs. for more information
+#### Open Logs
 
-### Extension Settings 
+**Purpose**: View extension activity logs for debugging and monitoring.
 
-The extension provides debug configuration options:
+**Steps**:
+1. Open Command Palette
+2. Type `Keeper Security: Open Logs` and select it
+3. Extension opens output panel with detailed logs
+
+
+## Extension Settings 
+
+The extension provides configuration options:
 
 1. Open VS Code Settings (`Ctrl+,` / `Cmd+,`)
-2. Search for "Keeper Security"
-3. Enable "Debug" to see detailed logging information
+2. Search for `Keeper Security`
+3. Configure the following options:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Debug Enabled** | Enable detailed logging for debugging | `false` |
+| **Secret Detection** | Enable automatic secret detection | `true` |
 
 **Note:** Debug mode requires reloading the extension to take effect.
 
@@ -223,26 +206,46 @@ Enable debug logging to see detailed information about extension operations:
 
 ### Common Issues
 
-#### 1. Authentication Failures
+#### 1. Extension General Issues
 
-**Problem**: "Authentication failed" errors when trying to connect to Keeper Security
+**Problem**: Extension takes time to fetch secrets, shows loading continuously, fails to resolve keeper references, latest records not displaying from keeper vault, manual keeper commander CLI authentication changes, or other unexpected issue.
 
 **Solutions**:
-- Verify your base64 configuration string is complete and properly formatted
-- Ensure your one-time token hasn't expired (tokens expire after use)
-- Check your internet connection and firewall settings
-- Verify your Keeper Security account has Secrets Manager access enabled
+- **Reload VS Code Window** (`Ctrl+Shift+P` → "Developer: Reload Window")
+- Ensure Keeper Commander CLI is authenticated
+- Check internet connection and firewall settings
+- Verify Keeper vault accessibility
+- Clear extension cache if issues persist
 
-#### 2. Commands Not Available
+#### 2. Keeper Commander CLI Not Found
+
+**Problem**: "Keeper Commander CLI is not installed" error
+
+**Solutions**:
+- Install Keeper Commander CLI following the [installation guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup)
+- Ensure CLI is accessible from your system PATH
+- Verify installation with `keeper --version` in terminal
+
+#### 3. Authentication Failures
+
+**Problem**: "Keeper Commander CLI is not authenticated" errors
+
+**Solutions**:
+- Open terminal and run `keeper login`
+- Enter your Keeper Security credentials
+- Ensure authentication is successful before using extension
+- Remember that authentication is session-based
+
+#### 4. Commands Not Available
 
 **Problem**: Keeper Security commands don't appear in Command Palette
 
 **Solution**: 
-- Ensure you're authenticated first by running "Keeper Security: Authenticate"
+- Ensure Keeper Commander CLI is installed and authenticated
 - Reload VS Code window if commands still don't appear
 - Check the extension is properly installed and activated
 
-#### 3. Extension Not Loading
+#### 5. Extension Not Loading
 
 **Problem**: Extension fails to activate or shows errors
 
@@ -252,26 +255,6 @@ Enable debug logging to see detailed information about extension operations:
 - Check the Output panel for detailed error messages
 - Try reinstalling the extension
 
-#### 5. Secret Detection Not Working
-
-**Problem**: CodeLens doesn't appear for potential secrets
-
-**Solutions**:
-- Ensure the file is saved and recognized by VS Code
-- Check that the secret patterns match the detection rules
-- Reload the extension if detection stops working
-- Verify the file type is supported (.js, .ts, .env, etc.)
-
-#### 6. Secret References Not Resolving
-
-**Problem**: `keeper://` references don't resolve to actual values
-
-**Solutions**:
-- Ensure you're authenticated with Keeper Security
-- Verify the reference format is correct
-- Check that the referenced item exists in your vault
-- Ensure the field name matches exactly
-
 #### 7. Run Securely Command Issues
 
 **Problem**: Commands don't have access to injected secrets
@@ -279,9 +262,19 @@ Enable debug logging to see detailed information about extension operations:
 **Solutions**:
 - Verify your `.env` file contains valid `keeper://` references
 - Ensure all referenced secrets exist in your vault
-- Check that the terminal is created by the extension
+- Ensure other not required terminal deleted and Check that the latest terminal is created by the extension
 - Verify the extension has permission to create terminals
+
+#### 8. Folder Selection Issues
+
+**Problem**: Cannot select or change vault folders
+
+**Solutions**:
+- Ensure you have access to multiple folders in your vault
+- Check that Keeper Commander CLI has proper permissions
+- Verify folder structure in your vault
+- Try refreshing the extension
 
 ## License
 
-This module is licensed under the MIT.
+This module is licensed under the MIT License.

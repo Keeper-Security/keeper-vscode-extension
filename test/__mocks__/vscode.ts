@@ -1,4 +1,18 @@
-// Comprehensive VS Code API mock for Jest testing
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Enhanced VS Code API mock for comprehensive Jest testing
+
+// Add Position and Range classes that parsers need
+export class Position {
+  constructor(public readonly line: number, public readonly character: number) {}
+}
+
+export class Range {
+  constructor(
+    public readonly start: Position,
+    public readonly end: Position
+  ) {}
+}
+
 export const window = {
   showInformationMessage: jest.fn().mockResolvedValue(undefined),
   showErrorMessage: jest.fn().mockResolvedValue(undefined),
@@ -12,6 +26,13 @@ export const window = {
     hide: jest.fn(),
     dispose: jest.fn(),
     clear: jest.fn()
+  })),
+  createStatusBarItem: jest.fn(() => ({
+    text: '',
+    tooltip: '',
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn()
   })),
   activeTextEditor: undefined,
   visibleTextEditors: [],
@@ -58,10 +79,44 @@ export const Uri = {
   parse: jest.fn()
 };
 
+export const StatusBarAlignment = {
+  Left: 1,
+  Right: 2
+};
+
+export const TextDocument = {
+  languageId: 'typescript',
+  fileName: 'test.ts'
+};
+
+// Add EventEmitter mock
+export class EventEmitter<T = any> {
+  private listeners: Array<(value: T) => void> = [];
+  
+  fire(value: T): void {
+    this.listeners.forEach(listener => listener(value));
+  }
+  
+  get event(): (listener: (value: T) => void) => void {
+    return (listener: (value: T) => void) => {
+      this.listeners.push(listener);
+    };
+  }
+  
+  dispose(): void {
+    this.listeners = [];
+  }
+}
+
 export default {
+  Position,
+  Range,
   window,
   commands,
   workspace,
   ExtensionContext,
-  Uri
+  Uri,
+  StatusBarAlignment,
+  TextDocument,
+  EventEmitter
 }; 

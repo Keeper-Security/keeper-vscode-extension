@@ -1,9 +1,11 @@
 # Change Log
 
-All notable changes to the "ks-vscode" extension will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## 1.0.0
 
-## [Unreleased]
-
-- Initial release
+- Initial release of Keeper Security VS Code Extension
+- Secret management: save, retrieve, and generate secrets
+- Secret detection with codelense feature
+- Secure execution with injected secrets
+- Comprehensive logging and debugging
