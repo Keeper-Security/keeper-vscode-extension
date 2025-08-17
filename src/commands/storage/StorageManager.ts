@@ -34,14 +34,20 @@ export class StorageManager {
       return true;
     }
 
+    // Sync-down the latest records from the vault
+    logger.logDebug('StorageManager: Syncing down latest records from vault');
+    await this.cliService.executeCommanderCommand('sync-down');
+
     // Fetch all folders from server
     logger.logDebug('Fetching folders from server for validation');
     const allAvailableFolders = await this.cliService.executeCommanderCommand(
       'ls',
       ['--format=json', '-f', '-R']
     );
-    const parsedFolders: ICliListFolderResponse[] =
-      JSON.parse(allAvailableFolders);
+
+    const parsedFolders: ICliListFolderResponse[] = allAvailableFolders?.trim()
+      ? JSON.parse(allAvailableFolders)
+      : [];
     logger.logDebug(`Retrieved ${parsedFolders.length} folders from server`);
 
     // Check if stored folder still exists
@@ -105,6 +111,11 @@ export class StorageManager {
 
     // get all folders from vault
     this.spinner.show('Retrieving folders...');
+
+    // Sync-down the latest records from the vault
+    logger.logDebug('StorageManager: Syncing down latest records from vault');
+    await this.cliService.executeCommanderCommand('sync-down');
+
     logger.logDebug('Fetching folders from Keeper vault');
 
     const allAvailableFolders = await this.cliService.executeCommanderCommand(
@@ -113,20 +124,37 @@ export class StorageManager {
     );
     this.spinner.hide();
 
-    const parsedFolders = JSON.parse(allAvailableFolders);
-    logger.logDebug(`Retrieved ${parsedFolders.length} folders from vault`);
-
     const rootVault: ICurrentStorage = {
       folderUid: '/',
       name: 'My Vault',
       parentUid: '/',
       folderPath: '/',
     };
+
+    const parsedFolders = allAvailableFolders?.trim()
+      ? JSON.parse(allAvailableFolders)
+      : [];
+    logger.logDebug(`Retrieved ${parsedFolders.length} folders from vault`);
+
+    // If no folders available, automatically set root vault and skip quick pick
+    if (parsedFolders.length === 0) {
+      logger.logDebug('No folders available, automatically setting root vault as storage');
+      this.setCurrentStorage(rootVault);
+
+      window.showInformationMessage(
+        `Storage location set to "${rootVault.name}" folder (no other folders available)`
+      );
+      logger.logDebug(`Storage location automatically set to: ${rootVault.name}`);
+      return;
+    }
+
+
     const allAvailableFoldersWithPaths = [
       rootVault,
       ...resolveFolderPaths(parsedFolders),
     ];
 
+    // Only show quick pick if there are multiple folder options
     const formatedFoldersForQuickPick = allAvailableFoldersWithPaths.map(
       (folder: ICurrentStorage) => {
         const response: QuickPickItem & { value: string } = {
@@ -168,6 +196,7 @@ export class StorageManager {
       allAvailableFoldersWithPaths.find(
         (folder: IFolder) => folder.folderUid === selectedFolder.value
       ) || null;
+
     this.setCurrentStorage(newStorage);
 
     window.showInformationMessage(

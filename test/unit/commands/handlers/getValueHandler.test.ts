@@ -73,13 +73,11 @@ describe('GetValueHandler', () => {
     it('should execute successfully when CLI is ready', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
-      // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
+      // Mock the CLI responses - note the order: sync-down, list, get
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -92,6 +90,7 @@ describe('GetValueHandler', () => {
       await getValueHandler.execute();
 
       expect(mockCliService.isCLIReady).toHaveBeenCalled();
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('list', ['--format=json']);
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('get', ['123', '--format=json']);
       expect(window.showQuickPick).toHaveBeenCalledTimes(2); // Called twice for record and field selection
@@ -112,15 +111,17 @@ describe('GetValueHandler', () => {
     it('should handle user cancellation of record selection', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
-      // Mock the CLI response for list command
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce(mockRecords);
+      // Mock the CLI responses
+      mockCliService.executeCommanderCommand
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]'); // list command
       
       // Mock the QuickPick to return undefined (user cancellation)
       (window.showQuickPick as jest.Mock).mockResolvedValueOnce(undefined);
 
       await getValueHandler.execute();
 
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('list', ['--format=json']);
       expect(window.showQuickPick).toHaveBeenCalledTimes(1); // Only called once for record selection
       expect(mockSpinner.hide).toHaveBeenCalled();
@@ -130,12 +131,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -144,7 +143,7 @@ describe('GetValueHandler', () => {
 
       await getValueHandler.execute();
 
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledTimes(2); // list and get commands
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledTimes(3); // sync-down, list, and get commands
       expect(window.showQuickPick).toHaveBeenCalledTimes(2); // Called twice for record and field selection
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
@@ -155,12 +154,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -188,15 +185,17 @@ describe('GetValueHandler', () => {
     it('should handle empty records list', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
-      // Mock empty records list
-      const mockRecords = '[]';
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce(mockRecords);
+      // Mock the CLI responses
+      mockCliService.executeCommanderCommand
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[]'); // empty records list
       
       // Mock the QuickPick to return undefined (no records to select from)
       (window.showQuickPick as jest.Mock).mockResolvedValueOnce(undefined);
 
       await getValueHandler.execute();
 
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('list', ['--format=json']);
       expect(window.showQuickPick).toHaveBeenCalledWith([], expect.any(Object));
       expect(mockSpinner.hide).toHaveBeenCalled();
@@ -206,12 +205,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [], "custom": []}'; // No fields
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [], "custom": []}'); // No fields
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -230,12 +227,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -255,12 +250,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -294,9 +287,10 @@ describe('GetValueHandler', () => {
     it('should handle malformed JSON responses', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
-      // Mock malformed JSON response
-      const malformedRecords = 'invalid json';
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce(malformedRecords);
+      // Mock malformed JSON response for list command
+      mockCliService.executeCommanderCommand
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('invalid json'); // malformed JSON for list command
 
       await getValueHandler.execute();
       
@@ -310,12 +304,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}], "custom": []}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)
@@ -338,12 +330,10 @@ describe('GetValueHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       
       // Mock the CLI responses with various field types
-      const mockRecords = '[{"record_uid": "123", "title": "Test Record"}]';
-      const mockRecordDetails = '{"fields": [{"label": "username", "value": "testuser", "type": "text"}, {"label": "", "value": "", "type": "password"}], "custom": [{"label": "api_key", "value": "key123", "type": "text"}]}';
-      
       mockCliService.executeCommanderCommand
-        .mockResolvedValueOnce(mockRecords) // list command
-        .mockResolvedValueOnce(mockRecordDetails); // get command
+        .mockResolvedValueOnce('') // sync-down command
+        .mockResolvedValueOnce('[{"record_uid": "123", "title": "Test Record"}]') // list command
+        .mockResolvedValueOnce('{"fields": [{"label": "username", "value": "testuser", "type": "text"}, {"label": "", "value": "", "type": "password"}], "custom": [{"label": "api_key", "value": "key123", "type": "text"}]}'); // get command
       
       // Mock the QuickPick responses
       (window.showQuickPick as jest.Mock)

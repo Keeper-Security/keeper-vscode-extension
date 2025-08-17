@@ -46,6 +46,13 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
       logger.logDebug('RunSecurelyHandler: Starting secret resolution');
       this.spinner.show('Resolving secrets...');
+
+      // Sync-down the latest records from the vault
+      logger.logDebug(
+        'RunSecurelyHandler: Syncing down latest records from vault'
+      );
+      await this.cliService.executeCommanderCommand('sync-down');
+
       const resolvedEnv = await this.resolveSecrets(selectedEnvFile);
       logger.logDebug(
         `RunSecurelyHandler: Resolved ${Object.keys(resolvedEnv).length} secrets`
@@ -100,6 +107,8 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     const workspaceNames = workspaceFolders.map((folder) => folder.name);
     const selected = await window.showQuickPick(workspaceNames, {
       placeHolder: 'Select workspace to run securely in',
+      matchOnDetail: true,
+      ignoreFocusOut: true,
     });
 
     if (!selected) {
@@ -144,6 +153,8 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     );
     const selected = await window.showQuickPick(envFileNames, {
       placeHolder: 'Select environment file to use',
+      matchOnDetail: true,
+      ignoreFocusOut: true,
     });
 
     if (!selected) {

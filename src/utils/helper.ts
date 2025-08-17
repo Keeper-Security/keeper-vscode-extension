@@ -90,6 +90,9 @@ export class StatusBarSpinner {
   private statusBarItem: StatusBarItem;
   private interval: NodeJS.Timeout | null = null;
   private currentMessage: string = '';
+  private isVisible: boolean = false;
+  private autoHideTimeout: NodeJS.Timeout | null = null;
+  private readonly AUTO_HIDE_DELAY = 120000; // 2 minutes in milliseconds
 
   constructor() {
     this.statusBarItem = window.createStatusBarItem(
@@ -104,20 +107,48 @@ export class StatusBarSpinner {
     this.statusBarItem.text = `$(sync~spin) ${message}`;
     this.statusBarItem.tooltip = message;
     this.statusBarItem.show();
+    this.isVisible = true;
 
+    // Clear any existing auto-hide timeout
+    if (this.autoHideTimeout) {
+      clearTimeout(this.autoHideTimeout);
+      this.autoHideTimeout = null;
+    }
+
+    // Set auto-hide timeout
+    this.autoHideTimeout = setTimeout(() => {
+      if (this.isVisible) {
+        this.hide();
+      }
+    }, this.AUTO_HIDE_DELAY);
+
+    // Start the spinning animation
     this.interval = setInterval(() => {
-      this.statusBarItem.text = `$(sync~spin) ${this.currentMessage}`;
+      if (this.isVisible) {
+        this.statusBarItem.text = `$(sync~spin) ${this.currentMessage}`;
+      }
     }, 100);
   }
 
   public updateMessage(message: string): void {
     logger.logDebug(`Updating spinner message to: ${message}`);
     this.currentMessage = message;
-    this.statusBarItem.text = `$(sync~spin) ${message}`;
+    if (this.isVisible) {
+      this.statusBarItem.text = `$(sync~spin) ${this.currentMessage}`;
+    }
   }
 
   public hide(): void {
     logger.logDebug('Hiding spinner');
+    this.isVisible = false;
+    
+    // Clear auto-hide timeout
+    if (this.autoHideTimeout) {
+      clearTimeout(this.autoHideTimeout);
+      this.autoHideTimeout = null;
+    }
+    
+    // Clear spinning animation
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;

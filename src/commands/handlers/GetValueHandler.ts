@@ -21,6 +21,10 @@ export class GetValueHandler extends BaseCommandHandler {
       logger.logDebug('GetValueHandler: Showing spinner for secret retrieval');
       this.spinner.show('Retrieving secrets...');
 
+      // Sync-down the latest records from the vault
+      logger.logDebug('GetValueHandler: Syncing down latest records from vault');
+      await this.cliService.executeCommanderCommand('sync-down');
+
       // List available records
       logger.logDebug(
         'GetValueHandler: Executing list command to get available records'
@@ -28,6 +32,14 @@ export class GetValueHandler extends BaseCommandHandler {
       const records = await this.cliService.executeCommanderCommand('list', [
         '--format=json',
       ]);
+      if (!records.trim()) {
+        logger.logError('GetValueHandler: No records found in vault');
+        window.showInformationMessage(
+          'No records found in vault. Please create a new record first.'
+        );
+        return;
+      }
+
       const recordsList: ICliListCommandResponse[] = JSON.parse(records);
       logger.logDebug(
         `GetValueHandler: Retrieved ${recordsList.length} records from vault`
@@ -44,6 +56,7 @@ export class GetValueHandler extends BaseCommandHandler {
         {
           title: 'Available records from Keeper Vault',
           placeHolder: 'Select a record',
+          matchOnDetail: true,
           ignoreFocusOut: true,
         }
       );
@@ -97,6 +110,7 @@ export class GetValueHandler extends BaseCommandHandler {
       const selectedField = await window.showQuickPick(fieldsToShow, {
         title: `Available fields from record: ${selectedRecord.label}`,
         placeHolder: 'Which field do you want to retrieve?',
+        matchOnDetail: true,
         ignoreFocusOut: true,
       });
 
