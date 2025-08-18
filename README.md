@@ -21,9 +21,7 @@ The goal is to enable developers to manage secrets securely without leaving thei
 ## Features
 
 - **Secret Management**: Save, retrieve, and generate secrets directly from VS Code using Keeper Security vault
-- **Advanced Secret Detection**: Automatically detect potential secrets across multiple file types:
-  - **Configuration Files**: .env, JSON, YAML files
-  - **Pattern Recognition**: API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more
+- **Secret Detection**: Automatically detect potential secrets from configuration files using pattern recognition (API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more)
 - **Secure Execution**: Run commands with secrets injected from Keeper vault
 - **Comprehensive Logging**: Built-in logging system with debug mode support
 
@@ -40,7 +38,7 @@ The goal is to enable developers to manage secrets securely without leaving thei
 
 ### Install the extension
 
-From the VS Code Marketplace
+From the VS Code Marketplace: Search `Keeper Security`
 
 ### Install Keeper Commander CLI
 
@@ -63,7 +61,7 @@ From the VS Code Marketplace
 
 ### Available Commands
 
-Once authenticated, you can access the following commands through the Command Palette:
+Once authenticated, you can access the following commands through the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
 | Command | Description | Use Case |
 |---------|-------------|----------|
@@ -97,7 +95,7 @@ Once authenticated, you can access the following commands through the Command Pa
 const apiKey = "sk-1234567890abcdef";
 
 // After: Replaced with reference
-const apiKey = "keeper://vault/api-keys/openai";
+const apiKey = "keeper://record-uid/field/openai";
 ```
 
 2. **Automatic Secret Detection**
@@ -112,8 +110,8 @@ const apiKey = "keeper://vault/api-keys/openai";
     - The secret reference will be automatically replaced with detected secret
 
     **Supported File Types**:
-    - **Environment Files**: `.env`, `.env.*`
-    - **Configuration Files**: `config.json`, `package.json`, `docker-compose.yml`
+    - **Environment Files**: eg. `.env`, `.env.*`
+    - **Configuration Files**: eg. `config.json`, `docker-compose.yml`
 
 #### Retrieve Secrets from Keeper Vault
 
@@ -126,7 +124,7 @@ const apiKey = "keeper://vault/api-keys/openai";
 4. Select specific `record` and then `field` that you want to use
 5. Extension inserts secret reference at cursor position
 
-**Reference Format**: `keeper://vault/item/field`
+**Reference Format**: `keeper://record-uid/field/item`
 
 **Example**:
 ```javascript

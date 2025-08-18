@@ -12,11 +12,11 @@
   "icon": "keeper_logo.png",
   "repository": {
     "type": "git",
-    "url": "EDIT_GITHUB_URL_HERE"
+    "url": "https://github.com/Keeper-Security/secrets-manager"
   },
-  "homepage": "EDIT_HOMEPAGE_URL_HERE",
+  "homepage": "https://github.com/Keeper-Security/secrets-manager/tree/master/integration/ks-vscode",
   "bugs": {
-    "url": "EDIT_GITHUB_ISSUES_URL_HERE"
+    "url": "https://github.com/Keeper-Security/secrets-manager/issues"
   },
   "keywords": [
     "keeper",
