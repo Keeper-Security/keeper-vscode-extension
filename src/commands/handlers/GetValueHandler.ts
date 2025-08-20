@@ -5,6 +5,7 @@ import { createKeeperReference } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import { COMMANDS } from '../../utils/constants';
 import { ICliListCommandResponse, IField } from '../../types';
+import { safeJsonParse } from '../../utils/helper';
 
 export class GetValueHandler extends BaseCommandHandler {
   async execute(): Promise<void> {
@@ -32,20 +33,22 @@ export class GetValueHandler extends BaseCommandHandler {
       const records = await this.cliService.executeCommanderCommand('list', [
         '--format=json',
       ]);
-      if (!records.trim()) {
+
+      // Use safe parser that cleans output first
+      const recordsList: ICliListCommandResponse[] = safeJsonParse(records, []);
+      logger.logDebug(
+        `GetValueHandler: Retrieved ${recordsList.length} records from vault`
+      );
+
+      this.spinner.hide();
+
+      if (recordsList.length === 0) {
         logger.logError('GetValueHandler: No records found in vault');
         window.showInformationMessage(
           'No records found in vault. Please create a new record first.'
         );
         return;
       }
-
-      const recordsList: ICliListCommandResponse[] = JSON.parse(records);
-      logger.logDebug(
-        `GetValueHandler: Retrieved ${recordsList.length} records from vault`
-      );
-
-      this.spinner.hide();
 
       // Show picker for available records
       const selectedRecord = await window.showQuickPick(
@@ -82,12 +85,21 @@ export class GetValueHandler extends BaseCommandHandler {
         'get',
         [selectedRecord.value, '--format=json']
       );
-      const details = JSON.parse(recordDetails);
+      // Use safe parser that cleans output first
+      const details = safeJsonParse(recordDetails, [])[0];
       logger.logDebug(
         `GetValueHandler: Retrieved record details with ${details.fields?.length || 0} fields and ${details.custom?.length || 0} custom fields`
       );
 
       this.spinner.hide();
+
+      if (details.length === 0) {
+        logger.logError('GetValueHandler: No record details found');
+        window.showInformationMessage(
+          'No record details found. Please add a field to the record first.'
+        );
+        return;
+      }
 
       // Show field picker
       const fields = details['fields']

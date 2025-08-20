@@ -4,6 +4,7 @@ import {
   isEnvironmentFile,
   parseKeeperReference,
   validateKeeperReference,
+  safeJsonParse,
 } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import fs from 'fs';
@@ -278,7 +279,15 @@ export class RunSecurelyHandler extends BaseCommandHandler {
             recordUid,
             '--format=json',
           ]);
-          const recordDetails = JSON.parse(record);
+          
+          // Use safe parser that cleans output first
+          const parsedRecords = safeJsonParse(record, []);
+          
+          if (!parsedRecords || parsedRecords.length === 0) {
+            throw new Error('Failed to parse record data');
+          }
+          
+          const recordDetails = parsedRecords[0];
 
           references.forEach(({ key, fieldType, itemName }) => {
             const value = FieldExtractor.extractFieldValue(

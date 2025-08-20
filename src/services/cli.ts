@@ -173,7 +173,7 @@ export class CliService {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
           () => reject(new Error('Must be asking for interactive login')),
-          15000 // 15 second timeout for auth check
+          30000 // 30 second timeout for auth check
         );
       });
 
@@ -227,7 +227,7 @@ export class CliService {
   }
 
   // keep the cleaned version for normal use
-  private async executeCommanderCommandLegacy(
+  public async executeCommanderCommandLegacy(
     command: string,
     args: string[] = []
   ): Promise<string> {
@@ -330,11 +330,22 @@ export class CliService {
       this.shellReady = false;
       this.shellReadyPromise = null;
 
-      // Spawn keeper shell process, Enable stdin/stdout/stderr pipes, Don't use shell wrapper
-      this.persistentProcess = spawn('keeper', ['shell'], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-      });
+      // Use platform-aware spawning
+      if (process.platform === 'win32') {
+        // On Windows, use CMD to handle the 'keeper' alias
+        logger.logDebug('Using Windows CMD wrapper for keeper command');
+        this.persistentProcess = spawn('cmd', ['/c', 'keeper', 'shell'], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          shell: false,
+        });
+      } else {
+        // On other platforms, spawn directly
+        logger.logDebug('Using direct spawn for keeper command');
+        this.persistentProcess = spawn('keeper', ['shell'], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          shell: false,
+        });
+      }
 
       // Handle process creation errors
       this.persistentProcess.on('error', (error) => {
@@ -394,6 +405,10 @@ export class CliService {
       logger.logInfo('Persistent Keeper Commander process ready');
     } catch (error) {
       logger.logError('Failed to create persistent process:', error);
+      // Clean up any partial state
+      this.handleProcessError();
+
+      // Re-throw the error so caller knows it failed
       throw error;
     }
   }

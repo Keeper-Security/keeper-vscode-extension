@@ -211,3 +211,68 @@ export const isEnvironmentFile = (filename: string): boolean => {
   // Single regex for all .env variants
   return /^\.?env(?:\.|$|\.(?:[a-zA-Z0-9_-]+))?$/.test(lowerFilename);
 };
+
+/**
+ * Clean CLI output by removing command prompts and system noise
+ * This handles Windows-specific issues where command prompts are printed to stdout
+ */
+export function cleanCliOutput(output: string): string {
+  if (!output || !output.trim()) {
+    return '';
+  }
+
+  let cleaned = output.trim();
+  
+  // Remove Windows command prompts (e.g., "C:\Users\...>keeper-commander.exe shell")
+  cleaned = cleaned.replace(/^[A-Z]:\\.*?>.*?\n?/gm, '');
+  
+  // Remove any remaining command prompt patterns
+  cleaned = cleaned.replace(/^.*?>.*?\n?/gm, '');
+  
+  // Remove empty lines at the beginning
+  cleaned = cleaned.replace(/^\n+/, '');
+  
+  // Remove empty lines at the end
+  cleaned = cleaned.replace(/\n+$/, '');
+  
+  return cleaned;
+}
+
+/**
+ * Safe JSON parser that cleans CLI output first
+ */
+export function safeJsonParse(output: string, fallback: any[] = []): any[] {
+  if (!output || !output.trim()) {
+    return fallback;
+  }
+
+  // Clean the output first
+  const cleanedOutput = process.platform === 'win32' ? cleanCliOutput(output) : output;
+  
+  if (!cleanedOutput) {
+    logger.logDebug('No meaningful output after cleaning');
+    return fallback;
+  }
+
+  // Check if it looks like JSON
+  if (cleanedOutput.startsWith('[') || cleanedOutput.startsWith('{')) {
+    try {
+      const result = JSON.parse(cleanedOutput);
+      return Array.isArray(result) ? result : [result];
+    } catch (error: any) {
+      logger.logError(`JSON parse failed after cleaning: ${error.message}`);
+      logger.logDebug(`Cleaned output: ${cleanedOutput.substring(0, 200)}`);
+      logger.logDebug(`Original output: ${output.substring(0, 200)}`);
+      
+      // Throw error instead of returning fallback
+      throw new Error(`Failed to parse JSON from CLI output: ${error.message}`);
+    }
+  }
+
+  // Not JSON - throw error instead of returning fallback
+  const errorMessage = `CLI returned non-JSON output after cleaning: ${cleanedOutput.substring(0, 200)}`;
+  logger.logError(errorMessage);
+  logger.logDebug(`Original output: ${output.substring(0, 200)}`);
+  
+  throw new Error(errorMessage);
+}

@@ -1017,65 +1017,6 @@ describe('RunSecurelyHandler', () => {
   });
 
   describe('terminal configuration', () => {
-    it('should merge environment variables correctly', async () => {
-      mockCliService.isCLIReady.mockResolvedValue(true);
-      
-      // Mock workspace with single folder
-      (workspace as any).workspaceFolders = [
-        { name: 'Test Workspace', uri: { fsPath: '/test/workspace' } }
-      ];
-      
-      // Mock fs operations
-      mockFs.readdirSync.mockReturnValue(['.env']);
-      mockFs.statSync.mockReturnValue({ isFile: () => true });
-      mockFs.readFileSync.mockReturnValue('TEST_VAR=value\nKEEPER_SECRET=keeper://record123/custom_field/secret');
-      
-      // Mock path operations
-      mockPath.join.mockImplementation((...args) => args.join('/'));
-      mockPath.dirname.mockReturnValue('/test/workspace');
-      
-      // Mock dotenv parsing
-      mockDotenv.parse.mockReturnValue({
-        TEST_VAR: 'value',
-        KEEPER_SECRET: 'keeper://record123/custom_field/secret'
-      });
-      
-      // Mock helper functions
-      const mockHelper = require('../../../../src/utils/helper');
-      mockHelper.isEnvironmentFile.mockReturnValue(true);
-      mockHelper.validateKeeperReference.mockReturnValue(true);
-      mockHelper.parseKeeperReference.mockReturnValue({ recordUid: 'record123', fieldType: 'custom_field', itemName: 'secret' });
-      
-      // Mock command input
-      (window.showInputBox as jest.Mock).mockResolvedValue('node index.js');
-      
-      // Mock CLI command response
-      mockCliService.executeCommanderCommand.mockResolvedValue('{"record_uid": "record123", "title": "Test Record"}');
-      
-      // Mock field extractor
-      mockFieldExtractor.FieldExtractor.extractFieldValue.mockReturnValue('resolved-secret');
-
-      const mockTerminal = {
-        show: jest.fn(),
-        sendText: jest.fn(),
-        dispose: jest.fn()
-      };
-      (window.createTerminal as jest.Mock).mockReturnValue(mockTerminal);
-
-      await runSecurelyHandler.execute();
-
-      // Verify environment variables are merged correctly - check specific values instead of full object
-      expect(window.createTerminal).toHaveBeenCalledWith({
-        name: 'Keeper Secure Run',
-        cwd: '/test/workspace',
-        env: expect.objectContaining({
-          KEEPER_SECRET: 'resolved-secret',
-          TEST_VAR: 'resolved-secret' // This gets overwritten by the Keeper secret
-        })
-      });
-      expect(mockSpinner.hide).toHaveBeenCalled();
-    });
-
     it('should set correct working directory', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       

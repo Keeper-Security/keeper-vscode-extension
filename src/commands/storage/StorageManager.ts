@@ -4,6 +4,7 @@ import { ICliListFolderResponse, ICurrentStorage, IFolder } from '../../types';
 import { resolveFolderPaths } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import { StatusBarSpinner } from '../../utils/helper';
+import { safeJsonParse } from '../../utils/helper';
 
 export class StorageManager {
   constructor(
@@ -45,9 +46,8 @@ export class StorageManager {
       ['--format=json', '-f', '-R']
     );
 
-    const parsedFolders: ICliListFolderResponse[] = allAvailableFolders?.trim()
-      ? JSON.parse(allAvailableFolders)
-      : [];
+    // Use safe parser that cleans output first
+    const parsedFolders: ICliListFolderResponse[] = safeJsonParse(allAvailableFolders, []);
     logger.logDebug(`Retrieved ${parsedFolders.length} folders from server`);
 
     // Check if stored folder still exists
@@ -131,9 +131,8 @@ export class StorageManager {
       folderPath: '/',
     };
 
-    const parsedFolders = allAvailableFolders?.trim()
-      ? JSON.parse(allAvailableFolders)
-      : [];
+    // Use safe parser that cleans output first
+    const parsedFolders = safeJsonParse(allAvailableFolders, []);
     logger.logDebug(`Retrieved ${parsedFolders.length} folders from vault`);
 
     // If no folders available, automatically set root vault and skip quick pick
