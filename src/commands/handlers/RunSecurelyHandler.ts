@@ -268,54 +268,49 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     >,
     resolvedEnv: Record<string, string>
   ): Promise<void> {
-    const promises = Array.from(recordGroups.entries()).map(
-      async ([recordUid, references]) => {
-        logger.logInfo(
-          `Fetching record: ${recordUid} with ${references.length} references`
-        );
+    // Execute commands sequentially - much simpler than queue!
+    for (const [recordUid, references] of recordGroups.entries()) {
+      logger.logInfo(`Fetching record: ${recordUid} with ${references.length} references`);
 
-        try {
-          const record = await this.cliService.executeCommanderCommand('get', [
-            recordUid,
-            '--format=json',
-          ]);
-          
-          // Use safe parser that cleans output first
-          const parsedRecords = safeJsonParse(record, []);
-          
-          if (!parsedRecords || parsedRecords.length === 0) {
-            throw new Error('Failed to parse record data');
-          }
-          
-          const recordDetails = parsedRecords[0];
-
-          references.forEach(({ key, fieldType, itemName }) => {
-            const value = FieldExtractor.extractFieldValue(
-              recordDetails,
-              fieldType,
-              itemName
-            );
-            if (value !== null) {
-              resolvedEnv[key] = value;
-              logger.logInfo(`Resolved ${key}`);
-            } else {
-              logger.logError(
-                `Failed to resolve keeper reference: keeper://${recordUid}/${fieldType}/${itemName}`
-              );
-              resolvedEnv[key] =
-                `keeper://${recordUid}/${fieldType}/${itemName}`;
-            }
-          });
-        } catch (error: unknown) {
-          logger.logError(`Failed to fetch record ${recordUid}:`, error);
-          references.forEach(({ key }) => {
-            resolvedEnv[key] = `keeper://${recordUid}/error/failed_to_fetch`;
-          });
+      try {
+        const record = await this.cliService.executeCommanderCommand('get', [
+          recordUid,
+          '--format=json',
+        ]);
+        
+        // Use safe parser that cleans output first
+        const parsedRecords = safeJsonParse(record, []);
+        
+        if (!parsedRecords || parsedRecords.length === 0) {
+          throw new Error('Failed to parse record data');
         }
-      }
-    );
+        
+        const recordDetails = parsedRecords[0];
 
-    await Promise.all(promises);
+        references.forEach(({ key, fieldType, itemName }) => {
+          const value = FieldExtractor.extractFieldValue(
+            recordDetails,
+            fieldType,
+            itemName
+          );
+          if (value !== null) {
+            resolvedEnv[key] = value;
+            logger.logInfo(`Resolved ${key}`);
+          } else {
+            logger.logError(
+              `Failed to resolve keeper reference: keeper://${recordUid}/${fieldType}/${itemName}`
+            );
+            resolvedEnv[key] =
+              `keeper://${recordUid}/${fieldType}/${itemName}`;
+          }
+        });
+      } catch (error: unknown) {
+        logger.logError(`Failed to fetch record ${recordUid}:`, error);
+        references.forEach(({ key }) => {
+          resolvedEnv[key] = `keeper://${recordUid}/error/failed_to_fetch`;
+        });
+      }
+    }
   }
 
   /**

@@ -132,27 +132,24 @@ function extractCommandOutput(
   return fullOutput;
 }
 
+// Create a special error type that won't trigger persistent mode fallback
+class CommandBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CommandBlockedError';
+  }
+}
+
 export class CliService {
   private isInstalled: boolean = false;
   private isAuthenticated: boolean = false;
-
-  // Lazy initialization properties
   private persistentProcess: ChildProcess | null = null;
   private processEmitter = new EventEmitter();
-  // Queue of pending commands to execute
-  private commandQueue: Array<{
-    id: string;
-    command: string;
-    args: string[];
-    resolve: (value: string) => void;
-    reject: (error: Error) => void;
-  }> = [];
-  
-  private isProcessing = false;
   private isInitialized = false;
   private usePersistentProcess = false;
   private shellReady = false;
   private shellReadyPromise: Promise<void> | null = null;
+  private isExecutingCommand = false;
 
   public constructor(
     // @ts-ignore
@@ -328,7 +325,6 @@ export class CliService {
     }
   }
 
-  // Main command execution method with lazy initialization
   public async executeCommanderCommand(
     command: string,
     args: string[] = []
@@ -344,46 +340,47 @@ export class CliService {
       return this.executeCommanderCommandLegacy(command, args);
     }
 
-    // Use persistent process for subsequent commands (more efficient)
     try {
       return await this.executeCommanderCommandPersistent(command, args);
     } catch (error) {
-      logger.logError(
-        `Persistent process failed, falling back to legacy mode:`,
-        error
-      );
-
-      // Disable persistent mode on failure
+      // Don't fallback to legacy mode for blocked commands
+      if (error instanceof CommandBlockedError) {
+        throw error; // Re-throw without disabling persistent mode
+      }
+      
+      logger.logError(`Persistent process failed, falling back to legacy mode:`, error);
       this.usePersistentProcess = false;
-
-      // Fallback to legacy
       return this.executeCommanderCommandLegacy(command, args);
     }
   }
 
-  // Execute command using persistent Keeper shell process
+  // Simple persistent command execution with timeout protection (NO persistent mode kill)
   private async executeCommanderCommandPersistent(
     command: string,
-    args: string[] = []
+    args: string[]
   ): Promise<string> {
     // Ensure shell process is ready
     await this.ensurePersistentProcess();
 
-    return new Promise((resolve, reject) => {
-      // Generate unique command ID
-      const commandId = Math.random().toString(36).substr(2, 9);
+    // Check if another command is running
+    if (this.isExecutingCommand) {
+      logger.logInfo(`Command ${command} blocked - another command is executing`);
+            
+      // Throw special error that won't trigger persistent mode fallback
+      throw new CommandBlockedError(`Another Keeper command is currently running. Please wait for it to complete and try again.`);
+    }
 
-      this.commandQueue.push({
-        id: commandId,
-        command,
-        args,
-        resolve,
-        reject,
-      });
+    // Set executing flag
+    this.isExecutingCommand = true;
 
-      // Start processing the queue
-      this.processNextCommand();
-    });
+    try {
+      // Execute the command directly (with 60-second execution timeout)
+      const result = await this.executeCommandInProcess(command, args);
+      return result;
+    } finally {
+      // Always clear the flag
+      this.isExecutingCommand = false;
+    }
   }
 
   // Ensure persistent process exists and is ready to accept commands
@@ -487,56 +484,32 @@ export class CliService {
     }
   }
 
-  private async processNextCommand(): Promise<void> {
-    if (this.isProcessing || this.commandQueue.length === 0) {
-      return;
-    }
-
-    this.isProcessing = true;
-    const commandItem = this.commandQueue.shift();
-    if (!commandItem) {
-      return;
-    }
-
-    const { command, args, resolve, reject } = commandItem;
-
-    try {
-      const result = await this.executeCommandInProcess(command, args);
-      resolve(result);
-    } catch (error) {
-      reject(error as Error);
-    } finally {
-      this.isProcessing = false;
-      // Process next command
-      this.processNextCommand();
-    }
-  }
-
   private async executeCommandInProcess(
     command: string,
     args: string[]
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(async () => {
+      const timeout = setTimeout(() => {
         const errorMessage = `Command execution timeout: ${command} ${args.join(' ')}`;
         logger.logError(errorMessage);
         
         // Show error notification to user
         window.showErrorMessage(
           `Keeper Command Timeout:`,
-          'The command took too long to execute and timed out. Please reload and try again.'
+          'The command took too long to execute and timed out. Please try again.'
         );
 
         this.spinner.hide();
         
-        reject(new Error(errorMessage));
-      }, 60000); // 60 seconds timeout
+        // Try to recover the persistent process
+        this.recoverPersistentProcess();
+        
+        reject(new Error('Command execution timeout'));
+      }, 60000);
 
       // Accumulate stdout for command result
       let output = '';
-      // Accumulate stderr for error detection
       let errorOutput = '';
-      // Track if we've handled biometric prompt
       let biometricPromptHandled = false;
 
       // Handle stdout data from Keeper process
@@ -547,108 +520,49 @@ export class CliService {
         if (dataStr.includes('Press Ctrl+C to skip biometric')) {
           if (!biometricPromptHandled) {
             biometricPromptHandled = true;
-            logger.logInfo(
-              'Biometric prompt detected, sending Ctrl+C to skip...'
-            );
-
+            logger.logInfo('Biometric prompt detected, sending Ctrl+C to skip...');
             // Send Ctrl+C to skip biometric authentication
             this.persistentProcess?.stdin?.write('\x03');
 
-            // Wait and re-send the original command after skipping biometric
             setTimeout(() => {
-              this.persistentProcess?.stdin?.write(
-                `${command} ${args.join(' ')}\n`
-              );
+              this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
             }, 500);
-
             return;
           }
         }
 
-        // Check for authentication expiration in stdout
+        // Check for authentication expiration
         if (dataStr.includes('Not logged in')) {
-          logger.logError('Keeper shell session expired - user not logged in');
           cleanup();
-
-          // Reset authentication state and persistent process
-          this.isAuthenticated = false;
-          this.usePersistentProcess = false;
-          this.isInitialized = false;
-
-          // Kill the expired process to prevent further issues
-          if (this.persistentProcess) {
-            this.persistentProcess.kill();
-            this.persistentProcess = null;
-          }
-
-          // Clear command queue and reject all pending commands
-          this.commandQueue.forEach(({ reject }) => {
-            reject(new Error('Authentication expired'));
-          });
-          this.commandQueue = [];
-          this.isProcessing = false;
-
-          // Show authentication error to user
-          this.promptManualAuthenticationError();
-
+          this.handleAuthenticationExpired();
           reject(new Error('Authentication expired. Please log in again.'));
           return;
         }
 
-        // Add to output if not biometric prompt (normal command output)
+        // Add to output if not biometric prompt
         if (!dataStr.includes('Press Ctrl+C to skip biometric')) {
           output += dataStr;
         }
       };
 
-      // Handle stderr data from Keeper process
+      // Handle stderr data
       const onStderr = (data: string): void => {
         const dataStr = data.toString();
-
-        // Check for "Not logged in" in stderr as well (same as stdout)
+        
         if (dataStr.includes('Not logged in')) {
-          logger.logError(
-            'Keeper shell session expired - user not logged in (stderr)'
-          );
           cleanup();
-
-          // Reset authentication state and persistent process
-          this.isAuthenticated = false;
-          this.usePersistentProcess = false;
-          this.isInitialized = false;
-
-          // Kill the expired process to prevent further issues
-          if (this.persistentProcess) {
-            this.persistentProcess.kill();
-            this.persistentProcess = null;
-          }
-
-          // Clear command queue and reject all pending commands
-          this.commandQueue.forEach(({ reject }) => {
-            reject(new Error('Authentication expired'));
-          });
-          this.commandQueue = [];
-          this.isProcessing = false;
-
-          // Show authentication error to user
-          this.promptManualAuthenticationError();
-
+          this.handleAuthenticationExpired();
           reject(new Error('Authentication expired. Please log in again.'));
           return;
         }
 
-        // accumulate stderr output; will be cleaned and analyzed at the end
         errorOutput += dataStr;
       };
 
       // Clean up event listeners and timeouts
       const cleanup = (): void => {
-        // Clear the main command timeout
         clearTimeout(timeout);
-
-        // Remove stdout listener
         this.processEmitter.removeListener('stdout', onStdout);
-        // Remove stderr listener
         this.processEmitter.removeListener('stderr', onStderr);
       };
 
@@ -690,35 +604,34 @@ export class CliService {
     });
   }
 
-  // Handle errors in the persistent process
-  private handleProcessError(): void {
-    // Clear the failed process
-    this.persistentProcess = null;
+  // Simple authentication expiration handler
+  private handleAuthenticationExpired(): void {
+    this.isAuthenticated = false;
+    this.usePersistentProcess = false;
+    this.isInitialized = false;
 
-    // Reject all pending commands in the queue
-    this.commandQueue.forEach(({ reject }) => {
-      reject(new Error('Process error occurred'));
-    });
-    // Clear the command queue
-    this.commandQueue = [];
-    // Allow new commands to be processed
-    this.isProcessing = false;
+    if (this.persistentProcess) {
+      this.persistentProcess.kill();
+      this.persistentProcess = null;
+    }
+
+    this.promptManualAuthenticationError();
   }
 
-  // Handle unexpected process exit
+  // Enhanced error handling with detailed logging
+  private handleProcessError(): void {
+    logger.logError('Handling process error');
+    
+    // Clear the failed process
+    this.persistentProcess = null;
+  }
+
+  // Enhanced process exit handling with detailed logging
   private handleProcessExit(): void {
+    logger.logInfo('Handling process exit');
+    
     // Clear the exited process
     this.persistentProcess = null;
-
-    // Reject all pending commands in the queue
-    this.commandQueue.forEach(({ reject }) => {
-      reject(new Error('Process exited'));
-    });
-
-    // Clear the command queue
-    this.commandQueue = [];
-    // Allow new commands to be processed
-    this.isProcessing = false;
   }
 
   // Show user-friendly error when Keeper Commander is not installed
@@ -763,12 +676,30 @@ export class CliService {
     return true;
   }
 
+  // Enhanced disposal with cleanup
   public dispose(): void {
+    logger.logDebug('Disposing CLI service');
+    
+    // Kill persistent process
     if (this.persistentProcess) {
       this.persistentProcess.kill();
       this.persistentProcess = null;
     }
-    this.commandQueue = [];
-    this.isProcessing = false;
+    
+    logger.logDebug('CLI service disposed');
+  }
+
+  private recoverPersistentProcess(): void {
+    logger.logInfo('Attempting to recover persistent process after timeout');
+    
+    // Kill the stuck process
+    if (this.persistentProcess) {
+      this.persistentProcess.kill();
+      this.persistentProcess = null;
+    }
+    
+    // Reset shell state
+    this.shellReady = false;
+    this.shellReadyPromise = null;  
   }
 }
