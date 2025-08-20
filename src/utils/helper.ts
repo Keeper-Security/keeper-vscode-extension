@@ -225,10 +225,7 @@ export function cleanCliOutput(output: string): string {
   
   // Remove Windows command prompts (e.g., "C:\Users\...>keeper-commander.exe shell")
   cleaned = cleaned.replace(/^[A-Z]:\\.*?>.*?\n?/gm, '');
-  
-  // Remove any remaining command prompt patterns
-  cleaned = cleaned.replace(/^.*?>.*?\n?/gm, '');
-  
+    
   // Remove empty lines at the beginning
   cleaned = cleaned.replace(/^\n+/, '');
   

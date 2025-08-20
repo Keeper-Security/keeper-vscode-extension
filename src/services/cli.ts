@@ -15,7 +15,7 @@ const BENIGN_PATTERNS = [
   /and use default login method/i,
   /Syncing\.\.\./i,
   /Decrypted\s*\[\d+\]\s*record\(s\)/i,
-  /keeper shell/i,
+  /^keeper shell$/i,
   /^\r$/, // stray carriage returns
 ];
 
@@ -24,10 +24,12 @@ function cleanCommanderNoise(text: string): string {
   if (!text) {
     return '';
   }
+  
   let out = text;
   for (const rx of BENIGN_PATTERNS) {
     out = out.replace(new RegExp(rx.source + '.*?(\\n|$)', 'gim'), '');
   }
+  
   return out.trim();
 }
 
@@ -46,15 +48,96 @@ function isRealError(text: string): boolean {
   return /(error|failed|exception|traceback)/i.test(cleaned);
 }
 
+// Extract command output between echoed command and shell prompt
+function extractCommandOutput(
+  fullOutput: string, 
+  command: string, 
+  args: string[]
+): string {
+  const commandString = `${command} ${args.join(' ')}`.trim();
+  
+  const commandVariations = [
+    // Exact command after shell prompt
+    `My Vault> ${commandString}`,
+    // Command with flexible whitespace after prompt
+    `My Vault>\\s*${commandString}`,
+    // Command at end of line
+    `${commandString}\\s*$`,
+    // Command with flexible whitespace
+    `${commandString.replace(/\\s+/g, '\\s+')}`,
+    // Just the command name
+    command,
+  ];
+  
+  let commandStart = -1;
+  let foundCommand = '';
+  
+  // Try each variation
+  for (const variation of commandVariations) {
+    let found = -1;
+    
+    if (variation.includes('\\s+') || variation.includes('\\s*')) {
+      // Use regex for flexible patterns
+      const regex = new RegExp(variation, 'i');
+      const match = fullOutput.match(regex);
+      if (match) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        found = match.index!;
+        foundCommand = match[0];
+        commandStart = found;
+        break;
+      }
+    } else {
+      // Use simple string search
+      found = fullOutput.indexOf(variation);
+      if (found !== -1) {
+        foundCommand = variation;
+        commandStart = found;
+        break;
+      }
+    }
+  }
+  
+  if (commandStart !== -1) {
+    // Command found, extract output
+    const lastPromptIndex = fullOutput.lastIndexOf('My Vault>');
+    if (lastPromptIndex !== -1) {
+      const outputStart = commandStart + foundCommand.length;
+      const outputEnd = lastPromptIndex;
+      
+      if (outputStart < outputEnd) {
+        const extractedOutput = fullOutput.substring(outputStart, outputEnd);
+        return extractedOutput.trim();
+      }
+    }
+  }
+  
+  // FALLBACK: Try to find the last command pattern
+  const lastPromptIndex = fullOutput.lastIndexOf('My Vault>');
+  if (lastPromptIndex !== -1) {
+    // Look for the last "My Vault> command" pattern
+    const lastCommandPattern = /My Vault>\s*([^\n]*)$/m;
+    const match = fullOutput.substring(0, lastPromptIndex).match(lastCommandPattern);
+    
+    if (match) {      
+      // Remove the last command line
+      const withoutLastCommand = fullOutput.substring(0, lastPromptIndex).replace(lastCommandPattern, '');
+      return withoutLastCommand.trim();
+    }
+    
+    // If no command pattern found, just remove everything after last shell prompt
+    return fullOutput.substring(0, lastPromptIndex).trim();
+  }
+  
+  return fullOutput;
+}
+
 export class CliService {
   private isInstalled: boolean = false;
   private isAuthenticated: boolean = false;
 
   // Lazy initialization properties
-
-  // Long-running Keeper shell process
   private persistentProcess: ChildProcess | null = null;
-  // Event emitter for process communication
   private processEmitter = new EventEmitter();
   // Queue of pending commands to execute
   private commandQueue: Array<{
@@ -64,15 +147,12 @@ export class CliService {
     resolve: (value: string) => void;
     reject: (error: Error) => void;
   }> = [];
+  
   private isProcessing = false;
-  // Track if we've ever initialized
   private isInitialized = false;
-  // Flag to switch to persistent mode
   private usePersistentProcess = false;
-
   private shellReady = false;
   private shellReadyPromise: Promise<void> | null = null;
-
 
   public constructor(
     // @ts-ignore
@@ -253,10 +333,6 @@ export class CliService {
     command: string,
     args: string[] = []
   ): Promise<string> {
-    logger.logDebug(
-      `CliService.executeCommanderCommand called: ${command} with ${args.length} arguments`
-    );
-
     // Initialize on first use
     if (!this.isInitialized) {
       await this.lazyInitialize();
@@ -333,14 +409,12 @@ export class CliService {
       // Use platform-aware spawning
       if (process.platform === 'win32') {
         // On Windows, use CMD to handle the 'keeper' alias
-        logger.logDebug('Using Windows CMD wrapper for keeper command');
         this.persistentProcess = spawn('cmd', ['/c', 'keeper', 'shell'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: false,
         });
       } else {
         // On other platforms, spawn directly
-        logger.logDebug('Using direct spawn for keeper command');
         this.persistentProcess = spawn('keeper', ['shell'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: false,
@@ -388,7 +462,7 @@ export class CliService {
       this.shellReadyPromise = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(
           () => reject(new Error('Shell ready timeout')),
-          60000
+          60000 // 60 seconds timeout
         );
         const onReady = (chunk: Buffer): void => {
           const data = chunk.toString();
@@ -443,9 +517,20 @@ export class CliService {
     args: string[]
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Command execution timeout'));
-      }, 60000);
+      const timeout = setTimeout(async () => {
+        const errorMessage = `Command execution timeout: ${command} ${args.join(' ')}`;
+        logger.logError(errorMessage);
+        
+        // Show error notification to user
+        window.showErrorMessage(
+          `Keeper Command Timeout:`,
+          'The command took too long to execute and timed out. Please reload and try again.'
+        );
+
+        this.spinner.hide();
+        
+        reject(new Error(errorMessage));
+      }, 60000); // 60 seconds timeout
 
       // Accumulate stdout for command result
       let output = '';
@@ -581,28 +666,18 @@ export class CliService {
         if (output.includes('My Vault>') || output.includes('$')) {
           // Clean up listeners and timeouts
           cleanup();
-
-          // Remove the shell prompt from output
-          let combinedOut = output.replace(/My Vault>.*$/s, '').trim();
-
-          // Remove the echoed command from output (what we sent)
-          const commandToRemove = `${command} ${args.join(' ')}`;
-          combinedOut = combinedOut.replace(
-            new RegExp(`${commandToRemove}\\s*`, 'g'),
-            ''
-          );
-
-          // Clean benign noise from both stdout and stderr streams
-          const cleanOut = cleanCommanderNoise(combinedOut);
+          
+          // Extract output between command echo and shell prompt
+          const cleanOut = extractCommandOutput(output, command, args);
+          
+          // Clean benign noise from stderr only (stdout is already clean)
           const cleanErr = cleanCommanderNoise(errorOutput);
-
+          
           // Check if stderr contains real errors
           if (isRealError(cleanErr)) {
-            // Reject with error message
             reject(new Error(cleanErr));
           } else {
-            // Resolve with cleaned output
-            resolve(cleanOut || combinedOut);
+            resolve(cleanOut);
           }
         } else {
           // Check again in 100ms if no prompt yet

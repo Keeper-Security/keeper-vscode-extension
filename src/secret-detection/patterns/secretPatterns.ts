@@ -1,15 +1,17 @@
-// Centralized secret patterns for all parsers
-export interface SecretPattern {
+// Base interface for common secret pattern properties
+export interface BaseSecretPattern {
   pattern: RegExp;
-  type: string;
   description: string;
   confidence: 'high' | 'medium' | 'low';
 }
 
-export interface SecretKeyPattern {
-  pattern: RegExp;
-  description: string;
-  confidence: 'high' | 'medium' | 'low';
+// Secret pattern interface extending base interface
+export interface SecretPattern extends BaseSecretPattern {
+  type: string;
+}
+
+// Secret key pattern interface extending base interface
+export interface SecretKeyPattern extends BaseSecretPattern {
 }
 
 // High-confidence secret patterns (very specific formats)
