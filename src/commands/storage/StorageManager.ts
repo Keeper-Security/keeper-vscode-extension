@@ -162,7 +162,7 @@ export class StorageManager {
           picked: this.getCurrentStorage()?.folderUid === folder.folderUid,
         };
         if (folder.folderPath && folder.folderPath !== '/') {
-          response.detail = `📁 Path: ${folder.folderPath}`;
+          response.detail = `Path: ${folder.folderPath}`;
         }
         return response;
       }
