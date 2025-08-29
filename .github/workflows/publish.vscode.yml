@@ -1,0 +1,143 @@
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to publish'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: |
+            dist/
+            *.vsix
+          retention-days: 30
+
+  generate-sbom:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SBOM with CycloneDX
+        uses: CycloneDX/gh-action-generate@v1
+        with:
+          output-format: json
+          output-name: sbom-cyclonedx.json
+          schema-version: 1.4
+
+      - name: Generate SBOM with SPDX
+        run: |
+          npx @spdx/spdx-sbom-generator@latest -o spdx-sbom.json
+          echo "SPDX SBOM generated successfully"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-files
+          path: |
+            sbom-*.json
+          retention-days: 90
+
+      - name: Upload SBOM to GitHub
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: sbom-cyclonedx.json
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [test, build, generate-sbom]
+    environment: prod
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+          path: ./
+
+      - name: Publish to VS Code Marketplace
+        run: |
+          echo "Publishing ${{ github.event.inputs.version_type }} version..."
+          npm run publish:${{ github.event.inputs.version_type }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
