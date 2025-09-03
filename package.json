@@ -104,6 +104,7 @@
     "clean": "rm -rf dist out coverage",
     "vscode:prepublish": "npm run webpack",
     "package": "vsce package",
+    "publish": "vsce publish",
     "publish:patch": "vsce publish patch",
     "publish:minor": "vsce publish minor",
     "publish:major": "vsce publish major"
