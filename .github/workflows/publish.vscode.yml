@@ -1,0 +1,152 @@
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+    
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: "*.vsix"
+          retention-days: 30
+
+  generate-sbom:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Get the source code
+        uses: actions/checkout@v4
+
+      - name: Install Syft
+        run: |
+          echo "Installing Syft v1.18.1..."
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /tmp/bin v1.18.1
+          echo "/tmp/bin" >> $GITHUB_PATH
+
+      - name: Install Manifest CLI
+        run: |
+          echo "Installing Manifest CLI v0.18.3..."
+          curl -sSfL https://raw.githubusercontent.com/manifest-cyber/cli/main/install.sh | sh -s -- -b /tmp/bin v0.18.3
+
+      - name: Create Syft configuration
+        run: |
+          cat > syft-config.yaml << 'EOF'
+          package:
+            search:
+              scope: all-layers
+            cataloger:
+              enabled: true
+              java:
+                enabled: false
+              python:
+                enabled: false
+              nodejs:
+                enabled: true
+          EOF
+
+      - name: Generate and upload SBOM
+        env:
+          MANIFEST_API_KEY: ${{ secrets.MANIFEST_TOKEN }}
+        run: |
+          # Get version from package.json
+          echo "Detecting VS Code Extension version..."
+          if [ -f "package.json" ]; then
+            VERSION=$(grep -o '"version": "[^"]*"' "package.json" | cut -d'"' -f4)
+            echo "Detected version: ${VERSION}"
+          else
+            VERSION="1.0.0"
+            echo "Could not detect version, using default: ${VERSION}"
+          fi
+
+          echo "Generating SBOM with Manifest CLI..."
+          /tmp/bin/manifest sbom "." \
+            --generator=syft \
+            --name=keeper-vscode-extension \
+            --version=${VERSION} \
+            --output=spdx-json \
+            --file=vscode-extension-sbom.json \
+            --api-key=${MANIFEST_API_KEY} \
+            --publish=true \
+            --asset-label=application,sbom-generated,nodejs,vscode-extension \
+            --generator-config=syft-config.yaml
+
+          echo "SBOM generated and uploaded successfully: vscode-extension-sbom.json"
+          echo "---------- SBOM Preview (first 20 lines) ----------"
+          head -n 20 vscode-extension-sbom.json
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [test, build, generate-sbom]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+          path: ./
+
+      - name: Publish to VS Code Marketplace
+        run: |
+          echo "Publishing version $(node -p "require('./package.json').version")..."
+          npm run publish
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
