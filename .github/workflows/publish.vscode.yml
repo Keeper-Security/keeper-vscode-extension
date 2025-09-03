@@ -123,6 +123,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    environment: prod 
     needs: [test, build, generate-sbom]
 
     steps:
