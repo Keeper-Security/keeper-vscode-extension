@@ -4,7 +4,7 @@
   "description": "Never commit secrets to your code again - secure them in Keeper vault",
   "version": "1.0.0",
   "license": "MIT",
-  "publisher": "keeper-security",
+  "publisher": "KeeperSecurityDev",
   "galleryBanner": {
     "color": "#1a365d",
     "theme": "dark"
