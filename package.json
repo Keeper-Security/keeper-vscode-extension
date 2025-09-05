@@ -29,8 +29,8 @@
     "vscode": "^1.99.0"
   },
   "categories": [
-    "Security",
-    "Other"
+    "Other",
+    "Linters"
   ],
   "activationEvents": [
     "onStartupFinished"
