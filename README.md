@@ -1,3 +1,5 @@
+![Keeper Security VS Code Extension Header](https://github.com/user-attachments/assets/6839171a-23c8-47d4-99d7-8bd3f9097100)
+
 # Keeper Security VS Code Extension
 
 ## Table of Contents
