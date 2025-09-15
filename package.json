@@ -1,8 +1,8 @@
 {
   "name": "ks-vscode",
   "displayName": "Keeper Security",
-  "description": "Never commit secrets to your code again - secure them in Keeper vault",
-  "version": "1.0.0",
+  "description": "Never commit secrets to your code again - secure them in your Keeper vault",
+  "version": "1.0.1",
   "license": "MIT",
   "publisher": "KeeperSecurityDev",
   "galleryBanner": {
@@ -29,7 +29,6 @@
     "vscode": "^1.99.0"
   },
   "categories": [
-    "Security",
     "Other"
   ],
   "activationEvents": [

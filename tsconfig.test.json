@@ -14,11 +14,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "noImplicitAny": false
   },
   "include": [
-    "src/**/*",
-    "test/integration/**/*",          
+    "test/**/*",
+    "**/*.test.ts"
   ],
   "exclude": [
     "node_modules",

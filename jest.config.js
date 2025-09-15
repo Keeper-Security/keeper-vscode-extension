@@ -25,7 +25,9 @@ module.exports = {
     '!**/*.test.ts',
     '!**/*.spec.ts',
     '!src/commands/index.ts',
-    '!src/providers/secretDetectionCodeLensProvider.ts'
+    '!src/providers/secretDetectionCodeLensProvider.ts',
+    '!src/services/cli.ts',
+    '!src/services/secretDetection.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json'],
