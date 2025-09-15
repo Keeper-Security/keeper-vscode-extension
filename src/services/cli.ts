@@ -2,7 +2,6 @@ import { env, ExtensionContext, Uri, window } from 'vscode';
 import { logger } from '../utils/logger';
 import { promisifyExec, StatusBarSpinner } from '../utils/helper';
 import { exec, spawn, ChildProcess } from 'child_process';
-import { EventEmitter } from 'events';
 import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
 import { HELPER_MESSAGES } from '../utils/constants';
 
@@ -24,12 +23,12 @@ function cleanCommanderNoise(text: string): string {
   if (!text) {
     return '';
   }
-  
+
   let out = text;
   for (const rx of BENIGN_PATTERNS) {
     out = out.replace(new RegExp(rx.source + '.*?(\\n|$)', 'gim'), '');
   }
-  
+
   return out.trim();
 }
 
@@ -50,86 +49,17 @@ function isRealError(text: string): boolean {
 
 // Extract command output between echoed command and shell prompt
 function extractCommandOutput(
-  fullOutput: string, 
-  command: string, 
-  args: string[]
+  fullOutput: string,
 ): string {
-  const commandString = `${command} ${args.join(' ')}`.trim();
-  
-  const commandVariations = [
-    // Exact command after shell prompt
-    `My Vault> ${commandString}`,
-    // Command with flexible whitespace after prompt
-    `My Vault>\\s*${commandString}`,
-    // Command at end of line
-    `${commandString}\\s*$`,
-    // Command with flexible whitespace
-    `${commandString.replace(/\\s+/g, '\\s+')}`,
-    // Just the command name
-    command,
-  ];
-  
-  let commandStart = -1;
-  let foundCommand = '';
-  
-  // Try each variation
-  for (const variation of commandVariations) {
-    let found = -1;
-    
-    if (variation.includes('\\s+') || variation.includes('\\s*')) {
-      // Use regex for flexible patterns
-      const regex = new RegExp(variation, 'i');
-      const match = fullOutput.match(regex);
-      if (match) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        found = match.index!;
-        foundCommand = match[0];
-        commandStart = found;
-        break;
-      }
-    } else {
-      // Use simple string search
-      found = fullOutput.indexOf(variation);
-      if (found !== -1) {
-        foundCommand = variation;
-        commandStart = found;
-        break;
-      }
-    }
+  const delimiter = "My Vault>";
+  const lastIndex = fullOutput.lastIndexOf(delimiter);
+
+  if (lastIndex === -1) {
+    return fullOutput.trim();
   }
-  
-  if (commandStart !== -1) {
-    // Command found, extract output
-    const lastPromptIndex = fullOutput.lastIndexOf('My Vault>');
-    if (lastPromptIndex !== -1) {
-      const outputStart = commandStart + foundCommand.length;
-      const outputEnd = lastPromptIndex;
-      
-      if (outputStart < outputEnd) {
-        const extractedOutput = fullOutput.substring(outputStart, outputEnd);
-        return extractedOutput.trim();
-      }
-    }
-  }
-  
-  // FALLBACK: Try to find the last command pattern
-  const lastPromptIndex = fullOutput.lastIndexOf('My Vault>');
-  if (lastPromptIndex !== -1) {
-    // Look for the last "My Vault> command" pattern
-    const lastCommandPattern = /My Vault>\s*([^\n]*)$/m;
-    const match = fullOutput.substring(0, lastPromptIndex).match(lastCommandPattern);
-    
-    if (match) {      
-      // Remove the last command line
-      const withoutLastCommand = fullOutput.substring(0, lastPromptIndex).replace(lastCommandPattern, '');
-      return withoutLastCommand.trim();
-    }
-    
-    // If no command pattern found, just remove everything after last shell prompt
-    return fullOutput.substring(0, lastPromptIndex).trim();
-  }
-  
-  return fullOutput;
+
+  const extractedOutput = fullOutput.substring(0, lastIndex).trim();
+  return extractedOutput;
 }
 
 // Create a special error type that won't trigger persistent mode fallback
@@ -144,12 +74,15 @@ export class CliService {
   private isInstalled: boolean = false;
   private isAuthenticated: boolean = false;
   private persistentProcess: ChildProcess | null = null;
-  private processEmitter = new EventEmitter();
   private isInitialized = false;
   private usePersistentProcess = false;
   private shellReady = false;
   private shellReadyPromise: Promise<void> | null = null;
   private isExecutingCommand = false;
+
+  // Add reset cli timeout
+  private resetCliTimeout: NodeJS.Timeout | null = null;
+  private readonly RESET_CLI_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
   public constructor(
     // @ts-ignore
@@ -207,6 +140,9 @@ export class CliService {
       this.usePersistentProcess = true;
       this.isInitialized = true;
 
+      // Start the reset cli timer
+      this.startResetCliTimer();
+
       logger.logInfo('Keeper Security Extension initialized successfully');
     } catch (error) {
       logger.logError(
@@ -218,6 +154,50 @@ export class CliService {
     } finally {
       this.spinner.hide();
     }
+  }
+
+  // Start the reset timer
+  private startResetCliTimer(): void {
+    // Clear any existing timer
+    if (this.resetCliTimeout) {
+      clearTimeout(this.resetCliTimeout);
+    }
+
+    // Set new timer for 10 minutes
+    this.resetCliTimeout = setTimeout(() => {
+      logger.logInfo('Resetting CLI service after 10 minutes to handle potential config changes');
+      this.resetCliService();
+    }, this.RESET_CLI_INTERVAL);
+  }
+
+  // Reset all CLI service state
+  private resetCliService(): void {
+    logger.logInfo('Resetting CLI service state...');
+
+    this.spinner.hide();
+
+    // Clear reset timer
+    if (this.resetCliTimeout) {
+      clearTimeout(this.resetCliTimeout);
+      this.resetCliTimeout = null;
+    }
+
+    // Reset all state
+    this.isInstalled = false;
+    this.isAuthenticated = false;
+    this.isInitialized = false;
+    this.usePersistentProcess = false;
+    this.shellReady = false;
+    this.shellReadyPromise = null;
+    this.isExecutingCommand = false;
+
+    // Kill and clear persistent process
+    if (this.persistentProcess) {
+      this.persistentProcess.kill();
+      this.persistentProcess = null;
+    }
+
+    logger.logInfo('CLI service state reset completed');
   }
 
   // Check if Keeper Commander CLI is installed by running --version
@@ -243,14 +223,17 @@ export class CliService {
   // Check if user is authenticated with Keeper Commander
   private async checkCommanderAuth(): Promise<boolean> {
     /**
-     * TODO: IN FUTURE WE WILL NOT USE this-device command, WILL USE 'whoami' command instead
+     * TODO: IN FUTURE WE WILL NOT USE this-device command, WILL USE 'login-status' command instead
+     * CURRENTLY THAT COMMAND IS NOT RELEASED YET
      */
     try {
       // Create timeout promise to prevent hanging on interactive login prompts
+      let timeoutId: NodeJS.Timeout | null = null;
+
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
+        timeoutId = setTimeout(
           () => reject(new Error('Must be asking for interactive login')),
-          30000 // 30 second timeout for auth check
+          30 * 1000 // 30 seconds timeout for auth check
         );
       });
 
@@ -263,22 +246,25 @@ export class CliService {
         timeoutPromise,
       ]);
 
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
       const out = `${stdout}\n${stderr}`;
       const persistentOn = /Persistent Login:\s*ON/i.test(out);
 
-      // Look for biometric authentication hints in output
-      const biometricHints = [
-        /Press Ctrl\+C to skip biometric/i,
-        /Attempting biometric authentication/i,
-        /Successfully authenticated with Biometric Login/i,
-        /Syncing\.\.\./i,
-        /Decrypted\s*\[\d+\]\s*record\(s\)/i,
-      ];
-      const biometricDetected = biometricHints.some((rx) => rx.test(out));
+      // If persistent login is on, we're authenticated
+      if (persistentOn) {
+        logger.logInfo(`Keeper Commander CLI Authenticated: YES (Persistent)`);
+        return true;
+      }
 
-      if (persistentOn || biometricDetected) {
-        const mode = persistentOn ? 'Persistent' : 'Biometric';
-        logger.logInfo(`Keeper Commander CLI Authenticated: YES (${mode})`);
+      // Check for biometric authentication
+      const biometricDetected = await this.checkBiometricAuthentication();
+
+      if (biometricDetected) {
+        logger.logInfo(`Keeper Commander CLI Authenticated: YES (Biometric)`);
         return true;
       }
 
@@ -289,6 +275,50 @@ export class CliService {
         'Keeper Commander CLI Authentication check failed:',
         error instanceof Error ? error.message : 'Unknown error'
       );
+      return false;
+    }
+  }
+
+  // Check biometric authentication
+  private async checkBiometricAuthentication(): Promise<boolean> {
+    try {
+      // Look for biometric authentication hints in output
+      const biometricHints = [
+        /Status:\s*SUCCESSFUL/i,
+        /Press Ctrl\+C to skip biometric/i,
+        /Attempting biometric authentication/i,
+        /Successfully authenticated with Biometric Login/i,
+        /Syncing\.\.\./i,
+        /Decrypted\s*\[\d+\]\s*record\(s\)/i,
+      ];
+      let biometricTimeoutId: NodeJS.Timeout | null = null;
+
+      const biometricTimeoutPromise = new Promise<never>((_, reject) => {
+        biometricTimeoutId = setTimeout(
+          () => reject(new Error('Must be asking for interactive login')),
+          30 * 1000 // 30 seconds timeout for auth check
+        );
+      });
+
+      const execPromise = this.executeCommanderCommandLegacyRaw('biometric verify');
+
+      const { stdout, stderr } = await Promise.race([
+        execPromise,
+        biometricTimeoutPromise,
+      ]);
+
+      if (biometricTimeoutId) {
+        clearTimeout(biometricTimeoutId);
+        biometricTimeoutId = null;
+      }
+
+      const biometricVerify = `${stdout}\n${stderr}`;
+
+      const biometricDetected = biometricHints.some((rx) => rx.test(biometricVerify));
+
+      return biometricDetected;
+    } catch (error) {
+      logger.logError('Biometric authentication check failed:', error);
       return false;
     }
   }
@@ -313,8 +343,10 @@ export class CliService {
         command,
         args
       );
+
       const cleanStdout = cleanCommanderNoise(stdout);
       const cleanStderr = cleanCommanderNoise(stderr);
+
       if (isRealError(cleanStderr)) {
         throw new Error(cleanStderr);
       }
@@ -347,9 +379,13 @@ export class CliService {
       if (error instanceof CommandBlockedError) {
         throw error; // Re-throw without disabling persistent mode
       }
-      
+
       logger.logError(`Persistent process failed, falling back to legacy mode:`, error);
       this.usePersistentProcess = false;
+
+      // Reset CLI service when falling back to legacy mode
+      this.resetCliService();
+
       return this.executeCommanderCommandLegacy(command, args);
     }
   }
@@ -365,16 +401,16 @@ export class CliService {
     // Check if another command is running
     if (this.isExecutingCommand) {
       logger.logInfo(`Command ${command} blocked - another command is executing`);
-            
+
       // Throw special error that won't trigger persistent mode fallback
-      throw new CommandBlockedError(`Another Keeper command is currently running. Please wait for it to complete and try again.`);
+      throw new CommandBlockedError(`Another Keeper command is currently running. Please wait for it to complete and try again or reload the window.`);
     }
 
     // Set executing flag
     this.isExecutingCommand = true;
 
     try {
-      // Execute the command directly (with 60-second execution timeout)
+      // Execute the command directly in the persistent process
       const result = await this.executeCommandInProcess(command, args);
       return result;
     } finally {
@@ -435,19 +471,9 @@ export class CliService {
         const data = chunk.toString();
 
         // Look for shell prompt
-        if (data.includes('My Vault>') || data.includes('$')) {
+        if (data.includes('My Vault>')) {
           // Remove startup listener
           this.persistentProcess?.stdout?.off('data', onStdoutStartup);
-
-          // After ready, attach the real forwarders for command execution
-          this.persistentProcess?.stdout?.on('data', (d) => {
-            // Forward stdout to command handlers
-            this.processEmitter.emit('stdout', d.toString());
-          });
-          this.persistentProcess?.stderr?.on('data', (d) => {
-            // Forward stderr to command handlers
-            this.processEmitter.emit('stderr', d.toString());
-          });
 
           // Mark shell as ready for commands
           this.shellReady = true;
@@ -458,12 +484,12 @@ export class CliService {
       // readiness promise with timeout
       this.shellReadyPromise = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(
-          () => reject(new Error('Shell ready timeout')),
-          60000 // 60 seconds timeout
+          () => reject(new Error('Keeper Commander Shell ready timeout')),
+          120000 // 2 minutes timeout
         );
         const onReady = (chunk: Buffer): void => {
           const data = chunk.toString();
-          if (data.includes('My Vault>') || data.includes('$')) {
+          if (data.includes('My Vault>')) {
             clearTimeout(timeout);
             this.persistentProcess?.stdout?.off('data', onReady);
             resolve();
@@ -492,29 +518,36 @@ export class CliService {
       const timeout = setTimeout(() => {
         const errorMessage = `Command execution timeout: ${command} ${args.join(' ')}`;
         logger.logError(errorMessage);
-        
+
         // Show error notification to user
         window.showErrorMessage(
           `Keeper Command Timeout:`,
-          'The command took too long to execute and timed out. Please try again.'
+          'The command took too long to execute and timed out after 5 minutes. Please reload the window and try again.'
         );
 
         this.spinner.hide();
-        
-        // Try to recover the persistent process
-        this.recoverPersistentProcess();
-        
+
+        // Complete reset after timeout
+        this.resetCliService();
+
         reject(new Error('Command execution timeout'));
-      }, 60000);
+      }, 300000); // 5 minutes timeout
 
       // Accumulate stdout for command result
       let output = '';
       let errorOutput = '';
       let biometricPromptHandled = false;
 
+      // Track the last time new data was received
+      let lastDataTime = Date.now();
+      let checkCompletionTimeout: NodeJS.Timeout | null = null;
+
       // Handle stdout data from Keeper process
       const onStdout = (data: string): void => {
         const dataStr = data.toString();
+
+        // Update timestamp when new data arrives
+        lastDataTime = Date.now();
 
         // Handle biometric authentication prompts automatically
         if (dataStr.includes('Press Ctrl+C to skip biometric')) {
@@ -526,16 +559,17 @@ export class CliService {
 
             setTimeout(() => {
               this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
-            }, 500);
+            }, 500); // 0.5 seconds timeout
             return;
           }
         }
 
         // Check for authentication expiration
         if (dataStr.includes('Not logged in')) {
+          this.spinner.hide();
           cleanup();
           this.handleAuthenticationExpired();
-          reject(new Error('Authentication expired. Please log in again.'));
+          reject(new Error('Keeper session expired. Please log in again manually or reload the window and try again.'));
           return;
         }
 
@@ -548,8 +582,9 @@ export class CliService {
       // Handle stderr data
       const onStderr = (data: string): void => {
         const dataStr = data.toString();
-        
+
         if (dataStr.includes('Not logged in')) {
+          this.spinner.hide();
           cleanup();
           this.handleAuthenticationExpired();
           reject(new Error('Authentication expired. Please log in again.'));
@@ -562,31 +597,38 @@ export class CliService {
       // Clean up event listeners and timeouts
       const cleanup = (): void => {
         clearTimeout(timeout);
-        this.processEmitter.removeListener('stdout', onStdout);
-        this.processEmitter.removeListener('stderr', onStderr);
+        if (checkCompletionTimeout) {
+          clearTimeout(checkCompletionTimeout);
+          checkCompletionTimeout = null;
+        }
+        this.persistentProcess?.stdout?.off('data', onStdout);
+        this.persistentProcess?.stderr?.off('data', onStderr);
       };
 
-      // Listen for stdout events
-      this.processEmitter.on('stdout', onStdout);
-      // Listen for stderr events
-      this.processEmitter.on('stderr', onStderr);
+      // Listen for stdout events directly on the process
+      this.persistentProcess?.stdout?.on('data', onStdout);
+      // Listen for stderr events directly on the process
+      this.persistentProcess?.stderr?.on('data', onStderr);
 
       // Send command to Keeper Commander process via stdin
       this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
 
       // Wait for command completion by checking for shell prompt
       const checkCompletion = (): void => {
-        // Check for shell prompt
-        if (output.includes('My Vault>') || output.includes('$')) {
+        const now = Date.now();
+        const timeSinceLastData = now - lastDataTime;
+
+        // If no new data for 5 seconds AND output ends with shell prompt
+        if (timeSinceLastData >= 5000 && (output.endsWith('My Vault>') || output.endsWith('My Vault> '))) {
           // Clean up listeners and timeouts
           cleanup();
-          
+
           // Extract output between command echo and shell prompt
-          const cleanOut = extractCommandOutput(output, command, args);
-          
+          const cleanOut = extractCommandOutput(output);
+
           // Clean benign noise from stderr only (stdout is already clean)
           const cleanErr = cleanCommanderNoise(errorOutput);
-          
+
           // Check if stderr contains real errors
           if (isRealError(cleanErr)) {
             reject(new Error(cleanErr));
@@ -594,8 +636,12 @@ export class CliService {
             resolve(cleanOut);
           }
         } else {
+          // Clear any existing timeout before setting a new one
+          if (checkCompletionTimeout) {
+            clearTimeout(checkCompletionTimeout);
+          }
           // Check again in 100ms if no prompt yet
-          setTimeout(checkCompletion, 100);
+          checkCompletionTimeout = setTimeout(checkCompletion, 100);
         }
       };
 
@@ -606,14 +652,10 @@ export class CliService {
 
   // Simple authentication expiration handler
   private handleAuthenticationExpired(): void {
-    this.isAuthenticated = false;
-    this.usePersistentProcess = false;
-    this.isInitialized = false;
 
-    if (this.persistentProcess) {
-      this.persistentProcess.kill();
-      this.persistentProcess = null;
-    }
+
+    // Reset CLI service when authentication expires
+    this.resetCliService();
 
     this.promptManualAuthenticationError();
   }
@@ -621,17 +663,17 @@ export class CliService {
   // Enhanced error handling with detailed logging
   private handleProcessError(): void {
     logger.logError('Handling process error');
-    
-    // Clear the failed process
-    this.persistentProcess = null;
+
+    // Reset CLI service to recover from process errors
+    this.resetCliService();
   }
 
   // Enhanced process exit handling with detailed logging
   private handleProcessExit(): void {
     logger.logInfo('Handling process exit');
-    
-    // Clear the exited process
-    this.persistentProcess = null;
+
+    // Reset CLI service when process exits unexpectedly
+    this.resetCliService();
   }
 
   // Show user-friendly error when Keeper Commander is not installed
@@ -679,27 +721,19 @@ export class CliService {
   // Enhanced disposal with cleanup
   public dispose(): void {
     logger.logDebug('Disposing CLI service');
-    
+
+    // Clear reset timer
+    if (this.resetCliTimeout) {
+      clearTimeout(this.resetCliTimeout);
+      this.resetCliTimeout = null;
+    }
+
     // Kill persistent process
     if (this.persistentProcess) {
       this.persistentProcess.kill();
       this.persistentProcess = null;
     }
-    
-    logger.logDebug('CLI service disposed');
-  }
 
-  private recoverPersistentProcess(): void {
-    logger.logInfo('Attempting to recover persistent process after timeout');
-    
-    // Kill the stuck process
-    if (this.persistentProcess) {
-      this.persistentProcess.kill();
-      this.persistentProcess = null;
-    }
-    
-    // Reset shell state
-    this.shellReady = false;
-    this.shellReadyPromise = null;  
+    logger.logDebug('CLI service disposed');
   }
 }
