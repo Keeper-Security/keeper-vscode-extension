@@ -104,18 +104,24 @@ export class GetValueHandler extends BaseCommandHandler {
       // Show field picker
       const fields = details['fields']
         .filter((field: IField) => field.value.length > 0)
-        .map((field: IField) => ({
-          label: field.label ?? field.type,
-          value: field.label ?? field.type,
-          fieldType: KEEPER_NOTATION_FIELD_TYPES.FIELD,
-        }));
+        .map((field: IField) => {
+          const fieldName = field?.label?.length ? field.label : field.type;
+          return {
+            label: fieldName,
+            value: fieldName,
+            fieldType: KEEPER_NOTATION_FIELD_TYPES.FIELD
+          };
+        });
       const customFields = details['custom']
         .filter((field: IField) => field.value.length > 0)
-        .map((field: IField) => ({
-          label: field.label ?? field.type,
-          value: field.label ?? field.type,
-          fieldType: KEEPER_NOTATION_FIELD_TYPES.CUSTOM_FIELD,
-        }));
+        .map((field: IField) => {
+          const fieldName = field?.label?.length ? field.label : field.type;
+          return {
+            label: fieldName,
+            value: fieldName,
+            fieldType: KEEPER_NOTATION_FIELD_TYPES.CUSTOM_FIELD
+          };
+        });
 
       const fieldsToShow = [...fields, ...customFields];
 

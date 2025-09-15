@@ -36,7 +36,7 @@ export const HELPER_MESSAGES = {
   CLI_NOT_INSTALLED:
     'Keeper Commander CLI is not installed. Please install it first.',
   CLI_NOT_AUTHENTICATED:
-    'Keeper Commander CLI is not authenticated with persistent login or biometric authentication or Please try again.',
+    'Keeper Commander CLI is not authenticated or session has timed out. Please enable persistent login or biometric authentication on this device and try again.',
   CLI_READY: 'Keeper Security Extension is ready to use!',
 } as const;
 

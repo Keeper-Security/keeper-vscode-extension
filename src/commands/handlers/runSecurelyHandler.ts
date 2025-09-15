@@ -12,8 +12,11 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { FieldExtractor } from '../utils/fieldExtractor';
 import { BaseCommandHandler } from './baseCommandHandler';
+import { Uri } from 'vscode';
 
 export class RunSecurelyHandler extends BaseCommandHandler {
+  private static readonly LAST_COMMAND_KEY = 'lastRunSecurelyCommand';
+
   async execute(): Promise<void> {
     logger.logDebug('RunSecurelyHandler.execute called');
 
@@ -61,7 +64,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
       logger.logDebug('RunSecurelyHandler: Creating terminal with secrets');
       this.spinner.show('Creating terminal with secrets injected...');
-      await this.createAndRunTerminal(selectedEnvFile, command, resolvedEnv);
+      await this.createAndRunTerminal(command, resolvedEnv);
       logger.logDebug(
         'RunSecurelyHandler: Terminal created and command started successfully'
       );
@@ -139,20 +142,12 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    */
   private async selectEnvironmentFile(workspaceRoot: string): Promise<string> {
     const envFiles = this.findEnvironmentFiles(workspaceRoot);
-
-    if (envFiles.length === 0) {
-      throw new Error('No environment files found in workspace');
-    }
-
-    if (envFiles.length === 1) {
-      return envFiles[0]; // Auto-select single file
-    }
-
+    
     // Multiple files - let user choose
     const envFileNames = envFiles.map((file) =>
       path.relative(workspaceRoot, file)
     );
-    const selected = await window.showQuickPick(envFileNames, {
+    const selected = await window.showQuickPick(["Browse Environment File", ...envFileNames], {
       placeHolder: 'Select environment file to use',
       matchOnDetail: true,
       ignoreFocusOut: true,
@@ -160,6 +155,30 @@ export class RunSecurelyHandler extends BaseCommandHandler {
 
     if (!selected) {
       throw new Error('No environment file selected');
+    }
+
+    if (selected === "Browse Environment File") {
+      // Open file picker to select .env.* files
+      const fileUris = await window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        defaultUri: Uri.file(workspaceRoot),
+        openLabel: 'Select Environment File'
+      });
+
+      if (!fileUris || fileUris.length === 0) {
+        throw new Error('No environment file selected');
+      }
+
+      const selectedFilePath = fileUris[0].fsPath;
+      const fileName = path.basename(selectedFilePath);
+
+      if (isEnvironmentFile(fileName)) {
+        return selectedFilePath;
+      }
+
+      throw new Error('Selected file is not an environment file. Must be a .env or .env.* file');
     }
 
     const selectedIndex = envFileNames.indexOf(selected);
@@ -170,9 +189,12 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    * Get command to run from user
    */
   private async getCommandFromUser(): Promise<string> {
+    const lastCommand = this.getLastCommand();
+    
     const command = await window.showInputBox({
       prompt: 'Enter command to run with Keeper secrets injected',
       placeHolder: 'e.g. node index.js',
+      value: lastCommand || '', // Will be empty string if no last command
       ignoreFocusOut: true,
     });
 
@@ -182,7 +204,25 @@ export class RunSecurelyHandler extends BaseCommandHandler {
       );
     }
 
+    // Store the command for next time
+    this.setLastCommand(command);
+
     return command;
+  }
+
+  /**
+   * Get the last command that was used for run securely
+   */
+  private getLastCommand(): string | undefined {
+    return this.context.workspaceState.get(RunSecurelyHandler.LAST_COMMAND_KEY);
+  }
+
+  /**
+   * Store the command for future use
+   */
+  private setLastCommand(command: string): void {
+    this.context.workspaceState.update(RunSecurelyHandler.LAST_COMMAND_KEY, command);
+    logger.logDebug(`Stored last command: ${command}`);
   }
 
   /**
@@ -277,14 +317,14 @@ export class RunSecurelyHandler extends BaseCommandHandler {
           recordUid,
           '--format=json',
         ]);
-        
+
         // Use safe parser that cleans output first
         const parsedRecords = safeJsonParse(record, []);
-        
+
         if (!parsedRecords || parsedRecords.length === 0) {
           throw new Error('Failed to parse record data');
         }
-        
+
         const recordDetails = parsedRecords[0];
 
         references.forEach(({ key, fieldType, itemName }) => {
@@ -317,13 +357,11 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    * Create terminal and run command with injected secrets
    */
   private async createAndRunTerminal(
-    selectedEnvFile: string,
     command: string,
     resolvedEnv: Record<string, string>
   ): Promise<void> {
     const terminal = window.createTerminal({
       name: 'Keeper Secure Run',
-      cwd: path.dirname(selectedEnvFile),
       env: {
         ...process.env,
         ...resolvedEnv,

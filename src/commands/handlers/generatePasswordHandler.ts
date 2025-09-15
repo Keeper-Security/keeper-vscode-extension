@@ -2,7 +2,6 @@ import { window, ExtensionContext } from 'vscode';
 import { CliService } from '../../services/cli';
 import { StatusBarSpinner } from '../../utils/helper';
 import {
-  KEEPER_FIELD_TYPES,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../utils/constants';
@@ -46,16 +45,6 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
         `GeneratePasswordHandler: User provided record name length: ${recordName?.length || 0}`
       );
 
-      logger.logDebug(
-        'GeneratePasswordHandler: Getting secret field name from user'
-      );
-      const recordFieldName = await CommandUtils.getSecretFieldNameFromUser(
-        COMMANDS.GENERATE_PASSWORD
-      );
-      logger.logDebug(
-        `GeneratePasswordHandler: User provided field name length: ${recordFieldName?.length || 0}`
-      );
-
       logger.logDebug('GeneratePasswordHandler: Ensuring valid storage');
       await this.storageManager.ensureValidStorage();
 
@@ -64,30 +53,12 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
       );
       this.spinner.show('Generating password...');
 
-      // Generate a random password
-      logger.logDebug('GeneratePasswordHandler: Executing generate command');
-      const password = await this.cliService.executeCommanderCommand(
-        'generate',
-        ['-q', '-nb']
-      );
-      if (!password) {
-        logger.logError(
-          `${COMMANDS.GENERATE_PASSWORD}: Failed to generate a password.`
-        );
-        throw new Error(
-          'Something went wrong while generating a password! Please try again.'
-        );
-      }
-      logger.logDebug(
-        `GeneratePasswordHandler: Password generated successfully, length: ${password.length}`
-      );
-
       const currentStorage = this.storageManager.getCurrentStorage();
 
       const args = [
         `--title="${recordName}"`,
         `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
-        `"c.${KEEPER_FIELD_TYPES.SECRET}.${recordFieldName}"="${password}"`,
+        `"password"=$GEN`,
       ];
 
       // if currentStorage is not "My Vault", then add folder to args
@@ -109,8 +80,8 @@ export class GeneratePasswordHandler extends BaseCommandHandler {
       // Create a Keeper Notation reference for the password
       const recordRef = createKeeperReference(
         recordUid.trim(),
-        KEEPER_NOTATION_FIELD_TYPES.CUSTOM_FIELD,
-        recordFieldName
+        KEEPER_NOTATION_FIELD_TYPES.FIELD,
+        "password"
       );
       if (!recordRef) {
         logger.logError(

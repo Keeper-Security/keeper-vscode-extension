@@ -9,6 +9,7 @@ import { logger } from '../../../../src/utils/logger';
 // Mock dependencies
 jest.mock('../../../../src/services/cli');
 jest.mock('../../../../src/commands/storage/storageManager');
+jest.mock('../../../../src/commands/utils/commandUtils');
 jest.mock('../../../../src/utils/helper', () => ({
   StatusBarSpinner: jest.fn(),
   createKeeperReference: jest.fn(),
@@ -41,6 +42,7 @@ describe('GeneratePasswordHandler', () => {
   let mockStorageManager: jest.Mocked<StorageManager>;
   let generatePasswordHandler: GeneratePasswordHandler;
   let mockCreateKeeperReference: jest.Mock;
+  let mockCommandUtils: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -68,6 +70,9 @@ describe('GeneratePasswordHandler', () => {
     // Get the mocked createKeeperReference function
     mockCreateKeeperReference = require('../../../../src/utils/helper').createKeeperReference;
 
+    // Get the mocked CommandUtils
+    mockCommandUtils = require('../../../../src/commands/utils/commandUtils').CommandUtils;
+
     generatePasswordHandler = new GeneratePasswordHandler(mockCliService, mockContext, mockSpinner, mockStorageManager);
   });
 
@@ -76,15 +81,20 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
 
       await generatePasswordHandler.execute();
 
       expect(mockCliService.isCLIReady).toHaveBeenCalled();
       expect(mockStorageManager.ensureValidStorage).toHaveBeenCalled();
-      expect(window.showInputBox).toHaveBeenCalledTimes(2); // Called twice for record name and field name
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledTimes(2); // generate and record-add
+      expect(mockCommandUtils.getSecretNameFromUser).toHaveBeenCalledWith('ks-vscode.generatePassword');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('record-add', [
+        '--title="Test Record"',
+        '--record-type=login',
+        '"password"=$GEN',
+        '--folder="123"'
+      ]);
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
 
@@ -95,33 +105,19 @@ describe('GeneratePasswordHandler', () => {
 
       expect(mockCliService.isCLIReady).toHaveBeenCalled();
       expect(mockStorageManager.ensureValidStorage).not.toHaveBeenCalled();
-      expect(window.showInputBox).not.toHaveBeenCalled();
+      expect(mockCommandUtils.getSecretNameFromUser).not.toHaveBeenCalled();
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
 
-    it('should handle user cancellation of first input box (record name)', async () => {
+    it('should handle user cancellation of record name input', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce(undefined); // First call returns undefined
+      mockCommandUtils.getSecretNameFromUser.mockRejectedValue(new Error('No record name provided.'));
 
-      // The method should resolve successfully even when an error occurs
       await generatePasswordHandler.execute();
       
-      expect(window.showInputBox).toHaveBeenCalledTimes(1);
+      expect(mockCommandUtils.getSecretNameFromUser).toHaveBeenCalledWith('ks-vscode.generatePassword');
       expect(logger.logError).toHaveBeenCalledWith('GeneratePasswordHandler.execute failed: No record name provided.', expect.any(Error));
       expect(window.showErrorMessage).toHaveBeenCalledWith('Failed to generate password: No record name provided.');
-      expect(mockSpinner.hide).toHaveBeenCalled();
-    });
-
-    it('should handle user cancellation of second input box (field name)', async () => {
-      mockCliService.isCLIReady.mockResolvedValue(true);
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce(undefined); // Second call returns undefined
-
-      // The method should resolve successfully even when an error occurs
-      await generatePasswordHandler.execute();
-      
-      expect(window.showInputBox).toHaveBeenCalledTimes(2);
-      expect(logger.logError).toHaveBeenCalledWith('GeneratePasswordHandler.execute failed: No record field name provided.', expect.any(Error));
-      expect(window.showErrorMessage).toHaveBeenCalledWith('Failed to generate password: No record field name provided.');
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
   });
@@ -133,23 +129,11 @@ describe('GeneratePasswordHandler', () => {
   });
 
   describe('execute edge cases', () => {
-    it('should handle password generation failure', async () => {
-      mockCliService.isCLIReady.mockResolvedValue(true);
-      mockStorageManager.ensureValidStorage.mockResolvedValue();
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce(''); // Empty password
-
-      await generatePasswordHandler.execute();
-      
-      expect(logger.logError).toHaveBeenCalledWith('GeneratePasswordHandler.execute failed: Something went wrong while generating a password! Please try again.', expect.any(Error));
-      expect(window.showErrorMessage).toHaveBeenCalledWith('Failed to generate password: Something went wrong while generating a password! Please try again.');
-    });
-
     it('should handle record creation failure', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce(''); // Empty record UID
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce(''); // Empty record UID
 
       await generatePasswordHandler.execute();
       
@@ -159,7 +143,7 @@ describe('GeneratePasswordHandler', () => {
 
     it('should handle storage validation failure', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
       mockStorageManager.ensureValidStorage.mockRejectedValue(new Error('Storage validation failed'));
 
       await generatePasswordHandler.execute();
@@ -172,8 +156,8 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
 
       await generatePasswordHandler.execute();
 
@@ -181,15 +165,15 @@ describe('GeneratePasswordHandler', () => {
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('record-add', [
         '--title="Test Record"',
         '--record-type=login',
-        '"c.secret.password"="GeneratedPass123"'
+        '"password"=$GEN'
       ]);
     });
 
     it('should show spinner during password generation', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
 
       await generatePasswordHandler.execute();
 
@@ -200,8 +184,8 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // Mock the active text editor
       const mockEditor = {
@@ -211,7 +195,7 @@ describe('GeneratePasswordHandler', () => {
       (window as any).activeTextEditor = mockEditor;
 
       // Set up the createKeeperReference mock for this test
-      mockCreateKeeperReference.mockReturnValue('keeper://record123/custom_field/password');
+      mockCreateKeeperReference.mockReturnValue('keeper://record123/field/password');
 
       await generatePasswordHandler.execute();
 
@@ -224,8 +208,8 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // Mock the active text editor
       const mockEditor = {
@@ -235,19 +219,18 @@ describe('GeneratePasswordHandler', () => {
       (window as any).activeTextEditor = mockEditor;
 
       // Set up the createKeeperReference mock
-      mockCreateKeeperReference.mockReturnValue('keeper://record123/custom_field/password');
+      mockCreateKeeperReference.mockReturnValue('keeper://record123/field/password');
 
       await generatePasswordHandler.execute();
 
       // Verify the complete workflow
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('generate', ['-q', '-nb']);
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('record-add', [
         '--title="Test Record"',
         '--record-type=login',
-        '"c.secret.password"="GeneratedPass123"',
+        '"password"=$GEN',
         '--folder="123"'
       ]);
-      expect(mockCreateKeeperReference).toHaveBeenCalledWith('record123', 'custom_field', 'password');
+      expect(mockCreateKeeperReference).toHaveBeenCalledWith('record123', 'field', 'password');
       expect(mockEditor.edit).toHaveBeenCalled();
       expect(window.showInformationMessage).toHaveBeenCalledWith('Password generated and saved to keeper vault at "Test Folder" folder successfully!');
     });
@@ -257,8 +240,8 @@ describe('GeneratePasswordHandler', () => {
     it('should handle createKeeperReference returning null', async () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // Mock createKeeperReference to return null
       mockCreateKeeperReference.mockReturnValue(null);
@@ -273,14 +256,14 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // No active text editor
       (window as any).activeTextEditor = null;
 
       // Set up the createKeeperReference mock
-      mockCreateKeeperReference.mockReturnValue('keeper://record123/custom_field/password');
+      mockCreateKeeperReference.mockReturnValue('keeper://record123/field/password');
 
       await generatePasswordHandler.execute();
 
@@ -292,8 +275,8 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // Mock the active text editor with failing edit operation
       const mockEditor = {
@@ -303,7 +286,7 @@ describe('GeneratePasswordHandler', () => {
       (window as any).activeTextEditor = mockEditor;
 
       // Set up the createKeeperReference mock
-      mockCreateKeeperReference.mockReturnValue('keeper://record123/custom_field/password');
+      mockCreateKeeperReference.mockReturnValue('keeper://record123/field/password');
 
       await generatePasswordHandler.execute();
       
@@ -317,8 +300,8 @@ describe('GeneratePasswordHandler', () => {
       mockCliService.isCLIReady.mockResolvedValue(true);
       mockStorageManager.ensureValidStorage.mockResolvedValue();
       mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '123', name: 'Test Folder', parentUid: '/', folderPath: '/Test Folder' });
-      (window.showInputBox as jest.Mock).mockResolvedValueOnce('Test Record').mockResolvedValueOnce('password');
-      mockCliService.executeCommanderCommand.mockResolvedValueOnce('GeneratedPass123').mockResolvedValueOnce('record123');
+      mockCommandUtils.getSecretNameFromUser.mockResolvedValue('Test Record');
+      mockCliService.executeCommanderCommand.mockResolvedValueOnce('record123');
       
       // Mock the active text editor
       const mockEditor = {
@@ -328,16 +311,15 @@ describe('GeneratePasswordHandler', () => {
       (window as any).activeTextEditor = mockEditor;
 
       // Set up the createKeeperReference mock
-      mockCreateKeeperReference.mockReturnValue('keeper://record123/custom_field/password');
+      mockCreateKeeperReference.mockReturnValue('keeper://record123/field/password');
 
       await generatePasswordHandler.execute();
 
       // Verify CLI commands are called with correct arguments
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('generate', ['-q', '-nb']);
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('record-add', [
         '--title="Test Record"',
         '--record-type=login',
-        '"c.secret.password"="GeneratedPass123"',
+        '"password"=$GEN',
         '--folder="123"'
       ]);
     });

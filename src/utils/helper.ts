@@ -92,7 +92,7 @@ export class StatusBarSpinner {
   private currentMessage: string = '';
   private isVisible: boolean = false;
   private autoHideTimeout: NodeJS.Timeout | null = null;
-  private readonly AUTO_HIDE_DELAY = 120000; // 2 minutes in milliseconds
+  private readonly AUTO_HIDE_DELAY = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   constructor() {
     this.statusBarItem = window.createStatusBarItem(
@@ -216,7 +216,7 @@ export const isEnvironmentFile = (filename: string): boolean => {
  * Clean CLI output by removing command prompts and system noise
  * This handles Windows-specific issues where command prompts are printed to stdout
  */
-export function cleanCliOutput(output: string): string {
+export function cleanCliOutputWindows(output: string): string {
   if (!output || !output.trim()) {
     return '';
   }
@@ -244,7 +244,7 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
   }
 
   // Clean the output first
-  const cleanedOutput = process.platform === 'win32' ? cleanCliOutput(output) : output;
+  const cleanedOutput = process.platform === 'win32' ? cleanCliOutputWindows(output) : output;
   
   if (!cleanedOutput) {
     logger.logDebug('No meaningful output after cleaning');
@@ -258,9 +258,7 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
       return Array.isArray(result) ? result : [result];
     } catch (error: any) {
       logger.logError(`JSON parse failed after cleaning: ${error.message}`);
-      logger.logDebug(`Cleaned output: ${cleanedOutput.substring(0, 200)}`);
-      logger.logDebug(`Original output: ${output.substring(0, 200)}`);
-      
+
       // Throw error instead of returning fallback
       throw new Error(`Failed to parse JSON from CLI output: ${error.message}`);
     }
@@ -269,7 +267,6 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
   // Not JSON - throw error instead of returning fallback
   const errorMessage = `CLI returned non-JSON output after cleaning: ${cleanedOutput.substring(0, 200)}`;
   logger.logError(errorMessage);
-  logger.logDebug(`Original output: ${output.substring(0, 200)}`);
   
   throw new Error(errorMessage);
 }
