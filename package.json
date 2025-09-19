@@ -9,7 +9,7 @@
     "color": "#1a365d",
     "theme": "dark"
   },
-  "icon": "keeper_logo.png",
+  "icon": "assets/keeper_logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Keeper-Security/keeper-vscode-extension"

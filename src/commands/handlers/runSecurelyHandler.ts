@@ -234,18 +234,11 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     const envFileContent = fs.readFileSync(selectedEnvFile, 'utf8');
     const envConfig = dotenv.parse(envFileContent);
 
-    const recordGroups = this.groupKeeperReferences(envConfig);
     const resolvedEnv: Record<string, string> = {};
+    const recordGroups = this.groupKeeperRefsAndResolveOthers(envConfig, resolvedEnv);
 
     if (recordGroups.size > 0) {
       await this.fetchAndResolveSecrets(recordGroups, resolvedEnv);
-    }
-
-    // Add non-keeper references
-    for (const [key, value] of Object.entries(envConfig)) {
-      if (!validateKeeperReference(value)) {
-        resolvedEnv[key] = value;
-      }
     }
 
     logger.logInfo(
@@ -257,7 +250,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
   /**
    * Group Keeper references by recordUid for batch processing
    */
-  private groupKeeperReferences(envConfig: Record<string, string>): Map<
+  private groupKeeperRefsAndResolveOthers(envConfig: Record<string, string>, resolvedEnv: Record<string, string>): Map<
     string,
     Array<{
       key: string;
@@ -288,6 +281,9 @@ export class RunSecurelyHandler extends BaseCommandHandler {
           recordGroups.set(recordUid, []);
         }
         recordGroups.get(recordUid)?.push({ key, fieldType, itemName });
+      } else {
+        // Add non-keeper references to resolvedEnv
+        resolvedEnv[key] = value;
       }
     }
 
