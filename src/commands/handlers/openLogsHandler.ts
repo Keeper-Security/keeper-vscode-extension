@@ -1,5 +1,5 @@
 import { logger } from '../../utils/logger';
-import { ICommandHandler } from './baseCommandHandler';
+import { ICommandHandler } from './base/baseCommandHandler';
 
 export class OpenLogsHandler implements ICommandHandler {
   async execute(): Promise<void> {

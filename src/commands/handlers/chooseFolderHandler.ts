@@ -1,28 +1,25 @@
-import { ExtensionContext, window } from 'vscode';
+import { window } from 'vscode';
 import { CliService } from '../../services/cli';
 import { StatusBarSpinner } from '../../utils/helper';
-import { BaseCommandHandler } from './baseCommandHandler';
+import { BaseCommandHandler } from './base/baseCommandHandler';
 import { StorageManager } from '../storage/storageManager';
 import { logger } from '../../utils/logger';
 
 export class ChooseFolderHandler extends BaseCommandHandler {
-  private storageManager: StorageManager;
 
   constructor(
-    cliService: CliService,
-    context: ExtensionContext,
-    spinner: StatusBarSpinner,
-    storageManager: StorageManager
+    private cliService: CliService,
+    private spinner: StatusBarSpinner,
+    private storageManager: StorageManager
   ) {
-    super(cliService, context, spinner);
-    this.storageManager = storageManager;
+    super();
   }
 
   async execute(): Promise<void> {
     try {
       logger.logDebug('ChooseFolderHandler.execute called');
 
-      if (!(await this.canExecute())) {
+      if (!(await this.cliService.isCLIReady())) {
         logger.logDebug(
           'ChooseFolderHandler.execute: canExecute returned false, aborting'
         );

@@ -1,26 +1,36 @@
-import { window, workspace } from 'vscode';
+import { ExtensionContext, window, workspace } from 'vscode';
 import { KEEPER_NOTATION_FIELD_TYPES } from '../../utils/constants';
 import {
   isEnvironmentFile,
   parseKeeperReference,
   validateKeeperReference,
   safeJsonParse,
+  StatusBarSpinner,
 } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { FieldExtractor } from '../utils/fieldExtractor';
-import { BaseCommandHandler } from './baseCommandHandler';
+import { BaseCommandHandler } from './base/baseCommandHandler';
 import { Uri } from 'vscode';
+import { CliService } from '../../services/cli';
 
 export class RunSecurelyHandler extends BaseCommandHandler {
   private static readonly LAST_COMMAND_KEY = 'lastRunSecurelyCommand';
 
+  constructor(
+    private cliService: CliService,
+    private spinner: StatusBarSpinner,
+    private context: ExtensionContext
+  ) {
+    super();
+  }
+
   async execute(): Promise<void> {
     logger.logDebug('RunSecurelyHandler.execute called');
 
-    if (!(await this.canExecute())) {
+    if (!(await this.cliService.isCLIReady())) {
       logger.logDebug(
         'RunSecurelyHandler.execute: canExecute returned false, aborting'
       );
@@ -142,29 +152,32 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    */
   private async selectEnvironmentFile(workspaceRoot: string): Promise<string> {
     const envFiles = this.findEnvironmentFiles(workspaceRoot);
-    
+
     // Multiple files - let user choose
     const envFileNames = envFiles.map((file) =>
       path.relative(workspaceRoot, file)
     );
-    const selected = await window.showQuickPick(["Browse Environment File", ...envFileNames], {
-      placeHolder: 'Select environment file to use',
-      matchOnDetail: true,
-      ignoreFocusOut: true,
-    });
+    const selected = await window.showQuickPick(
+      ['Browse Environment File', ...envFileNames],
+      {
+        placeHolder: 'Select environment file to use',
+        matchOnDetail: true,
+        ignoreFocusOut: true,
+      }
+    );
 
     if (!selected) {
       throw new Error('No environment file selected');
     }
 
-    if (selected === "Browse Environment File") {
+    if (selected === 'Browse Environment File') {
       // Open file picker to select .env.* files
       const fileUris = await window.showOpenDialog({
         canSelectFiles: true,
         canSelectFolders: false,
         canSelectMany: false,
         defaultUri: Uri.file(workspaceRoot),
-        openLabel: 'Select Environment File'
+        openLabel: 'Select Environment File',
       });
 
       if (!fileUris || fileUris.length === 0) {
@@ -178,7 +191,9 @@ export class RunSecurelyHandler extends BaseCommandHandler {
         return selectedFilePath;
       }
 
-      throw new Error('Selected file is not an environment file. Must be a .env or .env.* file');
+      throw new Error(
+        'Selected file is not an environment file. Must be a .env or .env.* file'
+      );
     }
 
     const selectedIndex = envFileNames.indexOf(selected);
@@ -190,7 +205,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    */
   private async getCommandFromUser(): Promise<string> {
     const lastCommand = this.getLastCommand();
-    
+
     const command = await window.showInputBox({
       prompt: 'Enter command to run with Keeper secrets injected',
       placeHolder: 'e.g. node index.js',
@@ -221,7 +236,10 @@ export class RunSecurelyHandler extends BaseCommandHandler {
    * Store the command for future use
    */
   private setLastCommand(command: string): void {
-    this.context.workspaceState.update(RunSecurelyHandler.LAST_COMMAND_KEY, command);
+    this.context.workspaceState.update(
+      RunSecurelyHandler.LAST_COMMAND_KEY,
+      command
+    );
     logger.logDebug(`Stored last command: ${command}`);
   }
 
@@ -235,7 +253,10 @@ export class RunSecurelyHandler extends BaseCommandHandler {
     const envConfig = dotenv.parse(envFileContent);
 
     const resolvedEnv: Record<string, string> = {};
-    const recordGroups = this.groupKeeperRefsAndResolveOthers(envConfig, resolvedEnv);
+    const recordGroups = this.groupKeeperRefsAndResolveOthers(
+      envConfig,
+      resolvedEnv
+    );
 
     if (recordGroups.size > 0) {
       await this.fetchAndResolveSecrets(recordGroups, resolvedEnv);
@@ -250,7 +271,10 @@ export class RunSecurelyHandler extends BaseCommandHandler {
   /**
    * Group Keeper references by recordUid for batch processing
    */
-  private groupKeeperRefsAndResolveOthers(envConfig: Record<string, string>, resolvedEnv: Record<string, string>): Map<
+  private groupKeeperRefsAndResolveOthers(
+    envConfig: Record<string, string>,
+    resolvedEnv: Record<string, string>
+  ): Map<
     string,
     Array<{
       key: string;
@@ -306,7 +330,9 @@ export class RunSecurelyHandler extends BaseCommandHandler {
   ): Promise<void> {
     // Execute commands sequentially - much simpler than queue!
     for (const [recordUid, references] of recordGroups.entries()) {
-      logger.logInfo(`Fetching record: ${recordUid} with ${references.length} references`);
+      logger.logInfo(
+        `Fetching record: ${recordUid} with ${references.length} references`
+      );
 
       try {
         const record = await this.cliService.executeCommanderCommand('get', [
@@ -336,8 +362,7 @@ export class RunSecurelyHandler extends BaseCommandHandler {
             logger.logError(
               `Failed to resolve keeper reference: keeper://${recordUid}/${fieldType}/${itemName}`
             );
-            resolvedEnv[key] =
-              `keeper://${recordUid}/${fieldType}/${itemName}`;
+            resolvedEnv[key] = `keeper://${recordUid}/${fieldType}/${itemName}`;
           }
         });
       } catch (error: unknown) {

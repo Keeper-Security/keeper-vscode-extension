@@ -1,18 +1,27 @@
 import { window } from 'vscode';
-import { BaseCommandHandler } from './baseCommandHandler';
+import { BaseCommandHandler } from './base/baseCommandHandler';
 import { KEEPER_NOTATION_FIELD_TYPES } from '../../utils/constants';
-import { createKeeperReference } from '../../utils/helper';
+import { createKeeperReference, StatusBarSpinner } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import { COMMANDS } from '../../utils/constants';
 import { ICliListCommandResponse, IField } from '../../types';
 import { safeJsonParse } from '../../utils/helper';
+import { CliService } from '../../services/cli';
 
 export class GetValueHandler extends BaseCommandHandler {
+
+  constructor(
+    private cliService: CliService,
+    private spinner: StatusBarSpinner,
+  ) {
+    super();
+  }
+
   async execute(): Promise<void> {
     try {
       logger.logDebug('GetValueHandler.execute called');
 
-      if (!(await this.canExecute())) {
+      if (!(await this.cliService.isCLIReady())) {
         logger.logDebug(
           'GetValueHandler.execute: canExecute returned false, aborting'
         );

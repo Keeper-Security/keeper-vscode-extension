@@ -42,3 +42,10 @@ export interface ICliListFolderResponse {
   parent_uid: string;
   flags?: string;
 }
+
+export enum ModeType {
+  CLI = 'cli',
+  KSM = 'ksm',
+}
+
+export type Mode = ModeType.CLI | ModeType.KSM;

@@ -1,76 +1,30 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { commands, ExtensionContext } from 'vscode';
-import { COMMANDS } from '../utils/constants';
-import { CliService } from '../services/cli';
 import { StatusBarSpinner } from '../utils/helper';
 import { logger } from '../utils/logger';
-import { ICommandHandler } from './handlers/baseCommandHandler';
-import { SaveValueHandler } from './handlers/saveValueHandler';
-import { GetValueHandler } from './handlers/getValueHandler';
-import { GeneratePasswordHandler } from './handlers/generatePasswordHandler';
-import { RunSecurelyHandler } from './handlers/runSecurelyHandler';
-import { ChooseFolderHandler } from './handlers/chooseFolderHandler';
-import { OpenLogsHandler } from './handlers/openLogsHandler';
-import { StorageManager } from './storage/storageManager';
+import { ICommandHandler } from './handlers/base/baseCommandHandler';
+import { ServiceManager } from '../services/managers/serviceManager';
+import { HandlerFactory } from './factories/handlerFactory';
 
 export class CommandService {
   private handlers!: Map<string, ICommandHandler>;
-  private storageManager: StorageManager;
 
   constructor(
     private context: ExtensionContext,
-    cliService: CliService,
-    private spinner: StatusBarSpinner,
-    storageManager: StorageManager
+    private serviceManager: ServiceManager,
+    private spinner: StatusBarSpinner
   ) {
-    logger.logDebug('Initializing CommandService');
-    this.storageManager = storageManager;
-    this.initializeHandlers(cliService);
+    this.initializeHandlers();
     this.registerCommands();
-    logger.logDebug('CommandService initialization completed');
   }
 
-  private initializeHandlers(cliService: CliService): void {
-    logger.logDebug('Initializing command handlers');
-    this.handlers = new Map([
-      [
-        COMMANDS.SAVE_VALUE_TO_VAULT,
-        new SaveValueHandler(
-          cliService,
-          this.context,
-          this.spinner,
-          this.storageManager
-        ),
-      ],
-      [
-        COMMANDS.GET_VALUE_FROM_VAULT,
-        new GetValueHandler(cliService, this.context, this.spinner),
-      ],
-      [
-        COMMANDS.GENERATE_PASSWORD,
-        new GeneratePasswordHandler(
-          cliService,
-          this.context,
-          this.spinner,
-          this.storageManager
-        ),
-      ],
-      [
-        COMMANDS.RUN_SECURELY,
-        new RunSecurelyHandler(cliService, this.context, this.spinner),
-      ],
-      [
-        COMMANDS.CHOOSE_FOLDER,
-        new ChooseFolderHandler(
-          cliService,
-          this.context,
-          this.spinner,
-          this.storageManager
-        ),
-      ],
-      [COMMANDS.OPEN_LOGS, new OpenLogsHandler()],
-    ]);
-    logger.logDebug(`Initialized ${this.handlers.size} command handlers`);
+  private initializeHandlers(): void {
+    this.handlers = HandlerFactory.createHandler(
+      this.serviceManager.getCurrentMode(),
+      this.serviceManager.getCurrentService(),
+      this.context,
+      this.spinner
+    );
   }
 
   private registerCommands(): void {

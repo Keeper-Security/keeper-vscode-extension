@@ -68,12 +68,34 @@
         "category": "Keeper Security"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ks-vscode.openLogs",
+          "when": "config.keeper-security.mode.type === 'cli' || config.keeper-security.mode.type === 'ksm'"
+        }
+      ]
+    },
     "configuration": [
       {
         "type": "object",
         "title": "Keeper Security",
         "id": "keeper-security",
         "properties": {
+          "keeper-security.mode.type": {
+            "order": 0,
+            "type": "string",
+            "default": "cli",
+            "description": "Mode type to use for Keeper Security.",
+            "enum": [
+              "cli",
+              "ksm"
+            ],
+            "enumDescriptions": [
+              "Uses the Keeper commander CLI.",
+              "Uses the Keeper Secrets Manager."
+            ]
+          },
           "keeper-security.debug.enabled": {
             "order": 1,
             "type": "boolean",
@@ -131,6 +153,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@keeper-security/secrets-manager-core": "^17.2.0",
     "dotenv": "^17.2.0"
   }
 }

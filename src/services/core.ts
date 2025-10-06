@@ -1,15 +1,14 @@
 import { ExtensionContext } from 'vscode';
-import { CliService } from './cli';
 import { CommandService } from '../commands';
 import { StatusBarSpinner } from '../utils/helper';
-import { StorageManager } from '../commands/storage/storageManager';
 import { SecretDetectionService } from './secretDetection';
 import { logger } from '../utils/logger';
+import { ModeManager } from './managers/modeManager';
+import { ServiceManager } from './managers/serviceManager';
 
 export class Core {
-  private cliService!: CliService;
+  private serviceManager!: ServiceManager;
   private spinner: StatusBarSpinner;
-  private storageManager!: StorageManager;
 
   public constructor(public context: ExtensionContext) {
     logger.logDebug('Initializing Core service');
@@ -23,29 +22,29 @@ export class Core {
     logger.logDebug('Core service initialization completed');
   }
 
-  private initializeServices(): void {
+  private async initializeServices(): Promise<void> {
     logger.logDebug('Starting service initialization');
 
-    this.cliService = new CliService(this.context, this.spinner);
-    logger.logDebug('CLI service initialized');
+    let currentMode = ModeManager.getCurrentMode();
+    console.log('currentMode', currentMode);
 
-    this.storageManager = new StorageManager(
-      this.context,
-      this.cliService,
-      this.spinner
-    );
-    logger.logDebug('Storage manager initialized');
+    if (!currentMode) {
+      currentMode = await ModeManager.promptForModeSelection();
+      await ModeManager.setMode(currentMode);
+    }
 
-    new CommandService(
+    // Initialize service manager
+    this.serviceManager = new ServiceManager(
       this.context,
-      this.cliService,
       this.spinner,
-      this.storageManager
+      currentMode
     );
-    logger.logDebug('Command service initialized');
+
+    // Initialize other services
+
+    new CommandService(this.context, this.serviceManager, this.spinner);
 
     new SecretDetectionService(this.context);
-    logger.logDebug('Secret detection service initialized');
 
     logger.logDebug('All services initialized successfully');
   }
@@ -53,7 +52,7 @@ export class Core {
   private dispose(): void {
     logger.logDebug('Disposing Core service resources');
     // Clean up resources
-    this.cliService.dispose();
+    this.serviceManager.getCurrentService().dispose();
     this.spinner.dispose();
     logger.logDebug('Core service disposal completed');
   }

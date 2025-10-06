@@ -1,4 +1,4 @@
-import { window, ExtensionContext } from 'vscode';
+import { window } from 'vscode';
 import { CliService } from '../../services/cli';
 import { StatusBarSpinner } from '../../utils/helper';
 import {
@@ -9,21 +9,17 @@ import { createKeeperReference } from '../../utils/helper';
 import { logger } from '../../utils/logger';
 import { COMMANDS } from '../../utils/constants';
 import { workspace, Range, Uri, Selection } from 'vscode';
-import { BaseCommandHandler } from './baseCommandHandler';
+import { BaseCommandHandler } from './base/baseCommandHandler';
 import { StorageManager } from '../storage/storageManager';
 import { CommandUtils } from '../utils/commandUtils';
 
 export class SaveValueHandler extends BaseCommandHandler {
-  private storageManager: StorageManager;
-
   constructor(
-    cliService: CliService,
-    context: ExtensionContext,
-    spinner: StatusBarSpinner,
-    storageManager: StorageManager
+    private cliService: CliService,
+    private spinner: StatusBarSpinner,
+    private storageManager: StorageManager
   ) {
-    super(cliService, context, spinner);
-    this.storageManager = storageManager;
+    super();
   }
 
   async execute(
@@ -78,7 +74,7 @@ export class SaveValueHandler extends BaseCommandHandler {
         return;
       }
 
-      if (!(await this.canExecute())) {
+      if (!(await this.cliService.isCLIReady())) {
         logger.logDebug(
           'SaveValueHandler.execute: canExecute returned false, aborting'
         );
