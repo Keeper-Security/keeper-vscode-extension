@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { IFolder, IVaultFolder } from '../types';
+import { IFolder, IVaultFolder, Mode } from '../types';
 import {
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_NOTATION_PATTERNS,
@@ -269,4 +269,9 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
   logger.logError(errorMessage);
   
   throw new Error(errorMessage);
+}
+
+
+export function getSwitchModeMessage(mode: Mode): string {
+  return `Mode switched to ${mode}. Window reload is mandatory for this change to work properly. Reload now?`;
 }

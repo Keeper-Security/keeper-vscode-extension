@@ -13,6 +13,8 @@ import { RunSecurelyHandler } from '../handlers/runSecurelyHandler';
 import { GetValueHandler } from '../handlers/getValueHandler';
 import { SaveValueHandler } from '../handlers/saveValueHandler';
 import { KsmGetValueHandler } from '../handlers/ksm/ksmGetValueHandler';
+import { SwitchToCliHandler } from '../handlers/ksm/switchToCliHandler';
+import { SwitchToKsmHandler } from '../handlers/cli/switchToKsmHandler';
 
 export class HandlerFactory {
   static createHandler(
@@ -52,9 +54,13 @@ export class HandlerFactory {
         new ChooseFolderHandler(cliService, spinner, storageManager)
       );
       handlers.set(COMMANDS.OPEN_LOGS, new OpenLogsHandler());
+      handlers.set(COMMANDS.SWITCH_TO_KSM, new SwitchToKsmHandler());
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;
+      
       handlers.set(COMMANDS.OPEN_LOGS, new KsmGetValueHandler(ksmService));
+      handlers.set(COMMANDS.SWITCH_TO_CLI, new SwitchToCliHandler());
+
     }
 
     return handlers;

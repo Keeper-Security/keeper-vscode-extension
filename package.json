@@ -66,6 +66,16 @@
         "command": "ks-vscode.openLogs",
         "title": "Open Logs",
         "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToCli",
+        "title": "Switch to CLI",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToKsm",
+        "title": "Switch to KSM",
+        "category": "Keeper Security"
       }
     ],
     "menus": {
@@ -73,6 +83,14 @@
         {
           "command": "ks-vscode.openLogs",
           "when": "config.keeper-security.mode.type === 'cli' || config.keeper-security.mode.type === 'ksm'"
+        },
+        {
+          "command": "ks-vscode.switchToCli",
+          "when": "config.keeper-security.mode.type === 'ksm'"
+        },
+        {
+          "command": "ks-vscode.switchToKsm",
+          "when": "config.keeper-security.mode.type === 'cli'"
         }
       ]
     },
@@ -86,7 +104,7 @@
             "order": 0,
             "type": "string",
             "default": "cli",
-            "description": "Mode type to use for Keeper Security.",
+            "description": "Mode type to use for Keeper Security. ( Reload required )",
             "enum": [
               "cli",
               "ksm"
@@ -100,7 +118,7 @@
             "order": 1,
             "type": "boolean",
             "default": false,
-            "description": "Log debugger data. Reload required."
+            "description": "Log debugger data. ( Reload required )"
           },
           "keeper-security.editor.secretDetection": {
             "order": 2,

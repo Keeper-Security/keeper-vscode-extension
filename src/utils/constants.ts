@@ -14,6 +14,8 @@ export const COMMANDS = {
   RUN_SECURELY: makeCommand('runSecurely'),
   CHOOSE_FOLDER: makeCommand('chooseFolder'),
   OPEN_LOGS: makeCommand('openLogs'),
+  SWITCH_TO_CLI: makeCommand('switchToCli'),
+  SWITCH_TO_KSM: makeCommand('switchToKsm'),
 };
 
 export const KEEPER_NOTATION_PATTERNS = {
@@ -171,3 +173,5 @@ export const FIELD_PATTERNS = {
 
 export const DOTENV_LINE =
   /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^\n\r#]+)?\s*(?:#.*)?$/;
+
+export const RELOAD_WINDOW = 'Reload Window';
