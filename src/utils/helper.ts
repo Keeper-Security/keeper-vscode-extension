@@ -6,6 +6,9 @@ import {
 } from './constants';
 import { logger } from './logger';
 import {
+  CancellationToken,
+  InputBoxOptions,
+  QuickPickOptions,
   StatusBarAlignment,
   StatusBarItem,
   TextDocument,
@@ -58,9 +61,7 @@ export function promisifyExec(
   };
 }
 
-export function parseKeeperReference(
-  reference: string
-): {
+export function parseKeeperReference(reference: string): {
   recordUid: string;
   fieldType: KEEPER_NOTATION_FIELD_TYPES;
   itemName: string;
@@ -141,13 +142,13 @@ export class StatusBarSpinner {
   public hide(): void {
     logger.logDebug('Hiding spinner');
     this.isVisible = false;
-    
+
     // Clear auto-hide timeout
     if (this.autoHideTimeout) {
       clearTimeout(this.autoHideTimeout);
       this.autoHideTimeout = null;
     }
-    
+
     // Clear spinning animation
     if (this.interval) {
       clearInterval(this.interval);
@@ -222,16 +223,16 @@ export function cleanCliOutputWindows(output: string): string {
   }
 
   let cleaned = output.trim();
-  
+
   // Remove Windows command prompts (e.g., "C:\Users\...>keeper-commander.exe shell")
   cleaned = cleaned.replace(/^[A-Z]:\\.*?>.*?\n?/gm, '');
-    
+
   // Remove empty lines at the beginning
   cleaned = cleaned.replace(/^\n+/, '');
-  
+
   // Remove empty lines at the end
   cleaned = cleaned.replace(/\n+$/, '');
-  
+
   return cleaned;
 }
 
@@ -244,8 +245,9 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
   }
 
   // Clean the output first
-  const cleanedOutput = process.platform === 'win32' ? cleanCliOutputWindows(output) : output;
-  
+  const cleanedOutput =
+    process.platform === 'win32' ? cleanCliOutputWindows(output) : output;
+
   if (!cleanedOutput) {
     logger.logDebug('No meaningful output after cleaning');
     return fallback;
@@ -267,11 +269,34 @@ export function safeJsonParse(output: string, fallback: any[] = []): any[] {
   // Not JSON - throw error instead of returning fallback
   const errorMessage = `CLI returned non-JSON output after cleaning: ${cleanedOutput.substring(0, 200)}`;
   logger.logError(errorMessage);
-  
+
   throw new Error(errorMessage);
 }
 
-
 export function getSwitchModeMessage(mode: Mode): string {
   return `Mode switched to ${mode}. Window reload is mandatory for this change to work properly. Reload now?`;
+}
+
+export async function customQuickPick(
+  items: readonly string[] | Thenable<readonly string[]>,
+  options?: QuickPickOptions,
+  token?: CancellationToken
+): Promise<string | undefined> {
+  return await window.showQuickPick(
+    items,
+    {
+      ignoreFocusOut: true,
+      matchOnDescription: true,
+      matchOnDetail: true,
+      ...options,
+    },
+    token
+  );
+}
+
+export async function customInputBox(options?: InputBoxOptions, token?: CancellationToken): Promise<string | undefined> {
+  return await window.showInputBox({
+    ignoreFocusOut: true,
+    ...options,
+  }, token);
 }

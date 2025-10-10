@@ -175,3 +175,11 @@ export const DOTENV_LINE =
   /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^\n\r#]+)?\s*(?:#.*)?$/;
 
 export const RELOAD_WINDOW = 'Reload Window';
+
+export enum KSM_METHOD_TYPES {
+  ONE_TIME_TOKEN = 'One Time Access Token',
+  BASE64 = 'Base64',
+  JSON_CONFIG = 'JSON Config File Path',
+}
+
+export const KSM_CONFIG_FILE_NAME = 'ksm-config.json';
