@@ -178,7 +178,7 @@ export const RELOAD_WINDOW = 'Reload Window';
 
 export enum KSM_METHOD_TYPES {
   ONE_TIME_TOKEN = 'One Time Access Token',
-  BASE64 = 'Base64',
+  BASE64 = 'Base64 Encoded',
   JSON_CONFIG = 'JSON Config File Path',
 }
 

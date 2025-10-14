@@ -6,9 +6,6 @@ import {
 } from './constants';
 import { logger } from './logger';
 import {
-  CancellationToken,
-  InputBoxOptions,
-  QuickPickOptions,
   StatusBarAlignment,
   StatusBarItem,
   TextDocument,
@@ -277,26 +274,12 @@ export function getSwitchModeMessage(mode: Mode): string {
   return `Mode switched to ${mode}. Window reload is mandatory for this change to work properly. Reload now?`;
 }
 
-export async function customQuickPick(
-  items: readonly string[] | Thenable<readonly string[]>,
-  options?: QuickPickOptions,
-  token?: CancellationToken
-): Promise<string | undefined> {
-  return await window.showQuickPick(
-    items,
-    {
-      ignoreFocusOut: true,
-      matchOnDescription: true,
-      matchOnDetail: true,
-      ...options,
-    },
-    token
-  );
-}
+export const commonQuickPickOptions = {
+  ignoreFocusOut: true,
+  matchOnDetail: true,
+  matchOnDescription: true,
+};
 
-export async function customInputBox(options?: InputBoxOptions, token?: CancellationToken): Promise<string | undefined> {
-  return await window.showInputBox({
-    ignoreFocusOut: true,
-    ...options,
-  }, token);
-}
+export const commonInputBoxOptions = {
+  ignoreFocusOut: true,
+};

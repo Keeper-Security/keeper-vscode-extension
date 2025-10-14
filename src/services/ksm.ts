@@ -1,7 +1,7 @@
 import { ExtensionContext, Uri, window, workspace } from 'vscode';
 import {
-  customInputBox,
-  customQuickPick,
+  commonInputBoxOptions,
+  commonQuickPickOptions,
   StatusBarSpinner,
 } from '../utils/helper';
 import { logger } from '../utils/logger';
@@ -13,6 +13,7 @@ import {
 } from '@keeper-security/secrets-manager-core';
 import { KSM_CONFIG_FILE_NAME, KSM_METHOD_TYPES } from '../utils/constants';
 import fs from 'fs';
+import { IKsmGetSecretsResponse } from '../types/ksm';
 
 interface KsmAuthResult {
   authType: KSM_METHOD_TYPES;
@@ -70,6 +71,8 @@ export class KsmService {
   private async handleInitialAuthentication(
     storeConfigPath: string
   ): Promise<void> {
+    logger.logDebug('Handling initial authentication');
+
     const authResult = await this.promptForKsmAuthTypeAndValue();
     if (!authResult) {
       logger.logError('No KSM auth type and value provided');
@@ -77,6 +80,8 @@ export class KsmService {
     }
 
     await this.initializeWithAuth(authResult, storeConfigPath);
+
+    logger.logDebug('Initial authentication completed successfully');
   }
 
   /**
@@ -85,6 +90,8 @@ export class KsmService {
   private async handleExistingConfiguration(
     storeConfigPath: string
   ): Promise<void> {
+    logger.logDebug('Handling existing configuration');
+
     const storage = localConfigStorage(storeConfigPath);
 
     if (await this.isConfigurationExpired(storage)) {
@@ -94,7 +101,7 @@ export class KsmService {
       );
 
       // Clean up expired config
-      this.cleanupExpiredConfig(storeConfigPath);
+      this.cleanupConfig(storeConfigPath);
 
       // Re-authenticate
       const authResult = await this.promptForKsmAuthTypeAndValue();
@@ -106,12 +113,33 @@ export class KsmService {
       }
 
       await this.initializeWithAuth(authResult, storeConfigPath);
+
+      logger.logDebug('Re-authentication completed successfully');
     } else {
       // Configuration is valid
       this.ksmStorage = storage;
       this.isInitialized = true;
       logger.logDebug('KSM configuration validated successfully');
     }
+  }
+
+  public async handleReAuthentication(storeConfigPath: string): Promise<void> {
+    logger.logDebug('Keeper Secrets Manager re-authenticating.');
+
+    const authResult = await this.promptForKsmAuthTypeAndValue();
+
+    if (!authResult) {
+      logger.logError('No KSM auth type and value provided');
+      return;
+    }
+
+    await this.resetState();
+
+    // Clean up config file
+    this.cleanupConfig(storeConfigPath);
+
+    await this.initializeWithAuth(authResult, storeConfigPath);
+    logger.logDebug('Keeper Secrets Manager re-authenticated successfully.');
   }
 
   /**
@@ -153,6 +181,8 @@ export class KsmService {
     token: string,
     storeConfigPath: string
   ): Promise<void> {
+    logger.logDebug('Initializing with one-time token');
+
     const storage = localConfigStorage(storeConfigPath);
     await initializeStorage(storage, token);
 
@@ -160,6 +190,8 @@ export class KsmService {
     await getSecrets({ storage });
 
     this.ksmStorage = storage;
+
+    logger.logDebug('One-time token initialized successfully');
   }
 
   /**
@@ -169,6 +201,8 @@ export class KsmService {
     base64Config: string,
     storeConfigPath: string
   ): Promise<void> {
+    logger.logDebug('Initializing with base64 config');
+
     const configJson = Buffer.from(base64Config, 'base64').toString('utf-8');
     // Write config to file
     fs.writeFileSync(storeConfigPath, configJson);
@@ -177,6 +211,8 @@ export class KsmService {
     await getSecrets({ storage });
 
     this.ksmStorage = storage;
+
+    logger.logDebug('Base64 config initialized successfully');
   }
 
   /**
@@ -185,6 +221,8 @@ export class KsmService {
   private async initializeWithJsonConfig(
     configFilePath: string
   ): Promise<void> {
+    logger.logDebug('Initializing with JSON config file');
+
     if (!fs.existsSync(configFilePath)) {
       throw new Error(`Config file not found: ${configFilePath}`);
     }
@@ -193,6 +231,8 @@ export class KsmService {
     await getSecrets({ storage });
 
     this.ksmStorage = storage;
+
+    logger.logDebug('JSON config file initialized successfully');
   }
 
   /**
@@ -219,31 +259,32 @@ export class KsmService {
   }
 
   /**
-   * Clean up expired configuration
+   * Clean up configuration
    */
-  private cleanupExpiredConfig(storeConfigPath: string): void {
+  private cleanupConfig(storeConfigPath: string): void {
     try {
       if (fs.existsSync(storeConfigPath)) {
         fs.unlinkSync(storeConfigPath);
-        logger.logDebug('Deleted expired ksm-config.json file');
+        logger.logDebug('Deleted ksm-config.json file');
       }
     } catch (error) {
-      logger.logError('Failed to delete expired config file', error);
+      logger.logError('Failed to delete config file', error);
     }
   }
 
   /**
    * Reset service state
    */
-  private resetState(): void {
+  private async resetState(): Promise<void> {
     this.isInitialized = false;
     this.ksmStorage = null;
+    logger.logDebug('Keeper Secrets Manager state reset successfully.');
   }
 
   /**
    * Get store config path
    */
-  private async getStoreConfigPath(): Promise<string | undefined> {
+  public async getStoreConfigPath(): Promise<string | undefined> {
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders?.length) {
       window.showErrorMessage('No workspace folder open');
@@ -262,10 +303,14 @@ export class KsmService {
   private async promptForKsmAuthTypeAndValue(): Promise<
     KsmAuthResult | undefined
   > {
-    const authType = await customQuickPick(Object.values(KSM_METHOD_TYPES), {
-      placeHolder: 'Choose your preferred KSM auth type',
-      title: 'Keeper Secrets Manager configuration method',
-    });
+    const authType = await window.showQuickPick(
+      Object.values(KSM_METHOD_TYPES),
+      {
+        ...commonQuickPickOptions,
+        placeHolder: 'Choose your preferred KSM auth type',
+        title: 'Keeper Secrets Manager configuration method',
+      }
+    );
 
     if (!authType) {
       return;
@@ -316,9 +361,10 @@ export class KsmService {
   private async promptForAuthValue(
     authType: KSM_METHOD_TYPES
   ): Promise<string | undefined> {
-    return await customInputBox({
+    return await window.showInputBox({
+      ...commonInputBoxOptions,
+      prompt: `Enter your ${authType} value`,
       placeHolder: `Enter your ${authType} value`,
-      title: `Selected method: ${authType}`,
     });
   }
 
@@ -328,6 +374,9 @@ export class KsmService {
    * Check if KSM is ready
    */
   public async isKsmReady(): Promise<boolean> {
+    logger.logDebug('Checking if KSM is ready');
+    logger.logDebug('KSM is initialized:', this.isInitialized);
+
     if (!this.isInitialized) {
       await this.lazyInitialize();
     }
@@ -337,11 +386,27 @@ export class KsmService {
   /**
    * Get secrets from KSM
    */
-  public async getSecrets(): Promise<unknown> {
+  public async getSecrets(): Promise<IKsmGetSecretsResponse> {
     if (!this.ksmStorage) {
       throw new Error('KSM storage not available');
     }
-    return await getSecrets({ storage: this.ksmStorage });
+    return (await getSecrets({
+      storage: this.ksmStorage,
+    })) as IKsmGetSecretsResponse;
+  }
+
+  public async getSecretByRecordUid(
+    recordUid: string
+  ): Promise<IKsmGetSecretsResponse> {
+    if (!this.ksmStorage) {
+      throw new Error('KSM storage not available');
+    }
+    return (await getSecrets(
+      {
+        storage: this.ksmStorage,
+      },
+      [recordUid]
+    )) as IKsmGetSecretsResponse;
   }
 
   /**
@@ -355,8 +420,10 @@ export class KsmService {
     }
 
     if (!this.ksmStorage) {
-      throw new Error('KSM storage not available');
+      throw new Error('Keeper Secrets Manager not authenticated');
     }
+
+    logger.logDebug('Executing KSM command:', callbackMethod.name);
 
     return await callbackMethod();
   }
@@ -364,9 +431,37 @@ export class KsmService {
   /**
    * Dispose resources
    */
-  public dispose(): void {
+  public async dispose(): Promise<void> {
     logger.logDebug('Disposing KSM service');
-    this.resetState();
+    await this.resetState();
     logger.logDebug('KSM service disposed');
   }
 }
+
+/**
+ * Example of Different types of KSM Auth:
+ * 
+ * 1. One Time Token: For this We need to use initializeStorage
+ * 
+ *   const oneTimeToken = "US:HnXisFjTGe6TNHW77FubD2low7GxODTpSkvrhnZuQE0";
+ *   const storage = localConfigStorage("ksm-config.json");
+ *   await initializeStorage(storage, oneTimeToken);
+ * 
+ *   let recordUid = await getSecrets({ storage }); 
+ * 
+ * 
+ * 2. Base64 string:
+ * 
+ *   const base64Config = "eyJob3N0bmFtZSI6ImtlZXBlcnNlY3VyaXR5LmNvbSIsImNsaWVudElkIjoicmRrVTVrejdLRkUzVjBXcnEwTTAyYlRGWnQzV0lvUnNFUDlJNkJOdnlGalVXQWZoYXNLN0t4MTd4eXhBQXIrUU91NW1kK3ZnZGQzaW5Xb29RNzNzRWc9PSIsInByaXZhdGVLZXkiOiJNSUdIQWdFQU1CTUdCeXFHU000OUFnRUdDQ3FHU000OUF3RUhCRzB3YXdJQkFRUWdRWjVCL3R5NEFVK2cxZkFjeThyZnJWWXo4M0JqWFU2aW9MUjBabk9qd3UyaFJBTkNBQVRUbTlGMTM1RjdJVnE5a085YjFJeEJIK2NaQi9FTFdFUk9LNlU3NnVIOWZYQTdkWmxrRmp0cVhWZkN0YXhaNHRyV0RVTnlaSDVzNFIyNFhvbFF5dmVBIiwic2VydmVyUHVibGljS2V5SWQiOiIxMCIsImFwcEtleSI6InZZeGtDcVZnOWdVbzFHdzVidFNnRjFVRmN4NllFYklQTUpQYk9odDJNVTQ9IiwiYXBwT3duZXJQdWJsaWNLZXkiOiJCQ2MwcGI2QjFqeGhtaXhxWWI1Tk12S21xQjJTWFptUXJlZnE2aVlRUHB6Y0FLQnhtYzQ1U2hjTHJJZXlyaUFpTEdVaFZYT2JvOWFCQkh5TEVJMCs4NGs9In0=";
+ *   const config = Buffer.from(base64Config, "base64").toString("utf-8");
+ *   const storage = inMemoryStorage(JSON.parse(config));
+
+ *   let recordUid = await getSecrets({ storage });
+ * 
+ * 3. Config File Path:
+ * 
+ *   const storage = localConfigStorage("ksm-config.json");
+ *   let recordUid = await getSecrets({ storage }); 
+ * 
+ * 
+ */

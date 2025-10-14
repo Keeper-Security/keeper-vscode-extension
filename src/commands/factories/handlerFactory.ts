@@ -15,6 +15,12 @@ import { SaveValueHandler } from '../handlers/saveValueHandler';
 import { KsmGetValueHandler } from '../handlers/ksm/ksmGetValueHandler';
 import { SwitchToCliHandler } from '../handlers/ksm/switchToCliHandler';
 import { SwitchToKsmHandler } from '../handlers/cli/switchToKsmHandler';
+import { KsmSaveValueHandler } from '../handlers/ksm/ksmSaveValueHandler';
+import { KsmRunSecurelyHandler } from '../handlers/ksm/ksmRunSecurelyHandler';
+import { KsmGeneratePasswordHandler } from '../handlers/ksm/ksmGeneratePasswordHandler';
+import { KsmChooseFolderHandler } from '../handlers/ksm/ksmChooseFolderHandler';
+import { KsmOpenLogsHandler } from '../handlers/ksm/ksmOpenLogsHandler';
+import { KsmAuthenticateHandler } from '../handlers/ksm/ksmAuthenticateHandler';
 
 export class HandlerFactory {
   static createHandler(
@@ -32,7 +38,7 @@ export class HandlerFactory {
         service as CliService,
         spinner
       );
-      
+
       handlers.set(
         COMMANDS.SAVE_VALUE_TO_VAULT,
         new SaveValueHandler(cliService, spinner, storageManager)
@@ -57,9 +63,21 @@ export class HandlerFactory {
       handlers.set(COMMANDS.SWITCH_TO_KSM, new SwitchToKsmHandler());
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;
-      
-      handlers.set(COMMANDS.OPEN_LOGS, new KsmGetValueHandler(ksmService));
+
+      handlers.set(COMMANDS.SAVE_VALUE_TO_VAULT, new KsmSaveValueHandler());
+      handlers.set(
+        COMMANDS.GET_VALUE_FROM_VAULT,
+        new KsmGetValueHandler(ksmService, spinner)
+      );
+      handlers.set(
+        COMMANDS.GENERATE_PASSWORD,
+        new KsmGeneratePasswordHandler()
+      );
+      handlers.set(COMMANDS.RUN_SECURELY, new KsmRunSecurelyHandler());
+      handlers.set(COMMANDS.CHOOSE_FOLDER, new KsmChooseFolderHandler());
+      handlers.set(COMMANDS.OPEN_LOGS, new KsmOpenLogsHandler());
       handlers.set(COMMANDS.SWITCH_TO_CLI, new SwitchToCliHandler());
+      handlers.set(COMMANDS.AUTHENTICATE, new KsmAuthenticateHandler(ksmService, spinner));
 
     }
 

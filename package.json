@@ -76,6 +76,11 @@
         "command": "ks-vscode.switchToKsm",
         "title": "Switch to KSM",
         "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.authenticate",
+        "title": "Authenticate",
+        "category": "Keeper Security"
       }
     ],
     "menus": {
@@ -91,6 +96,10 @@
         {
           "command": "ks-vscode.switchToKsm",
           "when": "config.keeper-security.mode.type === 'cli'"
+        },
+        {
+          "command": "ks-vscode.authenticate",
+          "when": "config.keeper-security.mode.type === 'ksm'"
         }
       ]
     },
