@@ -9,7 +9,6 @@ import { COMMANDS } from '../../utils/constants';
 import { ChooseFolderHandler } from '../handlers/chooseFolderHandler';
 import { OpenLogsHandler } from '../handlers/openLogsHandler';
 import { GeneratePasswordHandler } from '../handlers/generatePasswordHandler';
-import { RunSecurelyHandler } from '../handlers/runSecurelyHandler';
 import { GetValueHandler } from '../handlers/getValueHandler';
 import { SaveValueHandler } from '../handlers/saveValueHandler';
 import { KsmGetValueHandler } from '../handlers/ksm/ksmGetValueHandler';
@@ -21,6 +20,7 @@ import { KsmGeneratePasswordHandler } from '../handlers/ksm/ksmGeneratePasswordH
 import { KsmChooseFolderHandler } from '../handlers/ksm/ksmChooseFolderHandler';
 import { KsmOpenLogsHandler } from '../handlers/ksm/ksmOpenLogsHandler';
 import { KsmAuthenticateHandler } from '../handlers/ksm/ksmAuthenticateHandler';
+import { CliRunSecurelyHandler } from '../handlers/cli/cliRunSecurelyHandler';
 
 export class HandlerFactory {
   static createHandler(
@@ -53,7 +53,7 @@ export class HandlerFactory {
       );
       handlers.set(
         COMMANDS.RUN_SECURELY,
-        new RunSecurelyHandler(cliService, spinner, context)
+        new CliRunSecurelyHandler(context, cliService, spinner)
       );
       handlers.set(
         COMMANDS.CHOOSE_FOLDER,

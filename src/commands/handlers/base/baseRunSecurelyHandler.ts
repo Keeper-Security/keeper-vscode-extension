@@ -4,6 +4,7 @@ import { BaseCommandHandler } from './baseCommandHandler';
 import {
   isEnvironmentFile,
   parseKeeperReference,
+  StatusBarSpinner,
   validateKeeperReference,
 } from '../../../utils/helper';
 import path from 'path';
@@ -16,13 +17,51 @@ import { IRecordData } from '../../../types/ksm';
 export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   private static readonly LAST_COMMAND_KEY = 'lastRunSecurelyCommand';
 
-  constructor(protected context: ExtensionContext) {
+  constructor(
+    protected context: ExtensionContext,
+    protected spinner: StatusBarSpinner
+  ) {
     super();
   }
+
+  protected async executeRunSecurely(
+    fetchSecretCallback: (recordUid: string) => Promise<IRecordData>
+  ): Promise<void> {
+    const workspaceRoot = await this.selectWorkspace();
+
+    if (!workspaceRoot) {
+      return;
+    }
+
+    const selectedEnvFile = await this.selectEnvironmentFile(workspaceRoot);
+
+    if (!selectedEnvFile) {
+      return;
+    }
+
+    const command = await this.getCommandFromUser();
+    if (!command) {
+      return;
+    }
+
+    this.spinner.show('Resolving secrets...');
+
+    const resolvedEnv = await this.resolveSecrets(
+      selectedEnvFile,
+      fetchSecretCallback
+    );
+
+    await this.createAndRunTerminal(command, resolvedEnv);
+
+    this.spinner.hide();
+
+    window.showInformationMessage(`Command started with secrets injected`);
+  }
+
   /**
    * Select workspace to run securely in
    */
-  async selectWorkspace(): Promise<string | undefined> {
+  private async selectWorkspace(): Promise<string | undefined> {
     logger.logDebug('Starting workspace selection');
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -69,7 +108,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Select environment file to use
    */
-  protected async selectEnvironmentFile(
+  private async selectEnvironmentFile(
     workspaceRoot: string
   ): Promise<string | undefined> {
     const envFiles = this.findEnvironmentFiles(workspaceRoot);
@@ -126,7 +165,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Get command to run from user
    */
-  protected async getCommandFromUser(): Promise<string | undefined> {
+  private async getCommandFromUser(): Promise<string | undefined> {
     const lastCommand = this.getLastCommand();
 
     const command = await window.showInputBox({
@@ -152,7 +191,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Get the last command that was used for run securely
    */
-  protected getLastCommand(): string | undefined {
+  private getLastCommand(): string | undefined {
     return this.context.workspaceState.get(
       BaseRunSecurelyHandler.LAST_COMMAND_KEY
     );
@@ -161,7 +200,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Store the command for future use
    */
-  protected setLastCommand(command: string): void {
+  private setLastCommand(command: string): void {
     this.context.workspaceState.update(
       BaseRunSecurelyHandler.LAST_COMMAND_KEY,
       command
@@ -172,7 +211,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Group Keeper references by recordUid for batch processing
    */
-  protected groupKeeperRefsAndResolveOthers(
+  private groupKeeperRefsAndResolveOthers(
     envConfig: Record<string, string>,
     resolvedEnv: Record<string, string>
   ): Map<
@@ -218,7 +257,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Create terminal and run command with injected secrets
    */
-  protected async createAndRunTerminal(
+  private async createAndRunTerminal(
     command: string,
     resolvedEnv: Record<string, string>
   ): Promise<void> {
@@ -237,7 +276,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Find all environment files in the workspace (only immediate subdirectories)
    */
-  protected findEnvironmentFiles(workspaceRoot: string): string[] {
+  private findEnvironmentFiles(workspaceRoot: string): string[] {
     try {
       const foundFiles: string[] = [];
 
@@ -267,7 +306,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
   /**
    * Resolve secrets from environment file
    */
-  protected async resolveSecrets(
+  private async resolveSecrets(
     selectedEnvFile: string,
     fetchSecretCallback: (recordUid: string) => Promise<IRecordData>
   ): Promise<Record<string, string>> {

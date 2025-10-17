@@ -13,9 +13,9 @@ export class KsmRunSecurelyHandler extends BaseRunSecurelyHandler {
   constructor(
     context: ExtensionContext,
     private ksmService: KsmService,
-    private spinner: StatusBarSpinner
+    spinner: StatusBarSpinner
   ) {
-    super(context);
+    super(context, spinner);
   }
   async execute(): Promise<void> {
     try {
@@ -26,31 +26,7 @@ export class KsmRunSecurelyHandler extends BaseRunSecurelyHandler {
         return;
       }
 
-      const workspaceRoot = await this.selectWorkspace();
-
-      if (!workspaceRoot) {
-        return;
-      }
-
-      const selectedEnvFile = await this.selectEnvironmentFile(workspaceRoot);
-
-      if (!selectedEnvFile) {
-        return;
-      }
-
-      const command = await this.getCommandFromUser();
-      if (!command) {
-        return;
-      }
-
-      const resolvedEnv = await this.resolveSecrets(
-        selectedEnvFile,
-        this.fetchSecretByRecordUid.bind(this)
-      );
-
-      await this.createAndRunTerminal(command, resolvedEnv);
-
-      window.showInformationMessage(`Command started with secrets injected`);
+      await this.executeRunSecurely(this.fetchSecretByRecordUid.bind(this));
     } catch (error) {
       logger.logError(
         this.constructor.name +
