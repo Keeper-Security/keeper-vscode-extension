@@ -73,7 +73,7 @@ export class HandlerFactory {
         COMMANDS.GENERATE_PASSWORD,
         new KsmGeneratePasswordHandler()
       );
-      handlers.set(COMMANDS.RUN_SECURELY, new KsmRunSecurelyHandler());
+      handlers.set(COMMANDS.RUN_SECURELY, new KsmRunSecurelyHandler(context, ksmService, spinner));
       handlers.set(COMMANDS.CHOOSE_FOLDER, new KsmChooseFolderHandler());
       handlers.set(COMMANDS.OPEN_LOGS, new KsmOpenLogsHandler());
       handlers.set(COMMANDS.SWITCH_TO_CLI, new SwitchToCliHandler());

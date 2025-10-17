@@ -11,6 +11,7 @@ export const KSM_SUCCESS_MESSAGES = {
 export const KSM_ERROR_MESSAGES = {
   FAILED_TO_CREATE_KEEPER_REFERENCE: 'Failed to create keeper reference for secret',
   FAILED_TO_GET_VALUE: 'Failed to get value from Keeper Secrets Manager',
+  FAILED_TO_RUN_SECURELY: 'Failed to execute command with secrets injected',
 } as const;
 
 export const KSM_LOGGER_DEBUG_MESSAGES = {

@@ -26,7 +26,6 @@ export class Core {
     logger.logDebug('Starting service initialization');
 
     let currentMode = ModeManager.getCurrentMode();
-    console.log('currentMode', currentMode);
 
     if (!currentMode) {
       currentMode = await ModeManager.promptForModeSelection();

@@ -1,4 +1,4 @@
-import { KEEPER_NOTATION_FIELD_TYPES } from "../utils/constants";
+import { KEEPER_NOTATION_FIELD_TYPES } from '../utils/constants';
 
 export interface IKsmGetSecretsResponse {
   appData: IAppData;
@@ -9,13 +9,15 @@ export interface IKsmGetSecretsResponse {
 interface IRecord {
   recordUid: string;
   folderUid: string;
-  data: {
-    custom: IField[];
-    fields: IField[];
-    notes: string;
-    title: string;
-    type: string;
-  };
+  data: IRecordData;
+}
+
+export interface IRecordData {
+  custom: IField[];
+  fields: IField[];
+  notes: string;
+  title: string;
+  type: string;
 }
 
 interface IAppData {
