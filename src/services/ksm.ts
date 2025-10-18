@@ -6,6 +6,7 @@ import {
 } from '../utils/helper';
 import { logger } from '../utils/logger';
 import {
+  getFolders,
   getSecrets,
   initializeStorage,
   KeyValueStorage,
@@ -14,6 +15,7 @@ import {
 import { KSM_CONFIG_FILE_NAME, KSM_METHOD_TYPES } from '../utils/constants';
 import fs from 'fs';
 import { IKsmGetSecretsResponse } from '../types/ksm';
+import { IKsmGetFoldersResponse } from '../types';
 
 interface KsmAuthResult {
   authType: KSM_METHOD_TYPES;
@@ -387,26 +389,26 @@ export class KsmService {
    * Get secrets from KSM
    */
   public async getSecrets(): Promise<IKsmGetSecretsResponse> {
-    if (!this.ksmStorage) {
-      throw new Error('KSM storage not available');
-    }
     return (await getSecrets({
-      storage: this.ksmStorage,
+      storage: this.ksmStorage as KeyValueStorage,
     })) as IKsmGetSecretsResponse;
   }
 
   public async getSecretByRecordUid(
     recordUid: string
   ): Promise<IKsmGetSecretsResponse> {
-    if (!this.ksmStorage) {
-      throw new Error('KSM storage not available');
-    }
     return (await getSecrets(
       {
-        storage: this.ksmStorage,
+        storage: this.ksmStorage as KeyValueStorage,
       },
       [recordUid]
     )) as IKsmGetSecretsResponse;
+  }
+
+  public async getFolders(): Promise<IKsmGetFoldersResponse[]> {
+    return (await getFolders({
+      storage: this.ksmStorage as KeyValueStorage,
+    })) as IKsmGetFoldersResponse[];
   }
 
   /**

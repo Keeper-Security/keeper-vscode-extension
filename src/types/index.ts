@@ -15,6 +15,19 @@ export interface IFolder {
   folderPath?: string;
 }
 
+export interface ICliListFolderResponse {
+  folder_uid: string;
+  name: string;
+  parent_uid: string;
+  flags?: string;
+}
+
+export interface IKsmGetFoldersResponse {
+  folderUid: string;
+  name: string;
+  parentUid?: string;
+}
+
 export interface ICurrentStorage {
   folderUid: string;
   name: string;

@@ -6,7 +6,6 @@ import { StatusBarSpinner } from '../../utils/helper';
 import { StorageManager } from '../storage/storageManager';
 import { ICommandHandler } from '../handlers/base/baseCommandHandler';
 import { COMMANDS } from '../../utils/constants';
-import { ChooseFolderHandler } from '../handlers/chooseFolderHandler';
 import { OpenLogsHandler } from '../handlers/openLogsHandler';
 import { GeneratePasswordHandler } from '../handlers/generatePasswordHandler';
 import { GetValueHandler } from '../handlers/getValueHandler';
@@ -21,6 +20,9 @@ import { KsmChooseFolderHandler } from '../handlers/ksm/ksmChooseFolderHandler';
 import { KsmOpenLogsHandler } from '../handlers/ksm/ksmOpenLogsHandler';
 import { KsmAuthenticateHandler } from '../handlers/ksm/ksmAuthenticateHandler';
 import { CliRunSecurelyHandler } from '../handlers/cli/cliRunSecurelyHandler';
+import { KsmStorageManager } from '../storage/ksmStorageManager';
+import { CliChooseFolderHandler } from '../handlers/cli/cliChooseFolderHandler';
+import { CliStorageManager } from '../storage/cliStorageManager';
 
 export class HandlerFactory {
   static createHandler(
@@ -37,6 +39,12 @@ export class HandlerFactory {
         context,
         service as CliService,
         spinner
+      );
+
+      const cliStorageManager = new CliStorageManager(
+        context,
+        spinner,
+        cliService
       );
 
       handlers.set(
@@ -57,12 +65,17 @@ export class HandlerFactory {
       );
       handlers.set(
         COMMANDS.CHOOSE_FOLDER,
-        new ChooseFolderHandler(cliService, spinner, storageManager)
+        new CliChooseFolderHandler(cliService, spinner, cliStorageManager)
       );
       handlers.set(COMMANDS.OPEN_LOGS, new OpenLogsHandler());
       handlers.set(COMMANDS.SWITCH_TO_KSM, new SwitchToKsmHandler());
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;
+      const storageManager = new KsmStorageManager(
+        context,
+        spinner,
+        ksmService
+      );
 
       handlers.set(COMMANDS.SAVE_VALUE_TO_VAULT, new KsmSaveValueHandler());
       handlers.set(
@@ -73,12 +86,20 @@ export class HandlerFactory {
         COMMANDS.GENERATE_PASSWORD,
         new KsmGeneratePasswordHandler()
       );
-      handlers.set(COMMANDS.RUN_SECURELY, new KsmRunSecurelyHandler(context, ksmService, spinner));
-      handlers.set(COMMANDS.CHOOSE_FOLDER, new KsmChooseFolderHandler());
+      handlers.set(
+        COMMANDS.RUN_SECURELY,
+        new KsmRunSecurelyHandler(context, ksmService, spinner)
+      );
+      handlers.set(
+        COMMANDS.CHOOSE_FOLDER,
+        new KsmChooseFolderHandler(ksmService, spinner, storageManager)
+      );
       handlers.set(COMMANDS.OPEN_LOGS, new KsmOpenLogsHandler());
       handlers.set(COMMANDS.SWITCH_TO_CLI, new SwitchToCliHandler());
-      handlers.set(COMMANDS.AUTHENTICATE, new KsmAuthenticateHandler(ksmService, spinner));
-
+      handlers.set(
+        COMMANDS.AUTHENTICATE,
+        new KsmAuthenticateHandler(ksmService, spinner)
+      );
     }
 
     return handlers;

@@ -1,21 +1,22 @@
-import { ExtensionContext, window, QuickPickItem } from 'vscode';
-import { CliService } from '../../services/cli';
-import { ICliListFolderResponse, ICurrentStorage, IFolder } from '../../types';
-import { resolveFolderPaths } from '../../utils/helper';
+import { ExtensionContext, QuickPickItem, window } from 'vscode';
+import { IFolder } from '../../types';
 import { logger } from '../../utils/logger';
-import { StatusBarSpinner } from '../../utils/helper';
-import { safeJsonParse } from '../../utils/helper';
+import { commonQuickPickOptions, StatusBarSpinner } from '../../utils/helper';
 
-export class StorageManager {
+export abstract class BaseStorageManager {
   constructor(
-    private context: ExtensionContext,
-    private cliService: CliService,
-    private spinner: StatusBarSpinner
+    protected context: ExtensionContext,
+    protected spinner: StatusBarSpinner
   ) {
-    logger.logDebug('StorageManager initialized');
+  logger.logDebug(this.constructor.name + ' initialized');
   }
 
-  async validateCurrentStorage(): Promise<boolean> {
+  private async validateCurrentStorage(
+    getAvailableFolders: () => Promise<{
+      availableFolders: IFolder[];
+      rootFolder: IFolder;
+    }>
+  ): Promise<boolean> {
     logger.logDebug('Starting storage validation');
     this.spinner.show('Validating storage...');
 
@@ -35,32 +36,13 @@ export class StorageManager {
       return true;
     }
 
-    // Sync-down the latest records from the vault
-    logger.logDebug('StorageManager: Syncing down latest records from vault');
-    await this.cliService.executeCommanderCommand('sync-down');
+    const { availableFolders } = await getAvailableFolders();
 
-    // Fetch all folders from server
-    logger.logDebug('Fetching folders from server for validation');
-    const allAvailableFolders = await this.cliService.executeCommanderCommand(
-      'ls',
-      ['--format=json', '-f', '-R']
+    const folderExists = availableFolders.some(
+      (folder) => folder.folderUid === currentStorage.folderUid
     );
 
-    // Use safe parser that cleans output first
-    const parsedFolders: ICliListFolderResponse[] = safeJsonParse(
-      allAvailableFolders,
-      []
-    );
-    logger.logDebug(`Retrieved ${parsedFolders.length} folders from server`);
-
-    // Check if stored folder still exists
-    const folderExists = parsedFolders.some(
-      (folder) => folder.folder_uid === currentStorage.folderUid
-    );
-
-    logger.logDebug(
-      `Folder "${currentStorage.name}" exists on server: ${folderExists}`
-    );
+    logger.logDebug(`Folder "${currentStorage.name}" exists on keeper vault`);
 
     if (!folderExists) {
       logger.logError(
@@ -75,18 +57,24 @@ export class StorageManager {
     return true;
   }
 
-  async ensureValidStorage(): Promise<void> {
-    logger.logDebug('Ensuring valid storage');
+  async ensureValidStorage(
+    getAvailableFolders: () => Promise<{
+      availableFolders: IFolder[];
+      rootFolder: IFolder;
+    }>
+  ): Promise<void> {
     // if currentStorage is not set, choose a folder
     if (!this.getCurrentStorage()) {
       logger.logDebug(
         'No current storage found, prompting for folder selection'
       );
-      await this.chooseFolder();
+      await this.chooseFolder(getAvailableFolders);
     } else {
       logger.logDebug('Current storage exists, validating...');
       // Validate current storage
-      const isFolderExistsOnKeeperVault = await this.validateCurrentStorage();
+      const isFolderExistsOnKeeperVault =
+        await this.validateCurrentStorage(getAvailableFolders);
+
       if (!isFolderExistsOnKeeperVault) {
         logger.logDebug(
           'Current storage validation failed, prompting for new selection'
@@ -98,7 +86,7 @@ export class StorageManager {
           'No'
         );
         if (shouldChooseNew === 'Yes') {
-          await this.chooseFolder();
+          await this.chooseFolder(getAvailableFolders);
         } else {
           logger.logDebug('User chose not to select new folder');
           return;
@@ -109,59 +97,40 @@ export class StorageManager {
     }
   }
 
-  async chooseFolder(): Promise<void> {
+  async chooseFolder(
+    getAvailableFolders: () => Promise<{
+      availableFolders: IFolder[];
+      rootFolder: IFolder;
+    }>
+  ): Promise<void> {
     logger.logDebug('Starting folder selection process');
 
     // get all folders from vault
     this.spinner.show('Retrieving folders...');
 
-    // Sync-down the latest records from the vault
-    logger.logDebug('StorageManager: Syncing down latest records from vault');
-    await this.cliService.executeCommanderCommand('sync-down');
-
-    logger.logDebug('Fetching folders from Keeper vault');
-
-    const allAvailableFolders = await this.cliService.executeCommanderCommand(
-      'ls',
-      ['--format=json', '-f', '-R']
-    );
+    const { availableFolders, rootFolder } = await getAvailableFolders();
     this.spinner.hide();
 
-    // Use safe parser that cleans output first
-    const parsedFolders = safeJsonParse(allAvailableFolders, []);
-    logger.logDebug(`Retrieved ${parsedFolders.length} folders from vault`);
-
-    const rootVault: ICurrentStorage = {
-      folderUid: '/',
-      name: 'My Vault',
-      parentUid: '/',
-      folderPath: '/',
-    };
-
-    // If no folders available, automatically set root vault and skip quick pick
-    if (parsedFolders.length === 0) {
+    // if no folders available, automatically set root folder and skip quick pick
+    // root folder + other folders
+    if (availableFolders.length === 1) {
       logger.logDebug(
-        'No folders available, automatically setting root vault as storage'
+        `No folders available, automatically setting ${rootFolder.name} as storage`
       );
-      this.setCurrentStorage(rootVault);
+      this.setCurrentStorage(rootFolder);
 
       window.showInformationMessage(
-        `Storage location set to "${rootVault.name}" folder (no other folders available)`
+        `Storage location set to "${rootFolder.name}" folder (no other folders available)`
       );
       logger.logDebug(
-        `Storage location automatically set to: ${rootVault.name}`
+        `Storage location automatically set to: ${rootFolder.name}`
       );
       return;
     }
 
-    const allAvailableFoldersWithPaths = [
-      rootVault,
-      ...resolveFolderPaths(parsedFolders),
-    ];
-
     // Only show quick pick if there are multiple folder options
-    const formatedFoldersForQuickPick = allAvailableFoldersWithPaths.map(
-      (folder: ICurrentStorage) => {
+    const formatedFoldersForQuickPick = availableFolders.map(
+      (folder: IFolder) => {
         const response: QuickPickItem & { value: string } = {
           label: folder.name,
           value: folder.folderUid,
@@ -179,11 +148,10 @@ export class StorageManager {
     const selectedFolder = await window.showQuickPick(
       formatedFoldersForQuickPick,
       {
-        title: 'Available folders from Keeper Vault',
+        title: 'Available folders',
         placeHolder:
           'Select a folder to use as storage location while saving secrets',
-        matchOnDetail: true,
-        ignoreFocusOut: true,
+        ...commonQuickPickOptions,
       }
     );
 
@@ -198,7 +166,7 @@ export class StorageManager {
 
     // if folder is selected, set currentStorage to the folder
     const newStorage =
-      allAvailableFoldersWithPaths.find(
+      availableFolders.find(
         (folder: IFolder) => folder.folderUid === selectedFolder.value
       ) || null;
 
@@ -210,17 +178,17 @@ export class StorageManager {
     logger.logDebug(`Storage location updated to: ${selectedFolder.label}`);
   }
 
-  getCurrentStorage(): ICurrentStorage | null {
+  getCurrentStorage(): IFolder | null {
     const storage = this.context.workspaceState.get('currentStorage', null);
     logger.logDebug(
-      `Retrieved current storage: ${storage ? JSON.stringify(storage) : 'null'}`
+      `Retrieved current storage: ${storage ? (storage as IFolder)?.name : 'null'}`
     );
     return storage;
   }
 
-  setCurrentStorage(storage: ICurrentStorage | null): void {
+  setCurrentStorage(storage: IFolder | null): void {
     logger.logDebug(
-      `Setting current storage to: ${storage ? JSON.stringify(storage) : 'null'}`
+      `Setting current storage to: ${storage ? (storage as IFolder)?.name : 'null'}`
     );
     this.context.workspaceState.update('currentStorage', storage);
   }

@@ -1,5 +1,6 @@
 export const KSM_INFO_MESSAGES = {
   RETRIEVING_SECRETS: 'Retrieving secrets...',
+  RETRIEVING_FOLDERS: 'Retrieving folders...',
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
 } as const;

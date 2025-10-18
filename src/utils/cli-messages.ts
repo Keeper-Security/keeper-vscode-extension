@@ -1,4 +1,5 @@
 export const CLI_INFO_MESSAGES = {
+  RETRIEVING_FOLDERS: 'Retrieving folders...',
   RETRIEVING_SECRETS: 'Retrieving secrets...',
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
