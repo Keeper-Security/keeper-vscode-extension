@@ -3,17 +3,23 @@ import { KsmService } from '../../../services/ksm';
 import { BaseCommandHandler } from '../base/baseCommandHandler';
 import { logger } from '../../../utils/logger';
 import { StatusBarSpinner } from '../../../utils/helper';
+import { KsmStorageManager } from '../../storage/ksmStorageManager';
+import {
+  KSM_ERROR_MESSAGES,
+  KSM_INFO_MESSAGES,
+} from '../../../utils/ksm-messages';
 
 export class KsmAuthenticateHandler extends BaseCommandHandler {
   constructor(
+    private spinner: StatusBarSpinner,
     private ksmService: KsmService,
-    private spinner: StatusBarSpinner
+    private storageManager: KsmStorageManager
   ) {
     super();
   }
 
   async execute(): Promise<void> {
-    this.spinner.show('Authenticating with Keeper Secrets Manager...');
+    this.spinner.show(KSM_INFO_MESSAGES.AUTHENTICATING_WITH_KSM);
     try {
       const storeConfigPath = await this.ksmService.getStoreConfigPath();
       if (!storeConfigPath) {
@@ -21,10 +27,21 @@ export class KsmAuthenticateHandler extends BaseCommandHandler {
       }
 
       await this.ksmService.handleReAuthentication(storeConfigPath);
+
+      // clear current storage
+      this.storageManager.setCurrentStorage(null);
+
+      window.showInformationMessage(KSM_INFO_MESSAGES.AUTHENTICATED_WITH_KSM);
     } catch (error) {
-      logger.logError('KsmAuthenticateHandler.execute failed', error);
+      logger.logError(
+        'KsmAuthenticateHandler failed: ' +
+          KSM_ERROR_MESSAGES.FAILED_TO_AUTHENTICATE,
+        error
+      );
       window.showErrorMessage(
-        'Failed to authenticate with Keeper Secrets Manager'
+        KSM_ERROR_MESSAGES.FAILED_TO_AUTHENTICATE +
+          ': ' +
+          (error instanceof Error ? error.message : 'Unknown error')
       );
       return;
     } finally {

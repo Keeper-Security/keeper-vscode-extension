@@ -1,4 +1,8 @@
 export const KSM_INFO_MESSAGES = {
+  AUTHENTICATING_WITH_KSM: 'Authenticating with Keeper Secrets Manager...',
+  AUTHENTICATED_WITH_KSM: 'Keeper Secrets Manager authenticated successfully with new shared folder.',
+  SAVING_SECRET: 'Saving secret to keeper vault...',
+  GENERATING_PASSWORD: 'Generating password...',
   RETRIEVING_SECRETS: 'Retrieving secrets...',
   RETRIEVING_FOLDERS: 'Retrieving folders...',
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
@@ -10,9 +14,11 @@ export const KSM_SUCCESS_MESSAGES = {
 } as const;
 
 export const KSM_ERROR_MESSAGES = {
+  NO_VALUE_FOUND_TO_SAVE: 'Please make a text selection to save its value in the keeper vault.',
   FAILED_TO_CREATE_KEEPER_REFERENCE: 'Failed to create keeper reference for secret',
   FAILED_TO_GET_VALUE: 'Failed to get value from Keeper Secrets Manager',
   FAILED_TO_RUN_SECURELY: 'Failed to execute command with secrets injected',
+  FAILED_TO_AUTHENTICATE: 'Failed to authenticate with Keeper Secrets Manager',
 } as const;
 
 export const KSM_LOGGER_DEBUG_MESSAGES = {
@@ -21,6 +27,8 @@ export const KSM_LOGGER_DEBUG_MESSAGES = {
   USER_SELECTED_RECORD: 'User selected record with UID',
   NO_RECORDS_FOUND: 'No records found',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
+  USER_CANCELLED_RECORD_NAME_INPUT: 'User cancelled while entering record name',
+  NO_FOLDERS_FOUND: 'No folders found',
 } as const;
 
 export const KSM_LOGGER_ERROR_MESSAGES = {

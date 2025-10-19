@@ -1,4 +1,6 @@
 export const CLI_INFO_MESSAGES = {
+  SAVING_SECRET: 'Saving secret to keeper vault...',
+  GENERATING_PASSWORD: 'Generating password...',
   RETRIEVING_FOLDERS: 'Retrieving folders...',
   RETRIEVING_SECRETS: 'Retrieving secrets...',
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
@@ -10,6 +12,7 @@ export const CLI_SUCCESS_MESSAGES = {
 } as const;
 
 export const CLI_ERROR_MESSAGES = {
+  NO_VALUE_FOUND_TO_SAVE: 'Please make a text selection to save its value in the keeper vault.',
   FAILED_TO_CREATE_KEEPER_REFERENCE: 'Failed to create keeper reference for secret',
   FAILED_TO_GET_VALUE: 'Failed to get value from Keeper Commander',
   FAILED_TO_RUN_SECURELY: 'Failed to execute command with secrets injected',
@@ -21,6 +24,7 @@ export const CLI_LOGGER_DEBUG_MESSAGES = {
   USER_SELECTED_RECORD: 'User selected record with UID',
   NO_RECORDS_FOUND: 'No records found',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
+  USER_CANCELLED_RECORD_NAME_INPUT: 'User cancelled while entering record name',
 } as const;
 
 export const CLI_LOGGER_ERROR_MESSAGES = {

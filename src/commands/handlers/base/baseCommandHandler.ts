@@ -39,9 +39,9 @@ export abstract class BaseCommandHandler implements ICommandHandler {
             `Replaced reference in range - file: ${editor.document.fileName}, range: ${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`
           );
         } else {
-          editBuilder.insert(editor.selection.active, reference);
+          editBuilder.replace(editor.selection, reference);
           logger.logDebug(
-            `Inserted reference in active text editor - file: ${editor.document.fileName}, selection: ${editor.selection.active.line}:${editor.selection.active.character}`
+            `Replaced reference in active text editor - file: ${editor.document.fileName}, selection: ${editor.selection.active.line}:${editor.selection.active.character}`
           );
         }
         logger.logDebug(`Keeper reference inserted successfully`);

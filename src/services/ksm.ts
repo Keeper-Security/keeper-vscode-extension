@@ -6,6 +6,8 @@ import {
 } from '../utils/helper';
 import { logger } from '../utils/logger';
 import {
+  CreateOptions,
+  createSecret2,
   getFolders,
   getSecrets,
   initializeStorage,
@@ -409,6 +411,17 @@ export class KsmService {
     return (await getFolders({
       storage: this.ksmStorage as KeyValueStorage,
     })) as IKsmGetFoldersResponse[];
+  }
+
+  public async createSecret(
+    createOptions: CreateOptions,
+    recordData: unknown
+  ): Promise<string> {
+    return await createSecret2(
+      { storage: this.ksmStorage as KeyValueStorage },
+      createOptions,
+      recordData
+    );
   }
 
   /**
