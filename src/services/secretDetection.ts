@@ -65,38 +65,6 @@ export class SecretDetectionService {
         return new DotEnvParser(document);
       }
 
-      // // JSON configuration files
-      // if (matchDocument(['json'], ['json'])) {
-      //   logger.logDebug('Using JsonConfig parser');
-      //   return new JsonConfigParser(document);
-      // }
-
-      // // YAML configuration files
-      // if (matchDocument(['yaml'], ['yml', 'yaml'])) {
-      //   logger.logDebug('Using YamlConfig parser');
-      //   return new YamlConfigParser(document);
-      // }
-
-      // // Code files
-      // if (
-      //   matchDocument(
-      //     [
-      //       'javascript',
-      //       'typescript',
-      //       'python',
-      //       'go',
-      //       'java',
-      //       'csharp',
-      //       'php',
-      //       'ruby',
-      //     ],
-      //     ['js', 'ts', 'jsx', 'tsx', 'py', 'go', 'java', 'cs', 'php', 'rb']
-      //   )
-      // ) {
-      //   logger.logDebug('Using Code parser');
-      //   return new CodeParser(document);
-      // }
-
       logger.logDebug('No suitable parser found for document type');
       return null;
     };
