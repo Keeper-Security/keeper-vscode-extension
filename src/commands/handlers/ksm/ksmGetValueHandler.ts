@@ -108,13 +108,13 @@ export class KsmGetValueHandler extends BaseGetValueHandler {
 
       // process fields
       const fields = this.processFieldsData(
-        data.fields,
+        data.fields ?? [],
         KEEPER_NOTATION_FIELD_TYPES.FIELD
       );
 
       // process custom fields
       const customFields = this.processFieldsData(
-        data.custom,
+        data.custom ?? [],
         KEEPER_NOTATION_FIELD_TYPES.CUSTOM_FIELD
       );
 

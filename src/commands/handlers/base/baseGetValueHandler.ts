@@ -1,7 +1,7 @@
 import { window } from 'vscode';
 import { commonQuickPickOptions } from '../../../utils/helper';
 import { BaseCommandHandler } from './baseCommandHandler';
-import { KEEPER_NOTATION_FIELD_TYPES } from '../../../utils/constants';
+import { BASE_HANDLER_MESSAGES, KEEPER_NOTATION_FIELD_TYPES } from '../../../utils/constants';
 import {
   IField,
   IRecordQuickPick,
@@ -14,8 +14,8 @@ export abstract class BaseGetValueHandler extends BaseCommandHandler {
   ): Promise<IRecordQuickPick | undefined> {
     return await window.showQuickPick(items, {
       ...commonQuickPickOptions,
-      title: 'Available records from Keeper Vault',
-      placeHolder: 'Select a record',
+      title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_TITLE,
+      placeHolder: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_PLACEHOLDER,
     });
   }
 
@@ -25,8 +25,8 @@ export abstract class BaseGetValueHandler extends BaseCommandHandler {
   ): Promise<IRecordQuickPickWithFieldType | undefined> {
     return await window.showQuickPick(items, {
       ...commonQuickPickOptions,
-      title: `Available fields from record: ${selectedRecord.label}`,
-      placeHolder: 'Which field do you want to retrieve?',
+      title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_SELECTED_RECORD_TITLE + ': ' + selectedRecord.label,
+      placeHolder: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_SELECTED_RECORD_PLACEHOLDER,
     });
   }
 
@@ -51,7 +51,7 @@ export abstract class BaseGetValueHandler extends BaseCommandHandler {
     selectedField: IRecordQuickPickWithFieldType
   ): void {
     window.showInformationMessage(
-      `Reference of "${selectedField.label}" field of secret "${selectedRecord.label}" retrieved successfully!`
+      BASE_HANDLER_MESSAGES.INFO.REFERENCE_OF_FIELD_OF_SECRET_RETRIEVED_SUCCESSFULLY + ' with value: ' + selectedField.label + ' and secret: ' + selectedRecord.label
     );
   }
 }

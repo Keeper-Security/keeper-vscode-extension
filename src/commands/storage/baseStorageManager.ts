@@ -2,13 +2,14 @@ import { ExtensionContext, QuickPickItem, window } from 'vscode';
 import { IFolder } from '../../types';
 import { logger } from '../../utils/logger';
 import { commonQuickPickOptions, StatusBarSpinner } from '../../utils/helper';
+import { BASE_HANDLER_MESSAGES } from '../../utils/constants';
 
 export abstract class BaseStorageManager {
   constructor(
     protected context: ExtensionContext,
     protected spinner: StatusBarSpinner
   ) {
-  logger.logDebug(this.constructor.name + ' initialized');
+  logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.INITIALIZING);
   }
 
   private async validateCurrentStorage(
@@ -17,22 +18,22 @@ export abstract class BaseStorageManager {
       rootFolder: IFolder;
     }>
   ): Promise<boolean> {
-    logger.logDebug('Starting storage validation');
-    this.spinner.show('Validating storage...');
+    logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STARTING_STORAGE_VALIDATION);
+    this.spinner.show(BASE_HANDLER_MESSAGES.INFO.VALIDATING_STORAGE);
 
     const currentStorage = this.getCurrentStorage();
     logger.logDebug(
-      `Current storage: ${currentStorage ? currentStorage.name : 'null'}`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.CURRENT_STORAGE + ' with value: ' + (currentStorage?.name ?? 'null')
     );
 
     if (!currentStorage) {
-      logger.logDebug('No current storage found');
+      logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_CURRENT_STORAGE_FOUND);
       return false;
     }
 
     // check if current storage is a My Vault
     if (currentStorage.parentUid === '/') {
-      logger.logDebug('Current storage is My Vault, validation successful');
+      logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.CURRENT_STORAGE_IS_MY_VAULT);
       return true;
     }
 
@@ -42,17 +43,16 @@ export abstract class BaseStorageManager {
       (folder) => folder.folderUid === currentStorage.folderUid
     );
 
-    logger.logDebug(`Folder "${currentStorage.name}" exists on keeper vault`);
+    logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.FOLDER_EXISTS_ON_KEEPER_VAULT + ' with value: ' + currentStorage.name);
 
     if (!folderExists) {
       logger.logError(
-        `Folder "${currentStorage.name}" no longer exists on Keeper vault`
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR.FOLDER_NO_LONGER_EXISTS_ON_KEEPER_VAULT + ' with value: ' + currentStorage.name
       );
       this.setCurrentStorage(null);
       return false;
     }
 
-    logger.logDebug('Storage validation completed successfully');
     this.spinner.hide();
     return true;
   }
@@ -66,33 +66,33 @@ export abstract class BaseStorageManager {
     // if currentStorage is not set, choose a folder
     if (!this.getCurrentStorage()) {
       logger.logDebug(
-        'No current storage found, prompting for folder selection'
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_CURRENT_STORAGE_FOUND + ', prompting for folder selection'
       );
       await this.chooseFolder(getAvailableFolders);
     } else {
-      logger.logDebug('Current storage exists, validating...');
+      logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.CURRENT_STORAGE_EXISTS + ', validating...');
       // Validate current storage
       const isFolderExistsOnKeeperVault =
         await this.validateCurrentStorage(getAvailableFolders);
 
       if (!isFolderExistsOnKeeperVault) {
         logger.logDebug(
-          'Current storage validation failed, prompting for new selection'
+          this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.CURRENT_STORAGE_VALIDATION_FAILED + ', prompting for new selection'
         );
         // Show warning about invalid folder and prompt for new selection
         const shouldChooseNew = await window.showWarningMessage(
-          'Previously selected folder is no longer available. Would you like to choose a new folder?',
+          BASE_HANDLER_MESSAGES.INPUT.PREVIOUSLY_SELECTED_FOLDER_IS_NO_LONGER_AVAILABLE,
           'Yes',
           'No'
         );
         if (shouldChooseNew === 'Yes') {
           await this.chooseFolder(getAvailableFolders);
         } else {
-          logger.logDebug('User chose not to select new folder');
+          logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_CHOSE_NOT_TO_SELECT_NEW_FOLDER);
           return;
         }
       } else {
-        logger.logDebug('Current storage validation successful');
+        logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.CURRENT_STORAGE_VALIDATION_SUCCESSFUL);
       }
     }
   }
@@ -103,10 +103,10 @@ export abstract class BaseStorageManager {
       rootFolder: IFolder;
     }>
   ): Promise<void> {
-    logger.logDebug('Starting folder selection process');
+    logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STARTING_FOLDER_SELECTION_PROCESS);
 
     // get all folders from vault
-    this.spinner.show('Retrieving folders...');
+    this.spinner.show(BASE_HANDLER_MESSAGES.INFO.RETRIEVING_FOLDERS);
 
     const { availableFolders, rootFolder } = await getAvailableFolders();
     this.spinner.hide();
@@ -115,15 +115,15 @@ export abstract class BaseStorageManager {
     // root folder + other folders
     if (availableFolders.length === 1) {
       logger.logDebug(
-        `No folders available, automatically setting ${rootFolder.name} as storage`
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_FOLDERS_AVAILABLE + `automatically setting ${rootFolder.name} as storage`
       );
       this.setCurrentStorage(rootFolder);
 
       window.showInformationMessage(
-        `Storage location set to "${rootFolder.name}" folder (no other folders available)`
+        BASE_HANDLER_MESSAGES.INFO.STORAGE_LOCATION_AUTOMATICALLY_SET_TO + ' ' + rootFolder.name + ' folder (no other folders available)'
       );
       logger.logDebug(
-        `Storage location automatically set to: ${rootFolder.name}`
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STORAGE_LOCATION_AUTOMATICALLY_SET_TO + ' ' + rootFolder.name
       );
       return;
     }
@@ -144,24 +144,23 @@ export abstract class BaseStorageManager {
     );
 
     // show picker for folders
-    logger.logDebug('Showing folder selection picker');
     const selectedFolder = await window.showQuickPick(
       formatedFoldersForQuickPick,
       {
-        title: 'Available folders',
+        title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_FOLDER_SELECTION_TITLE,
         placeHolder:
-          'Select a folder to use as storage location while saving secrets',
+          BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_FOLDER_SELECTION_PLACEHOLDER,
         ...commonQuickPickOptions,
       }
     );
 
     if (!selectedFolder) {
-      logger.logDebug('No folder selected by user');
+      logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_FOLDER_SELECTED_BY_USER);
       return;
     }
 
     logger.logDebug(
-      `User selected folder: ${selectedFolder.label} (${selectedFolder.value})`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_FOLDER + ' with value: ' + selectedFolder.label + ' and ' + selectedFolder.value
     );
 
     // if folder is selected, set currentStorage to the folder
@@ -173,22 +172,22 @@ export abstract class BaseStorageManager {
     this.setCurrentStorage(newStorage);
 
     window.showInformationMessage(
-      `Storage location set to "${selectedFolder.label}" folder`
+      BASE_HANDLER_MESSAGES.INFO.STORAGE_LOCATION_SET_TO + ' ' + selectedFolder.label + ' folder'
     );
-    logger.logDebug(`Storage location updated to: ${selectedFolder.label}`);
+    logger.logDebug(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STORAGE_LOCATION_UPDATED_TO + ' with value: ' + selectedFolder.label);
   }
 
   getCurrentStorage(): IFolder | null {
     const storage = this.context.workspaceState.get('currentStorage', null);
     logger.logDebug(
-      `Retrieved current storage: ${storage ? (storage as IFolder)?.name : 'null'}`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.RETRIEVED_CURRENT_STORAGE + ' with value: ' + (storage ? (storage as IFolder)?.name : 'null')
     );
     return storage;
   }
 
   setCurrentStorage(storage: IFolder | null): void {
     logger.logDebug(
-      `Setting current storage to: ${storage ? (storage as IFolder)?.name : 'null'}`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.SETTING_CURRENT_STORAGE + ' with value: ' + (storage ? (storage as IFolder)?.name : 'null')
     );
     this.context.workspaceState.update('currentStorage', storage);
   }

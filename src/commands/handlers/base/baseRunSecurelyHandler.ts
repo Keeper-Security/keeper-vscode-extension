@@ -2,6 +2,8 @@ import { ExtensionContext, Uri, window, workspace } from 'vscode';
 import { logger } from '../../../utils/logger';
 import { BaseCommandHandler } from './baseCommandHandler';
 import {
+  commonInputBoxOptions,
+  commonQuickPickOptions,
   isEnvironmentFile,
   parseKeeperReference,
   StatusBarSpinner,
@@ -9,7 +11,10 @@ import {
 } from '../../../utils/helper';
 import path from 'path';
 import fs from 'fs';
-import { KEEPER_NOTATION_FIELD_TYPES } from '../../../utils/constants';
+import {
+  BASE_HANDLER_MESSAGES,
+  KEEPER_NOTATION_FIELD_TYPES,
+} from '../../../utils/constants';
 import { FieldExtractor } from '../../utils/fieldExtractor';
 import dotenv from 'dotenv';
 import { IRecordData } from '../../../types/ksm';
@@ -44,7 +49,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       return;
     }
 
-    this.spinner.show('Resolving secrets...');
+    this.spinner.show(BASE_HANDLER_MESSAGES.INFO.RESOLVING_SECRETS);
 
     const resolvedEnv = await this.resolveSecrets(
       selectedEnvFile,
@@ -55,40 +60,55 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
 
     this.spinner.hide();
 
-    window.showInformationMessage(`Command started with secrets injected`);
+    window.showInformationMessage(
+      BASE_HANDLER_MESSAGES.INFO.COMMAND_STARTED_WITH_SECRETS_INJECTED
+    );
   }
 
   /**
    * Select workspace to run securely in
    */
   private async selectWorkspace(): Promise<string | undefined> {
-    logger.logDebug('Starting workspace selection');
+    logger.logDebug(
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STARTING_WORKSPACE_SELECTION
+    );
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      logger.logDebug('No workspace folders found');
-      throw new Error('Open a folder/workspace first');
+      logger.logDebug(
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_WORKSPACE_FOLDERS_FOUND
+      );
+      throw new Error(
+        BASE_HANDLER_MESSAGES.ERROR.OPEN_FOLDER_OR_WORKSPACE_FIRST
+      );
     }
 
     if (workspaceFolders.length === 1) {
       logger.logDebug(
-        `Single workspace found - name: ${workspaceFolders[0].name}`
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.SINGLE_WORKSPACE_FOUND +
+          ' with name: ' +
+          workspaceFolders[0].name
       );
       return workspaceFolders[0].uri.fsPath;
     }
 
     logger.logDebug(
-      `Multiple workspaces found - count: ${workspaceFolders.length}`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.MULTIPLE_WORKSPACES_FOUND +
+        ' with count: ' +
+        workspaceFolders.length
     );
 
     const workspaceNames = workspaceFolders.map((folder) => folder.name);
     const selected = await window.showQuickPick(workspaceNames, {
-      placeHolder: 'Select workspace to run securely in',
-      matchOnDetail: true,
-      ignoreFocusOut: true,
+      ...commonQuickPickOptions,
+      placeHolder:
+        BASE_HANDLER_MESSAGES.INPUT
+          .SELECT_WORKSPACE_TO_RUN_SECURELY_IN_PLACEHOLDER,
     });
 
     if (!selected) {
-      logger.logDebug('User cancelled workspace selection');
+      logger.logDebug(
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_CANCELLED_WORKSPACE_SELECTION
+      );
       return;
     }
 
@@ -96,11 +116,17 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       (folder) => folder.name === selected
     );
     if (!selectedWorkspace) {
-      logger.logDebug('User selected workspace not found');
-      throw new Error('Workspace not found');
+      logger.logDebug(
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE_NOT_FOUND +
+          ' with name: ' +
+          selected
+      );
+      throw new Error(BASE_HANDLER_MESSAGES.ERROR.WORKSPACE_NOT_FOUND);
     }
     logger.logDebug(
-      `User selected workspace - name: ${selectedWorkspace.name}`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE +
+        ' with name: ' +
+        selectedWorkspace.name
     );
     return selectedWorkspace.uri.fsPath;
   }
@@ -120,14 +146,14 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     const selected = await window.showQuickPick(
       ['Browse Environment File', ...envFileNames],
       {
-        placeHolder: 'Select environment file to use',
-        matchOnDetail: true,
-        ignoreFocusOut: true,
+        ...commonQuickPickOptions,
+        placeHolder:
+          BASE_HANDLER_MESSAGES.INPUT
+            .SELECT_ENVIRONMENT_FILE_TO_USE_PLACEHOLDER,
       }
     );
 
     if (!selected) {
-      //   throw new Error('No environment file selected');
       return;
     }
 
@@ -138,11 +164,11 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
         canSelectFolders: false,
         canSelectMany: false,
         defaultUri: Uri.file(workspaceRoot),
-        openLabel: 'Select Environment File',
+        openLabel:
+          BASE_HANDLER_MESSAGES.INPUT.SELECT_ENVIRONMENT_FILE_TO_USE_LABEL,
       });
 
       if (!fileUris || fileUris.length === 0) {
-        // throw new Error('No environment file selected');
         return;
       }
 
@@ -154,7 +180,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       }
 
       throw new Error(
-        'Selected file is not an environment file. Must be a .env or .env.* file'
+        BASE_HANDLER_MESSAGES.ERROR.SELECTED_FILE_IS_NOT_AN_ENVIRONMENT_FILE
       );
     }
 
@@ -169,16 +195,17 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     const lastCommand = this.getLastCommand();
 
     const command = await window.showInputBox({
-      prompt: 'Enter command to run with Keeper secrets injected',
-      placeHolder: 'e.g. node index.js',
+      ...commonInputBoxOptions,
+      prompt:
+        BASE_HANDLER_MESSAGES.INPUT
+          .ENTER_COMMAND_TO_RUN_WITH_KEEPER_SECRETS_INJECTED_PROMPT,
+      placeHolder:
+        BASE_HANDLER_MESSAGES.INPUT
+          .ENTER_COMMAND_TO_RUN_WITH_KEEPER_SECRETS_INJECTED_PLACEHOLDER,
       value: lastCommand || '',
-      ignoreFocusOut: true,
     });
 
     if (!command) {
-      //   throw new Error(
-      //     'No command entered. Please enter a command to run with Keeper secrets injected.'
-      //   );
       return;
     }
 
@@ -205,7 +232,6 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       BaseRunSecurelyHandler.LAST_COMMAND_KEY,
       command
     );
-    logger.logDebug(`Stored last command: ${command}`);
   }
 
   /**
@@ -235,7 +261,11 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       if (typeof value === 'string' && validateKeeperReference(value)) {
         const parsedRef = parseKeeperReference(value);
         if (!parsedRef) {
-          logger.logError(`Failed to parse keeper:// reference: ${value}`);
+          logger.logError(
+            BASE_HANDLER_MESSAGES.ERROR.FAILED_TO_PARSE_KEEPER_REFERENCE +
+              ': ' +
+              value
+          );
           continue;
         }
 
@@ -262,7 +292,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     resolvedEnv: Record<string, string>
   ): Promise<void> {
     const terminal = window.createTerminal({
-      name: 'Keeper Secure Run',
+      name: BASE_HANDLER_MESSAGES.INPUT.TERMINAL_NAME,
       env: {
         ...process.env,
         ...resolvedEnv,
@@ -294,11 +324,13 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
         }
       }
 
-      logger.logInfo(`Found environment files at: ${foundFiles.join(', ')}`);
-
       return foundFiles;
     } catch (error: unknown) {
-      logger.logError(`Failed to find environment files: ${error}`);
+      logger.logError(
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FIND_ENVIRONMENT_FILES +
+          ' with error: ' +
+          error
+      );
       return [];
     }
   }
@@ -328,7 +360,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     }
 
     logger.logInfo(
-      `Resolved ${Object.keys(resolvedEnv).length} environment variables`
+      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_ENVIRONMENT_VARIABLES +
+        ' with count: ' +
+        Object.keys(resolvedEnv).length
     );
     return resolvedEnv;
   }
@@ -351,7 +385,11 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     // Execute commands sequentially
     for (const [recordUid, references] of recordGroups.entries()) {
       logger.logInfo(
-        `Fetching record: ${recordUid} with ${references.length} references`
+        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.FETCHING_RECORD +
+          ' with recordUid: ' +
+          recordUid +
+          ' with count: ' +
+          references.length
       );
 
       try {
@@ -365,16 +403,23 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
           );
           if (value !== null) {
             resolvedEnv[key] = value;
-            logger.logInfo(`Resolved ${key}`);
+            logger.logInfo(
+              this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_SECRET +
+                ' with key: ' +
+                key
+            );
           } else {
             logger.logError(
-              `Failed to resolve keeper reference: keeper://${recordUid}/${fieldType}/${itemName}`
+              this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR
+                .FAILED_TO_RESOLVE_KEEPER_REFERENCE +
+                ' with reference: ' +
+                `keeper://${recordUid}/${fieldType}/${itemName}`
             );
             resolvedEnv[key] = `keeper://${recordUid}/${fieldType}/${itemName}`;
           }
         });
       } catch (error: unknown) {
-        logger.logError(`Failed to fetch record ${recordUid}:`, error);
+        logger.logError(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FETCH_RECORD + ' with recordUid: ' + recordUid + ' with error: ' + error);
         references.forEach(({ key }) => {
           resolvedEnv[key] = `keeper://${recordUid}/error/failed_to_fetch`;
         });
