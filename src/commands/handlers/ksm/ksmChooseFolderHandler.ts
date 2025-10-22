@@ -1,6 +1,8 @@
+import { window } from 'vscode';
 import { KsmService } from '../../../services/ksm';
 import { StatusBarSpinner } from '../../../utils/helper';
 import {
+  KSM_ERROR_MESSAGES,
   KSM_INFO_MESSAGES,
   KSM_LOGGER_ERROR_MESSAGES,
 } from '../../../utils/ksm-messages';
@@ -24,15 +26,18 @@ export class KsmChooseFolderHandler extends BaseChooseFolderHandler {
         );
         return;
       }
+
       this.spinner.show(KSM_INFO_MESSAGES.RETRIEVING_FOLDERS);
+
       return await this.storageManager.chooseFolder(
         this.storageManager.fetchAvailableFolders.bind(this.storageManager)
       );
     } catch (error) {
       logger.logError(
-        `KsmChooseFolderHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${KSM_ERROR_MESSAGES.FAILED_TO_CHOOSE_FOLDER}`,
         error
       );
+      window.showErrorMessage(`${KSM_ERROR_MESSAGES.FAILED_TO_CHOOSE_FOLDER}`);
     } finally {
       this.spinner.hide();
     }

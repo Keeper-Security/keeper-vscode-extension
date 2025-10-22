@@ -1,5 +1,7 @@
+import { window } from 'vscode';
 import { CliService } from '../../../services/cli';
 import {
+  CLI_ERROR_MESSAGES,
   CLI_INFO_MESSAGES,
   CLI_LOGGER_ERROR_MESSAGES,
 } from '../../../utils/cli-messages';
@@ -26,15 +28,16 @@ export class CliChooseFolderHandler extends BaseChooseFolderHandler {
       }
 
       this.spinner.show(CLI_INFO_MESSAGES.RETRIEVING_FOLDERS);
-      
+
       return await this.storageManager.chooseFolder(
         this.storageManager.fetchAvailableFolders.bind(this.storageManager)
       );
     } catch (error) {
       logger.logError(
-        `CliChooseFolderHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${CLI_ERROR_MESSAGES.FAILED_TO_CHOOSE_FOLDER}`,
         error
       );
+      window.showErrorMessage(`${CLI_ERROR_MESSAGES.FAILED_TO_CHOOSE_FOLDER}`);
     } finally {
       this.spinner.hide();
     }

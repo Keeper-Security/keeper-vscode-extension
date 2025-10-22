@@ -157,9 +157,7 @@ export class KsmGetValueHandler extends BaseGetValueHandler {
       }
     } catch (error) {
       logger.logError(
-        this.constructor.name +
-          ': ' +
-          KSM_LOGGER_ERROR_MESSAGES.SOMETHING_WENT_WRONG,
+        this.constructor.name + ': ' + KSM_ERROR_MESSAGES.FAILED_TO_GET_VALUE,
         error
       );
       window.showErrorMessage(KSM_ERROR_MESSAGES.FAILED_TO_GET_VALUE);

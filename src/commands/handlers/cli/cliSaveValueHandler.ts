@@ -36,6 +36,11 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
         documentUri
       );
       if (!selectedText) {
+        logger.logDebug(
+          this.constructor.name +
+            ': ' +
+            CLI_LOGGER_DEBUG_MESSAGES.NO_VALUE_FOUND_TO_SAVE
+        );
         window.showErrorMessage(CLI_ERROR_MESSAGES.NO_VALUE_FOUND_TO_SAVE);
         return;
       }
@@ -78,7 +83,7 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
        *
        * [<FIELD_SET>][<FIELD_TYPE>][<FIELD_LABEL>]=[FIELD_VALUE]
        *
-       * `"c.${CommandUtils.getFieldType(recordFieldName)}.${recordFieldName}"="${selectedText}"`
+       * `"c.${this.getFieldType(recordFieldName)}.${recordFieldName}"="${selectedText}"`
        *
        * Create custom field with detect recordFieldName that can be secret or text
        */
@@ -127,12 +132,10 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
       }
     } catch (error) {
       logger.logError(
-        `CliSaveValueHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${CLI_ERROR_MESSAGES.FAILED_TO_SAVE_SECRET}`,
         error
       );
-      window.showErrorMessage(
-        `Failed to save secret: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      window.showErrorMessage(`${CLI_ERROR_MESSAGES.FAILED_TO_SAVE_SECRET}`);
     } finally {
       this.spinner.hide();
     }

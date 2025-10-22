@@ -40,6 +40,7 @@ export const HELPER_MESSAGES = {
   CLI_NOT_AUTHENTICATED:
     'Keeper Commander CLI is not authenticated or session has timed out. Please enable persistent login or biometric authentication on this device and try again.',
   CLI_READY: 'Keeper Security Extension is ready to use!',
+  SOMETHING_WENT_WRONG: 'Something went wrong. Please try again.',
 } as const;
 
 export enum KEEPER_NOTATION_FIELD_TYPES {

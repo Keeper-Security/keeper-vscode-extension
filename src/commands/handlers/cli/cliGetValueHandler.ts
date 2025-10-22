@@ -8,16 +8,13 @@ import {
   StatusBarSpinner,
 } from '../../../utils/helper';
 import { IRecordQuickPick } from '../../../types/ksm';
-import {
-  KSM_INFO_MESSAGES,
-  KSM_LOGGER_DEBUG_MESSAGES,
-  KSM_SUCCESS_MESSAGES,
-} from '../../../utils/ksm-messages';
 import { CliService } from '../../../services/cli';
 import {
   CLI_ERROR_MESSAGES,
   CLI_INFO_MESSAGES,
+  CLI_LOGGER_DEBUG_MESSAGES,
   CLI_LOGGER_ERROR_MESSAGES,
+  CLI_SUCCESS_MESSAGES,
 } from '../../../utils/cli-messages';
 import { ICliListCommandResponse } from '../../../types';
 
@@ -38,20 +35,21 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         return;
       }
 
-      logger.logDebug(
-        'CliGetValueHandler: Showing spinner for secret retrieval'
-      );
       this.spinner.show(CLI_INFO_MESSAGES.RETRIEVING_SECRETS);
 
       // Sync-down the latest records from the vault
       logger.logDebug(
-        'GetValueHandler: Syncing down latest records from vault'
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.SYNCING_DOWN_LATEST_RECORDS_FROM_VAULT
       );
       await this.cliService.executeCommanderCommand('sync-down');
 
       // List available records
       logger.logDebug(
-        'GetValueHandler: Executing list command to get available records'
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.EXECUTING_LIST_COMMAND_TO_GET_AVAILABLE_RECORDS
       );
       const secrets = await this.cliService.executeCommanderCommand('list', [
         '--format=json',
@@ -59,7 +57,10 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       // Use safe parser that cleans output first
       const allRecords: ICliListCommandResponse[] = safeJsonParse(secrets, []);
       logger.logDebug(
-        `CliGetValueHandler: Retrieved ${allRecords.length} records from vault`
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.RETRIEVED_RECORDS_FROM_VAULT +
+          `- ${allRecords.length}`
       );
 
       this.spinner.hide();
@@ -68,9 +69,9 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         logger.logDebug(
           this.constructor.name +
             ': ' +
-            KSM_LOGGER_DEBUG_MESSAGES.NO_RECORDS_FOUND
+            CLI_LOGGER_DEBUG_MESSAGES.NO_RECORDS_FOUND
         );
-        window.showInformationMessage(KSM_SUCCESS_MESSAGES.NO_RECORDS_FOUND);
+        window.showInformationMessage(CLI_SUCCESS_MESSAGES.NO_RECORDS_FOUND);
         return;
       }
 
@@ -93,7 +94,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         logger.logDebug(
           this.constructor.name +
             ': ' +
-            KSM_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_RECORD_SELECTION
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_RECORD_SELECTION
         );
         return;
       }
@@ -101,11 +102,11 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       logger.logDebug(
         this.constructor.name +
           ': ' +
-          KSM_LOGGER_DEBUG_MESSAGES.USER_SELECTED_RECORD +
+          CLI_LOGGER_DEBUG_MESSAGES.USER_SELECTED_RECORD +
           `- ${selectedRecord.value}`
       );
 
-      this.spinner.show(KSM_INFO_MESSAGES.RETRIEVING_SECRET_DETAILS);
+      this.spinner.show(CLI_INFO_MESSAGES.RETRIEVING_SECRET_DETAILS);
 
       const secret = await this.cliService.executeCommanderCommand('get', [
         selectedRecord.value,
@@ -115,7 +116,10 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       // Use safe parser that cleans output first
       const selectedRecordData = safeJsonParse(secret, [])[0];
       logger.logDebug(
-        `GetValueHandler: Retrieved record details with ${selectedRecordData.fields?.length || 0} fields and ${selectedRecordData.custom?.length || 0} custom fields`
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.RETRIEVED_RECORD_DETAILS +
+          `- for record UID: ${selectedRecord.value}`
       );
 
       this.spinner.hide();
@@ -124,11 +128,11 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         logger.logDebug(
           this.constructor.name +
             ': ' +
-            KSM_LOGGER_DEBUG_MESSAGES.NO_RECORD_DATA_FOUND_FOR_RECORD_UID +
+            CLI_LOGGER_DEBUG_MESSAGES.NO_RECORD_DATA_FOUND_FOR_RECORD_UID +
             `- ${selectedRecord.value}`
         );
         window.showInformationMessage(
-          KSM_INFO_MESSAGES.NO_RECORD_DATA_FOUND_FOR_RECORD_UID +
+          CLI_INFO_MESSAGES.NO_RECORD_DATA_FOUND_FOR_RECORD_UID +
             `- ${selectedRecord.value}`
         );
         return;
@@ -157,7 +161,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         logger.logDebug(
           this.constructor.name +
             ': ' +
-            KSM_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_FIELD_SELECTION
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_FIELD_SELECTION
         );
         return;
       }
@@ -185,9 +189,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       }
     } catch (error) {
       logger.logError(
-        this.constructor.name +
-          ': ' +
-          CLI_LOGGER_ERROR_MESSAGES.SOMETHING_WENT_WRONG,
+        this.constructor.name + ': ' + CLI_ERROR_MESSAGES.FAILED_TO_GET_VALUE,
         error
       );
       window.showErrorMessage(CLI_ERROR_MESSAGES.FAILED_TO_GET_VALUE);

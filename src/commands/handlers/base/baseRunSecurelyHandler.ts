@@ -20,14 +20,17 @@ import dotenv from 'dotenv';
 import { IRecordData } from '../../../types/ksm';
 
 export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
-  private static readonly LAST_COMMAND_KEY = 'lastRunSecurelyCommand';
-
   constructor(
     protected context: ExtensionContext,
     protected spinner: StatusBarSpinner
   ) {
     super();
   }
+
+  private static readonly LAST_COMMAND_KEY = 'lastRunSecurelyCommand';
+
+  private readonly BROWSE_ENVIRONMENT_FILE_LABEL =
+    '$(folder-opened) Browse Environment File';
 
   protected async executeRunSecurely(
     fetchSecretCallback: (recordUid: string) => Promise<IRecordData>
@@ -70,12 +73,16 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
    */
   private async selectWorkspace(): Promise<string | undefined> {
     logger.logDebug(
-      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STARTING_WORKSPACE_SELECTION
+      this.constructor.name +
+        ': ' +
+        BASE_HANDLER_MESSAGES.LOGGER_DEBUG.STARTING_WORKSPACE_SELECTION
     );
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       logger.logDebug(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_WORKSPACE_FOLDERS_FOUND
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_DEBUG.NO_WORKSPACE_FOLDERS_FOUND
       );
       throw new Error(
         BASE_HANDLER_MESSAGES.ERROR.OPEN_FOLDER_OR_WORKSPACE_FIRST
@@ -84,7 +91,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
 
     if (workspaceFolders.length === 1) {
       logger.logDebug(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.SINGLE_WORKSPACE_FOUND +
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_DEBUG.SINGLE_WORKSPACE_FOUND +
           ' with name: ' +
           workspaceFolders[0].name
       );
@@ -92,7 +101,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     }
 
     logger.logDebug(
-      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.MULTIPLE_WORKSPACES_FOUND +
+      this.constructor.name +
+        ': ' +
+        BASE_HANDLER_MESSAGES.LOGGER_DEBUG.MULTIPLE_WORKSPACES_FOUND +
         ' with count: ' +
         workspaceFolders.length
     );
@@ -107,7 +118,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
 
     if (!selected) {
       logger.logDebug(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_CANCELLED_WORKSPACE_SELECTION
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_CANCELLED_WORKSPACE_SELECTION
       );
       return;
     }
@@ -117,14 +130,18 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     );
     if (!selectedWorkspace) {
       logger.logDebug(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE_NOT_FOUND +
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE_NOT_FOUND +
           ' with name: ' +
           selected
       );
       throw new Error(BASE_HANDLER_MESSAGES.ERROR.WORKSPACE_NOT_FOUND);
     }
     logger.logDebug(
-      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE +
+      this.constructor.name +
+        ': ' +
+        BASE_HANDLER_MESSAGES.LOGGER_DEBUG.USER_SELECTED_WORKSPACE +
         ' with name: ' +
         selectedWorkspace.name
     );
@@ -144,7 +161,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       path.relative(workspaceRoot, file)
     );
     const selected = await window.showQuickPick(
-      ['Browse Environment File', ...envFileNames],
+      [this.BROWSE_ENVIRONMENT_FILE_LABEL, ...envFileNames],
       {
         ...commonQuickPickOptions,
         placeHolder:
@@ -157,7 +174,7 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       return;
     }
 
-    if (selected === 'Browse Environment File') {
+    if (selected === this.BROWSE_ENVIRONMENT_FILE_LABEL) {
       // Open file picker to select .env.* files
       const fileUris = await window.showOpenDialog({
         canSelectFiles: true,
@@ -327,7 +344,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
       return foundFiles;
     } catch (error: unknown) {
       logger.logError(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FIND_ENVIRONMENT_FILES +
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FIND_ENVIRONMENT_FILES +
           ' with error: ' +
           error
       );
@@ -360,7 +379,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     }
 
     logger.logInfo(
-      this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_ENVIRONMENT_VARIABLES +
+      this.constructor.name +
+        ': ' +
+        BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_ENVIRONMENT_VARIABLES +
         ' with count: ' +
         Object.keys(resolvedEnv).length
     );
@@ -385,7 +406,9 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     // Execute commands sequentially
     for (const [recordUid, references] of recordGroups.entries()) {
       logger.logInfo(
-        this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.FETCHING_RECORD +
+        this.constructor.name +
+          ': ' +
+          BASE_HANDLER_MESSAGES.LOGGER_INFO.FETCHING_RECORD +
           ' with recordUid: ' +
           recordUid +
           ' with count: ' +
@@ -404,14 +427,18 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
           if (value !== null) {
             resolvedEnv[key] = value;
             logger.logInfo(
-              this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_SECRET +
+              this.constructor.name +
+                ': ' +
+                BASE_HANDLER_MESSAGES.LOGGER_INFO.RESOLVED_SECRET +
                 ' with key: ' +
                 key
             );
           } else {
             logger.logError(
-              this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR
-                .FAILED_TO_RESOLVE_KEEPER_REFERENCE +
+              this.constructor.name +
+                ': ' +
+                BASE_HANDLER_MESSAGES.LOGGER_ERROR
+                  .FAILED_TO_RESOLVE_KEEPER_REFERENCE +
                 ' with reference: ' +
                 `keeper://${recordUid}/${fieldType}/${itemName}`
             );
@@ -419,7 +446,15 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
           }
         });
       } catch (error: unknown) {
-        logger.logError(this.constructor.name + ': ' + BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FETCH_RECORD + ' with recordUid: ' + recordUid + ' with error: ' + error);
+        logger.logError(
+          this.constructor.name +
+            ': ' +
+            BASE_HANDLER_MESSAGES.LOGGER_ERROR.FAILED_TO_FETCH_RECORD +
+            ' with recordUid: ' +
+            recordUid +
+            ' with error: ' +
+            error
+        );
         references.forEach(({ key }) => {
           resolvedEnv[key] = `keeper://${recordUid}/error/failed_to_fetch`;
         });

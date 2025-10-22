@@ -126,11 +126,11 @@ export class KsmSaveValueHandler extends BaseSaveValueHandler {
       }
     } catch (error) {
       logger.logError(
-        `KsmSaveValueHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${KSM_ERROR_MESSAGES.FAILED_TO_SAVE_SECRET}`,
         error
       );
       window.showErrorMessage(
-        `Failed to save secret: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `${KSM_ERROR_MESSAGES.FAILED_TO_SAVE_SECRET}`
       );
     } finally {
       this.spinner.hide();

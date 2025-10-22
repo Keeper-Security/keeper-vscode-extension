@@ -26,12 +26,12 @@ export class CliRunSecurelyHandler extends BaseRunSecurelyHandler {
         return;
       }
 
-      this.executeRunSecurely(this.fetchSecretByRecordUid.bind(this));
+      await this.executeRunSecurely(this.fetchSecretByRecordUid.bind(this));
     } catch (error) {
       logger.logError(
         this.constructor.name +
           ': ' +
-          CLI_LOGGER_ERROR_MESSAGES.SOMETHING_WENT_WRONG,
+          CLI_ERROR_MESSAGES.FAILED_TO_RUN_SECURELY,
         error
       );
       window.showErrorMessage(CLI_ERROR_MESSAGES.FAILED_TO_RUN_SECURELY);

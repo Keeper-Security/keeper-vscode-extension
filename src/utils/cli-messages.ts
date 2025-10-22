@@ -16,6 +16,10 @@ export const CLI_ERROR_MESSAGES = {
   FAILED_TO_CREATE_KEEPER_REFERENCE: 'Failed to create keeper reference for secret',
   FAILED_TO_GET_VALUE: 'Failed to get value from Keeper Commander',
   FAILED_TO_RUN_SECURELY: 'Failed to execute command with secrets injected',
+  FAILED_TO_GENERATE_PASSWORD: 'Failed to generate password',
+  FAILED_TO_CHOOSE_FOLDER: 'Failed to choose folder',
+  FAILED_TO_SAVE_SECRET: 'Failed to save secret',
+  FAILED_TO_SWITCH_TO_KSM: 'Failed to switch to KSM mode',
 } as const;
 
 export const CLI_LOGGER_DEBUG_MESSAGES = {
@@ -25,6 +29,12 @@ export const CLI_LOGGER_DEBUG_MESSAGES = {
   NO_RECORDS_FOUND: 'No records found',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
   USER_CANCELLED_RECORD_NAME_INPUT: 'User cancelled while entering record name',
+  ENSURING_VALID_STORAGE: 'Ensuring valid storage',
+  SYNCING_DOWN_LATEST_RECORDS_FROM_VAULT: 'Syncing down latest records from vault',
+  EXECUTING_LIST_COMMAND_TO_GET_AVAILABLE_RECORDS: 'Executing list command to get available records',
+  RETRIEVED_RECORDS_FROM_VAULT: 'Retrieved records from vault',
+  RETRIEVED_RECORD_DETAILS: 'Retrieved record details',
+  NO_VALUE_FOUND_TO_SAVE: 'Please make a text selection to save its value in the keeper vault.',
 } as const;
 
 export const CLI_LOGGER_ERROR_MESSAGES = {

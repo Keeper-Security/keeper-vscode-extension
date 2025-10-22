@@ -1,6 +1,7 @@
 import { window } from 'vscode';
 import { configuration, ConfigurationKey } from '../configurations';
 import { Mode } from '../../types';
+import { commonQuickPickOptions } from '../../utils/helper';
 
 export class ModeManager {
   static getCurrentMode(): Mode | undefined {
@@ -29,7 +30,7 @@ export class ModeManager {
       ],
       {
         placeHolder: 'Choose your preferred Mode type',
-        ignoreFocusOut: true,
+        ...commonQuickPickOptions
       }
     );
 

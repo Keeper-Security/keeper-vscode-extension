@@ -1,4 +1,6 @@
+import { window } from 'vscode';
 import { ModeType } from '../../../types';
+import { KSM_ERROR_MESSAGES } from '../../../utils/ksm-messages';
 import { logger } from '../../../utils/logger';
 import { KsmStorageManager } from '../../storage/ksmStorageManager';
 import { BaseSwitchModeHandler } from '../base/baseSwitchModeHandler';
@@ -15,7 +17,11 @@ export class SwitchToCliHandler extends BaseSwitchModeHandler {
       // Switch to CLI mode
       this.switchMode(ModeType.CLI);
     } catch (error) {
-      logger.logError('SwitchToCliHandler failed', error);
+      logger.logError(
+        `${this.constructor.name}: ${KSM_ERROR_MESSAGES.FAILED_TO_SWITCH_TO_CLI}`,
+        error
+      );
+      window.showErrorMessage(`${KSM_ERROR_MESSAGES.FAILED_TO_SWITCH_TO_CLI}`);
     }
   }
 }

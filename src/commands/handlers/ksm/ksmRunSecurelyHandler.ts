@@ -31,7 +31,7 @@ export class KsmRunSecurelyHandler extends BaseRunSecurelyHandler {
       logger.logError(
         this.constructor.name +
           ': ' +
-          KSM_LOGGER_ERROR_MESSAGES.SOMETHING_WENT_WRONG,
+          KSM_ERROR_MESSAGES.FAILED_TO_RUN_SECURELY,
         error
       );
       window.showErrorMessage(KSM_ERROR_MESSAGES.FAILED_TO_RUN_SECURELY);

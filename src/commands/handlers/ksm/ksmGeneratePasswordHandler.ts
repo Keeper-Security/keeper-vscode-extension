@@ -5,6 +5,7 @@ import { KsmStorageManager } from '../../storage/ksmStorageManager';
 import { BaseGeneratePasswordHandler } from '../base/baseGeneratePasswordHandler';
 import { logger } from '../../../utils/logger';
 import {
+  KSM_ERROR_MESSAGES,
   KSM_INFO_MESSAGES,
   KSM_LOGGER_DEBUG_MESSAGES,
   KSM_LOGGER_ERROR_MESSAGES,
@@ -47,7 +48,11 @@ export class KsmGeneratePasswordHandler extends BaseGeneratePasswordHandler {
         return;
       }
 
-      logger.logDebug('KsmGeneratePasswordHandler: Ensuring valid storage');
+      logger.logDebug(
+        this.constructor.name +
+          ': ' +
+          KSM_LOGGER_DEBUG_MESSAGES.ENSURING_VALID_STORAGE
+      );
       if (!(await this.storageManager.ensureValidStorage())) {
         return;
       }
@@ -107,11 +112,11 @@ export class KsmGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       }
     } catch (error) {
       logger.logError(
-        `KsmGeneratePasswordHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${KSM_ERROR_MESSAGES.FAILED_TO_GENERATE_PASSWORD}`,
         error
       );
       window.showErrorMessage(
-        `Failed to generate password: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `${KSM_ERROR_MESSAGES.FAILED_TO_GENERATE_PASSWORD}`
       );
     } finally {
       this.spinner.hide();

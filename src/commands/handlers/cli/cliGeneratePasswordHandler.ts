@@ -8,6 +8,7 @@ import {
 } from '../../../utils/constants';
 import { CliService } from '../../../services/cli';
 import {
+  CLI_ERROR_MESSAGES,
   CLI_INFO_MESSAGES,
   CLI_LOGGER_DEBUG_MESSAGES,
   CLI_LOGGER_ERROR_MESSAGES,
@@ -42,7 +43,11 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
         return;
       }
 
-      logger.logDebug('KsmGeneratePasswordHandler: Ensuring valid storage');
+      logger.logDebug(
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.ENSURING_VALID_STORAGE
+      );
       if (!(await this.storageManager.ensureValidStorage())) {
         return;
       }
@@ -92,11 +97,11 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       }
     } catch (error) {
       logger.logError(
-        `CliGeneratePasswordHandler failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `${this.constructor.name}: ${CLI_ERROR_MESSAGES.FAILED_TO_GENERATE_PASSWORD}`,
         error
       );
       window.showErrorMessage(
-        `Failed to generate password: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `${CLI_ERROR_MESSAGES.FAILED_TO_GENERATE_PASSWORD}`
       );
     } finally {
       this.spinner.hide();
