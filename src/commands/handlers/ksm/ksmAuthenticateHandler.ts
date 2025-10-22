@@ -34,7 +34,7 @@ export class KsmAuthenticateHandler extends BaseCommandHandler {
       window.showInformationMessage(KSM_INFO_MESSAGES.AUTHENTICATED_WITH_KSM);
     } catch (error) {
       logger.logError(
-        'KsmAuthenticateHandler failed: ' +
+        this.constructor.name + ': ' +
           KSM_ERROR_MESSAGES.FAILED_TO_AUTHENTICATE,
         error
       );

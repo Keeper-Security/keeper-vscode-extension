@@ -67,7 +67,9 @@ export class KsmSaveValueHandler extends BaseSaveValueHandler {
         return;
       }
 
-      await this.storageManager.ensureValidStorage();
+      if (!(await this.storageManager.ensureValidStorage())) {
+        return;
+      }
 
       this.spinner.show(KSM_INFO_MESSAGES.SAVING_SECRET);
 

@@ -14,7 +14,7 @@ export class KsmStorageManager extends BaseStorageManager {
     super(context, spinner);
   }
 
-  async ensureValidStorage(): Promise<void> {
+  async ensureValidStorage(): Promise<boolean> {
     return await super.ensureValidStorage(
       this.fetchAvailableFolders.bind(this)
     );

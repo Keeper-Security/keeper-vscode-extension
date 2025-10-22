@@ -24,7 +24,9 @@ export class CliChooseFolderHandler extends BaseChooseFolderHandler {
         );
         return;
       }
+
       this.spinner.show(CLI_INFO_MESSAGES.RETRIEVING_FOLDERS);
+      
       return await this.storageManager.chooseFolder(
         this.storageManager.fetchAvailableFolders.bind(this.storageManager)
       );

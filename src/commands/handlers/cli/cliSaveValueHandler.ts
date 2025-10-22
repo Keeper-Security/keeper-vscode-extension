@@ -66,7 +66,9 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
         return;
       }
 
-      await this.storageManager.ensureValidStorage();
+      if (!(await this.storageManager.ensureValidStorage())) {
+        return;
+      }
 
       this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
 

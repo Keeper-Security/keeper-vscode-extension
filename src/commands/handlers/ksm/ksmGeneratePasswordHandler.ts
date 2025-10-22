@@ -48,7 +48,9 @@ export class KsmGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       }
 
       logger.logDebug('KsmGeneratePasswordHandler: Ensuring valid storage');
-      await this.storageManager.ensureValidStorage();
+      if (!(await this.storageManager.ensureValidStorage())) {
+        return;
+      }
 
       this.spinner.show(KSM_INFO_MESSAGES.GENERATING_PASSWORD);
 
