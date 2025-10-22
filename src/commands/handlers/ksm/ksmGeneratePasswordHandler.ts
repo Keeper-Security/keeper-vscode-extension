@@ -21,8 +21,8 @@ import {
 
 export class KsmGeneratePasswordHandler extends BaseGeneratePasswordHandler {
   constructor(
-    private ksmService: KsmService,
     private spinner: StatusBarSpinner,
+    private ksmService: KsmService,
     private storageManager: KsmStorageManager
   ) {
     super();

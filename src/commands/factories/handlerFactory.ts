@@ -34,12 +34,6 @@ export class HandlerFactory {
 
     if (serviceMode === ModeType.CLI) {
       const cliService = service as CliService;
-      // const storageManager = new StorageManager(
-      //   context,
-      //   service as CliService,
-      //   spinner
-      // );
-
       const storageManager = new CliStorageManager(
         context,
         spinner,
@@ -48,23 +42,23 @@ export class HandlerFactory {
 
       handlers.set(
         COMMANDS.SAVE_VALUE_TO_VAULT,
-        new CliSaveValueHandler(cliService, spinner, storageManager)
+        new CliSaveValueHandler(spinner, cliService, storageManager)
       );
       handlers.set(
         COMMANDS.GET_VALUE_FROM_VAULT,
-        new CliGetValueHandler(cliService, spinner)
+        new CliGetValueHandler(spinner, cliService)
       );
       handlers.set(
         COMMANDS.GENERATE_PASSWORD,
-        new CliGeneratePasswordHandler(cliService, spinner, storageManager)
+        new CliGeneratePasswordHandler(spinner, cliService, storageManager)
       );
       handlers.set(
         COMMANDS.RUN_SECURELY,
-        new CliRunSecurelyHandler(context, cliService, spinner)
+        new CliRunSecurelyHandler(context, spinner, cliService)
       );
       handlers.set(
         COMMANDS.CHOOSE_FOLDER,
-        new CliChooseFolderHandler(cliService, spinner, storageManager)
+        new CliChooseFolderHandler(spinner, cliService, storageManager)
       );
       handlers.set(COMMANDS.OPEN_LOGS, new CliOpenLogsHandler());
       handlers.set(
@@ -79,22 +73,25 @@ export class HandlerFactory {
         ksmService
       );
 
-      handlers.set(COMMANDS.SAVE_VALUE_TO_VAULT, new KsmSaveValueHandler(spinner, ksmService, storageManager));
+      handlers.set(
+        COMMANDS.SAVE_VALUE_TO_VAULT,
+        new KsmSaveValueHandler(spinner, ksmService, storageManager)
+      );
       handlers.set(
         COMMANDS.GET_VALUE_FROM_VAULT,
-        new KsmGetValueHandler(ksmService, spinner)
+        new KsmGetValueHandler(spinner, ksmService)
       );
       handlers.set(
         COMMANDS.GENERATE_PASSWORD,
-        new KsmGeneratePasswordHandler(ksmService, spinner, storageManager)
+        new KsmGeneratePasswordHandler(spinner, ksmService, storageManager)
       );
       handlers.set(
         COMMANDS.RUN_SECURELY,
-        new KsmRunSecurelyHandler(context, ksmService, spinner)
+        new KsmRunSecurelyHandler(context, spinner, ksmService)
       );
       handlers.set(
         COMMANDS.CHOOSE_FOLDER,
-        new KsmChooseFolderHandler(ksmService, spinner, storageManager)
+        new KsmChooseFolderHandler(spinner, ksmService, storageManager)
       );
       handlers.set(COMMANDS.OPEN_LOGS, new KsmOpenLogsHandler());
       handlers.set(

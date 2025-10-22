@@ -10,8 +10,8 @@ import { BaseChooseFolderHandler } from '../base/baseChooseFolderHandler';
 
 export class KsmChooseFolderHandler extends BaseChooseFolderHandler {
   constructor(
-    private ksmService: KsmService,
     private spinner: StatusBarSpinner,
+    private ksmService: KsmService,
     private storageManager: KsmStorageManager
   ) {
     super();

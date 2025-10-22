@@ -12,8 +12,8 @@ import {
 export class CliRunSecurelyHandler extends BaseRunSecurelyHandler {
   constructor(
     context: ExtensionContext,
-    private cliService: CliService,
-    spinner: StatusBarSpinner
+    spinner: StatusBarSpinner,
+    private cliService: CliService
   ) {
     super(context, spinner);
   }

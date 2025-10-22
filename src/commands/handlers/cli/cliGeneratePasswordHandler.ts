@@ -16,8 +16,8 @@ import { CliStorageManager } from '../../storage/cliStorageManager';
 
 export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
   constructor(
-    private cliService: CliService,
     private spinner: StatusBarSpinner,
+    private cliService: CliService,
     private storageManager: CliStorageManager
   ) {
     super();

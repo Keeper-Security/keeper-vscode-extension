@@ -15,8 +15,8 @@ import {
 
 export class KsmGetValueHandler extends BaseGetValueHandler {
   constructor(
-    private ksmService: KsmService,
-    private spinner: StatusBarSpinner
+    private spinner: StatusBarSpinner,
+    private ksmService: KsmService
   ) {
     super();
   }

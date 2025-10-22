@@ -23,8 +23,8 @@ import { ICliListCommandResponse } from '../../../types';
 
 export class CliGetValueHandler extends BaseGetValueHandler {
   constructor(
-    private cliService: CliService,
-    private spinner: StatusBarSpinner
+    private spinner: StatusBarSpinner,
+    private cliService: CliService
   ) {
     super();
   }

@@ -12,8 +12,8 @@ import { IRecordData } from '../../../types/ksm';
 export class KsmRunSecurelyHandler extends BaseRunSecurelyHandler {
   constructor(
     context: ExtensionContext,
-    private ksmService: KsmService,
-    spinner: StatusBarSpinner
+    spinner: StatusBarSpinner,
+    private ksmService: KsmService
   ) {
     super(context, spinner);
   }

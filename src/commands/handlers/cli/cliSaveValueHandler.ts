@@ -17,8 +17,8 @@ import {
 
 export class CliSaveValueHandler extends BaseSaveValueHandler {
   constructor(
-    private cliService: CliService,
     private spinner: StatusBarSpinner,
+    private cliService: CliService,
     private storageManager: CliStorageManager
   ) {
     super();
