@@ -18,6 +18,7 @@ import { KSM_CONFIG_FILE_NAME, KSM_METHOD_TYPES } from '../utils/constants';
 import fs from 'fs';
 import { IKsmGetSecretsResponse } from '../types/ksm';
 import { IKsmGetFoldersResponse } from '../types';
+import { KSM_INFO_MESSAGES } from '../utils/ksm-messages';
 
 interface KsmAuthResult {
   authType: KSM_METHOD_TYPES;
@@ -100,7 +101,7 @@ export class KsmService {
 
     if (await this.isConfigurationExpired(storage)) {
       logger.logDebug('Configuration expired, re-authenticating');
-      await window.showInformationMessage(
+      window.showInformationMessage(
         'Keeper Secrets Manager authentication expired. Re-initializing...'
       );
 
@@ -144,6 +145,8 @@ export class KsmService {
 
     await this.initializeWithAuth(authResult, storeConfigPath);
     logger.logDebug('Keeper Secrets Manager re-authenticated successfully.');
+    window.showInformationMessage(KSM_INFO_MESSAGES.AUTHENTICATED_WITH_KSM);
+
   }
 
   /**
@@ -164,7 +167,7 @@ export class KsmService {
           await this.initializeWithBase64(authValue, storeConfigPath);
           break;
         case KSM_METHOD_TYPES.JSON_CONFIG:
-          await this.initializeWithJsonConfig(authValue);
+          await this.initializeWithJsonConfig(authValue, storeConfigPath);
           break;
         default:
           throw new Error(`Unsupported auth type: ${authType}`);
@@ -223,13 +226,17 @@ export class KsmService {
    * Initialize with JSON config file
    */
   private async initializeWithJsonConfig(
-    configFilePath: string
+    configFilePath: string,
+    storeConfigPath: string
   ): Promise<void> {
     logger.logDebug('Initializing with JSON config file');
 
     if (!fs.existsSync(configFilePath)) {
       throw new Error(`Config file not found: ${configFilePath}`);
     }
+
+    const configJson = fs.readFileSync(configFilePath, 'utf-8');
+    fs.writeFileSync(storeConfigPath, configJson);
 
     const storage = localConfigStorage(configFilePath);
     await getSecrets({ storage });
@@ -378,9 +385,6 @@ export class KsmService {
    * Check if KSM is ready
    */
   public async isKsmReady(): Promise<boolean> {
-    logger.logDebug('Checking if KSM is ready');
-    logger.logDebug('KSM is initialized:', this.isInitialized);
-
     if (!this.isInitialized) {
       await this.lazyInitialize();
     }

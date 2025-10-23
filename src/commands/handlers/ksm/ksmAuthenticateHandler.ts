@@ -30,8 +30,6 @@ export class KsmAuthenticateHandler extends BaseCommandHandler {
 
       // clear current storage
       this.storageManager.setCurrentStorage(null);
-
-      window.showInformationMessage(KSM_INFO_MESSAGES.AUTHENTICATED_WITH_KSM);
     } catch (error) {
       logger.logError(
         this.constructor.name +
