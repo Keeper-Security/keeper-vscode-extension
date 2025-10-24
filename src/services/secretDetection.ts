@@ -58,7 +58,6 @@ export class SecretDetectionService {
 
   private createParserFactory() {
     return (document: TextDocument): Parser | null => {
-      // const matchDocument = documentMatcher(document);
 
       // Environment files
       if (isEnvironmentFile(path.basename(document.fileName))) {

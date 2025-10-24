@@ -1,5 +1,6 @@
 import pckg from '../package.json';
-import { configuration, ConfigurationKey, Core } from './services';
+import { configuration, ConfigurationKey } from './services/configurations';
+import { Core } from './services/core';
 import { logger } from './utils/logger';
 import { ExtensionContext, window } from 'vscode';
 
