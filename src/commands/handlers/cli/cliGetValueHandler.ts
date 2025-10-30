@@ -152,7 +152,12 @@ export class CliGetValueHandler extends BaseGetValueHandler {
 
       const fieldsToShow = [...fields, ...customFields];
 
-      // show quick pick with fileds and custom fields for selected record
+      if (fieldsToShow.length === 0) {
+        window.showInformationMessage(CLI_INFO_MESSAGES.NO_FIELDS_TO_SHOW);
+        return;
+      }
+
+      // show quick pick with fields and custom fields for selected record
       const selectedField = await this.showQuickPickForSelectedRecord(
         selectedRecord,
         fieldsToShow

@@ -120,6 +120,11 @@ export class KsmGetValueHandler extends BaseGetValueHandler {
 
       const fieldsToShow = [...fields, ...customFields];
 
+      if (fieldsToShow.length === 0) {
+        window.showInformationMessage(KSM_INFO_MESSAGES.NO_FIELDS_TO_SHOW);
+        return;
+      }
+
       // show quick pick with fileds and custom fields for selected record
       const selectedField = await this.showQuickPickForSelectedRecord(
         selectedRecord,

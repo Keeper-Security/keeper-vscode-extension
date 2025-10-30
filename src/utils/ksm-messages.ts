@@ -7,6 +7,7 @@ export const KSM_INFO_MESSAGES = {
   RETRIEVING_FOLDERS: 'Retrieving folders...',
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
+  NO_FIELDS_TO_SHOW: 'No renderable fields. Field list is empty or only contains object-type values that were excluded from display.',
 } as const;
 
 export const KSM_SUCCESS_MESSAGES = {

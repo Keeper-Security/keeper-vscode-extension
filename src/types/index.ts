@@ -50,10 +50,11 @@ export interface ICliListCommandResponse {
 }
 
 export interface ICliListFolderResponse {
-  folder_uid: string;
+  uid: string;
   name: string;
   parent_uid: string;
   flags?: string;
+  details: string;
 }
 
 export enum ModeType {

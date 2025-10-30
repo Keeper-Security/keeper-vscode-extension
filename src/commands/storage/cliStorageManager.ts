@@ -71,7 +71,7 @@ export class CliStorageManager extends BaseStorageManager {
 
     const result = folders.map((folder) => {
       const pathParts: string[] = [folder.name];
-      let currentParentUid = folder.parent_uid;
+      let currentParentUid = folder?.details?.split(", Parent:")[1]?.trim();
 
       while (currentParentUid !== '/') {
         const parent = folderMap.get(currentParentUid);
@@ -85,7 +85,7 @@ export class CliStorageManager extends BaseStorageManager {
       pathParts.unshift('My Vault');
 
       return {
-        folderUid: folder['folder_uid'],
+        folderUid: folder['uid'],
         name: folder['name'],
         parentUid: folder['parent_uid'],
         folderPath: pathParts.join(' / '),
