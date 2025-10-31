@@ -1,14 +1,19 @@
-import { window } from 'vscode';
+import { window, ExtensionContext } from 'vscode';
 import { ModeManager } from '../../../../src/services/managers/modeManager';
 import { configuration, ConfigurationKey } from '../../../../src/services/configurations';
 import { Mode, ModeType } from '../../../../src/types';
 import { commonQuickPickOptions } from '../../../../src/utils/helper';
+import { PREVIOUS_USER_SELECTED_MODE_KEY } from '../../../../src/utils/constants';
 
 // Mock dependencies
 jest.mock('vscode', () => ({
   window: {
     showQuickPick: jest.fn(),
   },
+}));
+
+jest.mock('../../../../src/utils/constants', () => ({
+  PREVIOUS_USER_SELECTED_MODE_KEY: 'previousUserSelectedMode',
 }));
 
 jest.mock('../../../../src/services/configurations', () => ({
@@ -30,8 +35,16 @@ jest.mock('../../../../src/utils/helper', () => ({
 }));
 
 describe('ModeManager', () => {
+  let mockContext: ExtensionContext;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockContext = {
+      workspaceState: {
+        get: jest.fn(),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+    } as unknown as ExtensionContext;
   });
 
   describe('getCurrentMode', () => {
@@ -72,36 +85,39 @@ describe('ModeManager', () => {
   });
 
   describe('setMode', () => {
-    it('should set the mode in configuration', async () => {
+    it('should set the mode in configuration and workspace state', async () => {
       const mode: Mode = ModeType.CLI;
       (configuration.set as jest.Mock).mockResolvedValue(undefined);
 
-      await ModeManager.setMode(mode);
+      await ModeManager.setMode(mockContext, mode);
 
       expect(configuration.set).toHaveBeenCalledWith(ConfigurationKey.ModeType, mode);
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY, mode);
     });
 
     it('should set CLI mode', async () => {
       (configuration.set as jest.Mock).mockResolvedValue(undefined);
 
-      await ModeManager.setMode(ModeType.CLI);
+      await ModeManager.setMode(mockContext, ModeType.CLI);
 
       expect(configuration.set).toHaveBeenCalledWith(ConfigurationKey.ModeType, ModeType.CLI);
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY, ModeType.CLI);
     });
 
     it('should set KSM mode', async () => {
       (configuration.set as jest.Mock).mockResolvedValue(undefined);
 
-      await ModeManager.setMode(ModeType.KSM);
+      await ModeManager.setMode(mockContext, ModeType.KSM);
 
       expect(configuration.set).toHaveBeenCalledWith(ConfigurationKey.ModeType, ModeType.KSM);
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY, ModeType.KSM);
     });
 
     it('should handle configuration set errors', async () => {
       const error = new Error('Configuration failed');
       (configuration.set as jest.Mock).mockRejectedValue(error);
 
-      await expect(ModeManager.setMode(ModeType.CLI)).rejects.toThrow('Configuration failed');
+      await expect(ModeManager.setMode(mockContext, ModeType.CLI)).rejects.toThrow('Configuration failed');
       expect(configuration.set).toHaveBeenCalledWith(ConfigurationKey.ModeType, ModeType.CLI);
     });
   });
@@ -110,7 +126,7 @@ describe('ModeManager', () => {
     it('should show quick pick with CLI and KSM options', async () => {
       const selectedOption = {
         label: '$(terminal) Keeper Commander CLI',
-        description: 'Use Keeper Commander CLI (requires CLI installation)',
+        description: 'Use Keeper Commander CLI',
         value: 'cli',
       };
       (window.showQuickPick as jest.Mock).mockResolvedValue(selectedOption);
@@ -121,12 +137,12 @@ describe('ModeManager', () => {
         [
           {
             label: '$(terminal) Keeper Commander CLI',
-            description: 'Use Keeper Commander CLI (requires CLI installation)',
+            description: 'Use Keeper Commander CLI',
             value: 'cli',
           },
           {
             label: '$(cloud) Keeper Secrets Manager',
-            description: 'Use Keeper Secrets Manager SDK (requires OTA token)',
+            description: 'Use Keeper Secrets Manager',
             value: 'ksm',
           },
         ],
@@ -141,7 +157,7 @@ describe('ModeManager', () => {
     it('should return CLI mode when CLI option is selected', async () => {
       const selectedOption = {
         label: '$(terminal) Keeper Commander CLI',
-        description: 'Use Keeper Commander CLI (requires CLI installation)',
+        description: 'Use Keeper Commander CLI',
         value: 'cli',
       };
       (window.showQuickPick as jest.Mock).mockResolvedValue(selectedOption);
@@ -154,7 +170,7 @@ describe('ModeManager', () => {
     it('should return KSM mode when KSM option is selected', async () => {
       const selectedOption = {
         label: '$(cloud) Keeper Secrets Manager',
-        description: 'Use Keeper Secrets Manager SDK (requires OTA token)',
+        description: 'Use Keeper Secrets Manager',
         value: 'ksm',
       };
       (window.showQuickPick as jest.Mock).mockResolvedValue(selectedOption);
@@ -205,12 +221,12 @@ describe('ModeManager', () => {
       expect(items).toHaveLength(2);
       expect(items[0]).toEqual({
         label: '$(terminal) Keeper Commander CLI',
-        description: 'Use Keeper Commander CLI (requires CLI installation)',
+        description: 'Use Keeper Commander CLI',
         value: 'cli',
       });
       expect(items[1]).toEqual({
         label: '$(cloud) Keeper Secrets Manager',
-        description: 'Use Keeper Secrets Manager SDK (requires OTA token)',
+        description: 'Use Keeper Secrets Manager',
         value: 'ksm',
       });
     });
@@ -222,7 +238,7 @@ describe('ModeManager', () => {
       (configuration.set as jest.Mock).mockResolvedValue(undefined);
       (configuration.get as jest.Mock).mockReturnValue(mode);
 
-      await ModeManager.setMode(mode);
+      await ModeManager.setMode(mockContext, mode);
       const result = ModeManager.getCurrentMode();
 
       expect(result).toBe(mode);
@@ -231,7 +247,7 @@ describe('ModeManager', () => {
     it('should set mode after prompting user', async () => {
       const selectedOption = {
         label: '$(cloud) Keeper Secrets Manager',
-        description: 'Use Keeper Secrets Manager SDK (requires OTA token)',
+        description: 'Use Keeper Secrets Manager',
         value: 'ksm',
       };
       (window.showQuickPick as jest.Mock).mockResolvedValue(selectedOption);
@@ -239,11 +255,12 @@ describe('ModeManager', () => {
 
       const selectedMode = await ModeManager.promptForModeSelection();
       if (selectedMode) {
-        await ModeManager.setMode(selectedMode);
+        await ModeManager.setMode(mockContext, selectedMode);
       }
 
       expect(selectedMode).toBe(ModeType.KSM);
       expect(configuration.set).toHaveBeenCalledWith(ConfigurationKey.ModeType, ModeType.KSM);
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY, ModeType.KSM);
     });
   });
 });

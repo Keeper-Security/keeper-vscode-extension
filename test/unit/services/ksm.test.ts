@@ -63,6 +63,7 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
   readFileSync: jest.fn(),
   unlinkSync: jest.fn(),
+  mkdirSync: jest.fn(), // Add this
 }));
 
 jest.mock('../../../src/utils/constants', () => ({
@@ -140,14 +141,48 @@ describe('KsmService', () => {
 
   describe('getStoreConfigPath', () => {
     it('should return config path when workspace folder exists', async () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(true); // .vscode directory exists
+      const vscodeDirUri = { fsPath: '/workspace/.vscode' };
+      
+      // Mock Uri.joinPath to return different values for each call
+      (Uri.joinPath as jest.Mock)
+        .mockReturnValueOnce(vscodeDirUri) // First call: workspace + '.vscode'
+        .mockReturnValueOnce({ fsPath: '/workspace/.vscode/ksm-config.json' }); // Second call: vscodeDirUri + filename
+      
       const path = await ksmService.getStoreConfigPath();
 
       expect(path).toBe('/workspace/.vscode/ksm-config.json');
-      expect(Uri.joinPath).toHaveBeenCalledWith(
+      
+      // Verify both calls to Uri.joinPath
+      expect(Uri.joinPath).toHaveBeenCalledTimes(2);
+      expect(Uri.joinPath).toHaveBeenNthCalledWith(
+        1,
         { fsPath: '/workspace' },
-        '.vscode',
+        '.vscode'
+      );
+      expect(Uri.joinPath).toHaveBeenNthCalledWith(
+        2,
+        vscodeDirUri,
         KSM_CONFIG_FILE_NAME
       );
+      expect(fs.existsSync).toHaveBeenCalledWith('/workspace/.vscode');
+      expect(fs.mkdirSync).not.toHaveBeenCalled();
+    });
+
+    it('should create .vscode directory when it does not exist', async () => {
+      const vscodeDirUri = { fsPath: '/workspace/.vscode' };
+      (Uri.joinPath as jest.Mock)
+        .mockReturnValueOnce(vscodeDirUri) // First call for .vscode directory
+        .mockReturnValueOnce({ fsPath: '/workspace/.vscode/ksm-config.json' }); // Second call for file
+      (fs.existsSync as jest.Mock).mockReturnValue(false); // .vscode directory doesn't exist
+      (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
+
+      const path = await ksmService.getStoreConfigPath();
+
+      expect(path).toBe('/workspace/.vscode/ksm-config.json');
+      expect(fs.existsSync).toHaveBeenCalledWith('/workspace/.vscode');
+      expect(fs.mkdirSync).toHaveBeenCalledWith('/workspace/.vscode', { recursive: true });
+      expect(logger.logDebug).toHaveBeenCalledWith('Created .vscode directory');
     });
 
     it('should return undefined and show error when no workspace folder', async () => {

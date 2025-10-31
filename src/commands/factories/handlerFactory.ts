@@ -63,7 +63,7 @@ export class HandlerFactory {
       handlers.set(COMMANDS.OPEN_LOGS, new CliOpenLogsHandler());
       handlers.set(
         COMMANDS.SWITCH_TO_KSM,
-        new SwitchToKsmHandler(storageManager)
+        new SwitchToKsmHandler(context, storageManager)
       );
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;
@@ -96,7 +96,7 @@ export class HandlerFactory {
       handlers.set(COMMANDS.OPEN_LOGS, new KsmOpenLogsHandler());
       handlers.set(
         COMMANDS.SWITCH_TO_CLI,
-        new SwitchToCliHandler(storageManager)
+        new SwitchToCliHandler(context, storageManager)
       );
       handlers.set(
         COMMANDS.AUTHENTICATE,

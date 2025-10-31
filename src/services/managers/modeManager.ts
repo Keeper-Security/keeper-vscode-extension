@@ -1,7 +1,8 @@
-import { window } from 'vscode';
+import { ExtensionContext, window } from 'vscode';
 import { configuration, ConfigurationKey } from '../configurations';
 import { Mode, ModeType } from '../../types';
 import { commonQuickPickOptions } from '../../utils/helper';
+import { PREVIOUS_USER_SELECTED_MODE_KEY } from '../../utils/constants';
 
 export class ModeManager {
   static getCurrentMode(): Mode | undefined {
@@ -10,8 +11,9 @@ export class ModeManager {
       | undefined;
   }
 
-  static async setMode(mode: Mode): Promise<void> {
+  static async setMode(context: ExtensionContext, mode: Mode): Promise<void> {
     await configuration.set(ConfigurationKey.ModeType, mode);
+    context.workspaceState.update(PREVIOUS_USER_SELECTED_MODE_KEY, mode);
   }
 
   static async promptForModeSelection(): Promise<Mode> {

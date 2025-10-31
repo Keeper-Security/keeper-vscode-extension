@@ -5,6 +5,8 @@ import { SecretDetectionService } from './secretDetection';
 import { logger } from '../utils/logger';
 import { ModeManager } from './managers/modeManager';
 import { ServiceManager } from './managers/serviceManager';
+import { Mode } from '../types';
+import { PREVIOUS_USER_SELECTED_MODE_KEY } from '../utils/constants';
 
 export class Core {
   private serviceManager!: ServiceManager;
@@ -25,11 +27,20 @@ export class Core {
   private async initializeServices(): Promise<void> {
     logger.logDebug('Starting service initialization');
 
-    let currentMode = ModeManager.getCurrentMode();
+    let currentMode;
+
+    // Get users previous selected mode
+    const previousMode = this.context.workspaceState.get(PREVIOUS_USER_SELECTED_MODE_KEY) as Mode | undefined;
+
+    if(previousMode) {
+      await ModeManager.setMode(this.context, previousMode);
+    }
+
+    currentMode = ModeManager.getCurrentMode();
 
     if (!currentMode) {
       currentMode = await ModeManager.promptForModeSelection();
-      await ModeManager.setMode(currentMode);
+      await ModeManager.setMode(this.context, currentMode);
     }
 
     // Initialize service manager

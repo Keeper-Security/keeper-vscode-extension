@@ -152,7 +152,7 @@ describe('HandlerFactory', () => {
       expect(CliOpenLogsHandler).toHaveBeenCalledWith();
 
       // Verify SwitchToKsmHandler was created
-      expect(SwitchToKsmHandler).toHaveBeenCalledWith(mockCliStorageManager);
+      expect(SwitchToKsmHandler).toHaveBeenCalledWith(mockContext, mockCliStorageManager);
     });
 
     it('should return correct handler instances for CLI mode', () => {
@@ -261,7 +261,7 @@ describe('HandlerFactory', () => {
       expect(KsmOpenLogsHandler).toHaveBeenCalledWith();
 
       // Verify SwitchToCliHandler was created
-      expect(SwitchToCliHandler).toHaveBeenCalledWith(mockKsmStorageManager);
+      expect(SwitchToCliHandler).toHaveBeenCalledWith(mockContext, mockKsmStorageManager);
 
       // Verify KsmAuthenticateHandler was created
       expect(KsmAuthenticateHandler).toHaveBeenCalledWith(

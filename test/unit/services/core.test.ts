@@ -6,6 +6,7 @@ import { ServiceManager } from '../../../src/services/managers/serviceManager';
 import { StatusBarSpinner } from '../../../src/utils/helper';
 import { logger } from '../../../src/utils/logger';
 import { ModeType } from '../../../src/types';
+import { PREVIOUS_USER_SELECTED_MODE_KEY } from '../../../src/utils/constants';
 import * as vscode from 'vscode';
 
 // Mock dependencies
@@ -15,6 +16,9 @@ jest.mock('../../../src/commands');
 jest.mock('../../../src/services/secretDetection');
 jest.mock('../../../src/utils/helper');
 jest.mock('../../../src/utils/logger');
+jest.mock('../../../src/utils/constants', () => ({
+  PREVIOUS_USER_SELECTED_MODE_KEY: 'previousUserSelectedMode',
+}));
 
 describe('Core', () => {
   let mockContext: vscode.ExtensionContext;
@@ -83,8 +87,50 @@ describe('Core', () => {
 
       expect(ModeManager.getCurrentMode).toHaveBeenCalled();
       expect(ModeManager.promptForModeSelection).toHaveBeenCalled();
-      expect(ModeManager.setMode).toHaveBeenCalledWith(ModeType.KSM);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.KSM);
       expect(ServiceManager).toHaveBeenCalledWith(mockContext, mockSpinner, ModeType.KSM);
+    });
+
+    it('should restore previous user selected mode from workspace state', async () => {
+      const previousMode = ModeType.KSM;
+      (mockContext.workspaceState.get as jest.Mock).mockReturnValue(previousMode);
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(undefined);
+      (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValueOnce(undefined).mockReturnValueOnce(previousMode);
+
+      // Core constructor calls initializeServices which is async but not awaited
+      new Core(mockContext);
+      
+      // Wait for async operations
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(mockContext.workspaceState.get).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, previousMode);
+      expect(ServiceManager).toHaveBeenCalledWith(mockContext, mockSpinner, previousMode);
+    });
+
+    it('should not restore mode when no previous mode exists in workspace state', async () => {
+      // Reset mocks to ensure clean state
+      (ModeManager.getCurrentMode as jest.Mock).mockReset();
+      (ModeManager.promptForModeSelection as jest.Mock).mockReset();
+      (ModeManager.setMode as jest.Mock).mockReset();
+      (mockContext.workspaceState.get as jest.Mock).mockReset();
+      
+      // No previous mode in workspace state
+      (mockContext.workspaceState.get as jest.Mock).mockReturnValue(undefined);
+      // getCurrentMode returns undefined, prompting user to select
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(undefined);
+      (ModeManager.promptForModeSelection as jest.Mock).mockResolvedValue(ModeType.CLI);
+      (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
+
+      new Core(mockContext);
+      
+      // Wait for async operations
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(mockContext.workspaceState.get).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY);
+      expect(ModeManager.promptForModeSelection).toHaveBeenCalled();
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.CLI);
     });
 
     it('should register disposal handler', () => {

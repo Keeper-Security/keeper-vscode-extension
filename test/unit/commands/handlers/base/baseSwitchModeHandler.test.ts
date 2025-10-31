@@ -1,4 +1,4 @@
-import { commands, window } from 'vscode';
+import { commands, ExtensionContext, window } from 'vscode';
 import { BaseSwitchModeHandler } from '../../../../../src/commands/handlers/base/baseSwitchModeHandler';
 import { ModeType, Mode } from '../../../../../src/types';
 import { RELOAD_WINDOW } from '../../../../../src/utils/constants';
@@ -38,9 +38,16 @@ class TestSwitchModeHandler extends BaseSwitchModeHandler {
 
 describe('BaseSwitchModeHandler', () => {
   let handler: TestSwitchModeHandler;
+  let mockContext: ExtensionContext;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockContext = {
+      workspaceState: {
+        get: jest.fn(),
+        update: jest.fn(),
+      },
+    } as unknown as ExtensionContext;
     handler = new TestSwitchModeHandler();
   });
 
@@ -53,7 +60,7 @@ describe('BaseSwitchModeHandler', () => {
       (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
       (commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
 
-      await handler.switchMode(mode);
+      await handler.switchMode(mockContext, mode);
 
       expect(getSwitchModeMessage).toHaveBeenCalledWith(mode);
       expect(window.showInformationMessage).toHaveBeenCalledWith(
@@ -61,7 +68,7 @@ describe('BaseSwitchModeHandler', () => {
         { modal: true },
         RELOAD_WINDOW
       );
-      expect(ModeManager.setMode).toHaveBeenCalledWith(mode);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, mode);
       expect(commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
     });
 
@@ -71,7 +78,7 @@ describe('BaseSwitchModeHandler', () => {
       (getSwitchModeMessage as jest.Mock).mockReturnValue(mockMessage);
       (window.showInformationMessage as jest.Mock).mockResolvedValue(undefined);
 
-      await handler.switchMode(mode);
+      await handler.switchMode(mockContext, mode);
 
       expect(getSwitchModeMessage).toHaveBeenCalledWith(mode);
       expect(window.showInformationMessage).toHaveBeenCalled();
@@ -85,7 +92,7 @@ describe('BaseSwitchModeHandler', () => {
       (getSwitchModeMessage as jest.Mock).mockReturnValue(mockMessage);
       (window.showInformationMessage as jest.Mock).mockResolvedValue('Cancel');
 
-      await handler.switchMode(mode);
+      await handler.switchMode(mockContext, mode);
 
       expect(ModeManager.setMode).not.toHaveBeenCalled();
       expect(commands.executeCommand).not.toHaveBeenCalled();
@@ -98,7 +105,7 @@ describe('BaseSwitchModeHandler', () => {
       (window.showInformationMessage as jest.Mock).mockResolvedValue(RELOAD_WINDOW);
       (ModeManager.setMode as jest.Mock).mockRejectedValue(new Error('Failed to set mode'));
 
-      await expect(handler.switchMode(mode)).rejects.toThrow('Failed to set mode');
+      await expect(handler.switchMode(mockContext, mode)).rejects.toThrow('Failed to set mode');
 
       expect(commands.executeCommand).not.toHaveBeenCalled();
     });
@@ -111,7 +118,7 @@ describe('BaseSwitchModeHandler', () => {
       (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
       (commands.executeCommand as jest.Mock).mockRejectedValue(new Error('Failed to reload'));
 
-      await expect(handler.switchMode(mode)).rejects.toThrow('Failed to reload');
+      await expect(handler.switchMode(mockContext, mode)).rejects.toThrow('Failed to reload');
     });
 
     it('should work with CLI mode', async () => {
@@ -122,9 +129,9 @@ describe('BaseSwitchModeHandler', () => {
       (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
       (commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
 
-      await handler.switchMode(mode);
+      await handler.switchMode(mockContext, mode);
 
-      expect(ModeManager.setMode).toHaveBeenCalledWith(ModeType.CLI);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.CLI);
     });
 
     it('should work with KSM mode', async () => {
@@ -135,9 +142,9 @@ describe('BaseSwitchModeHandler', () => {
       (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
       (commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
 
-      await handler.switchMode(mode);
+      await handler.switchMode(mockContext, mode);
 
-      expect(ModeManager.setMode).toHaveBeenCalledWith(ModeType.KSM);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.KSM);
     });
   });
 });

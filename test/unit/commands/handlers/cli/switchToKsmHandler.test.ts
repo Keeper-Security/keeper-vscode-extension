@@ -1,4 +1,4 @@
-import { window, commands } from 'vscode';
+import { window, commands, ExtensionContext } from 'vscode';
 import { SwitchToKsmHandler } from '../../../../../src/commands/handlers/cli/switchToKsmHandler';
 import { CliStorageManager } from '../../../../../src/commands/storage/cliStorageManager';
 import { ModeType } from '../../../../../src/types';
@@ -29,23 +29,31 @@ jest.mock('vscode', () => ({
 }));
 
 describe('SwitchToKsmHandler', () => {
+  let mockContext: ExtensionContext;
   let mockStorageManager: jest.Mocked<CliStorageManager>;
   let switchToKsmHandler: SwitchToKsmHandler;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
+    mockContext = {
+      workspaceState: {
+        get: jest.fn(),
+        update: jest.fn(),
+      },
+    } as unknown as ExtensionContext;
+
     mockStorageManager = {
       setCurrentStorage: jest.fn(),
     } as unknown as jest.Mocked<CliStorageManager>;
 
-    switchToKsmHandler = new SwitchToKsmHandler(mockStorageManager);
+    switchToKsmHandler = new SwitchToKsmHandler(mockContext, mockStorageManager);
   });
 
   describe('constructor', () => {
     it('should initialize with storage manager', () => {
       expect(switchToKsmHandler).toBeInstanceOf(SwitchToKsmHandler);
-      const handler = new SwitchToKsmHandler(mockStorageManager);
+      const handler = new SwitchToKsmHandler(mockContext, mockStorageManager);
       expect(handler).toBeDefined();
     });
   });
@@ -70,7 +78,7 @@ describe('SwitchToKsmHandler', () => {
         { modal: true },
         RELOAD_WINDOW
       );
-      expect(ModeManager.setMode).toHaveBeenCalledWith(ModeType.KSM);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.KSM);
       expect(commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
     });
 
