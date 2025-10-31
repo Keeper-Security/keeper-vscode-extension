@@ -1,5 +1,5 @@
 import { CommandService } from "../../../src/commands";
-import { BaseCommandHandler } from "../../../src/commands/handlers/baseCommandHandler";
+import { BaseCommandHandler } from "../../../src/commands/handlers/base/baseCommandHandler";
 
 
 describe('Commands Index', () => {
