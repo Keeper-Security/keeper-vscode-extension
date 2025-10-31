@@ -1,6 +1,6 @@
 import { window } from 'vscode';
 import { configuration, ConfigurationKey } from '../configurations';
-import { Mode } from '../../types';
+import { Mode, ModeType } from '../../types';
 import { commonQuickPickOptions } from '../../utils/helper';
 
 export class ModeManager {
@@ -19,13 +19,13 @@ export class ModeManager {
       [
         {
           label: '$(terminal) Keeper Commander CLI',
-          description: 'Use Keeper Commander CLI (requires CLI installation)',
-          value: 'cli',
+          description: 'Use Keeper Commander CLI',
+          value: ModeType.CLI,
         },
         {
           label: '$(cloud) Keeper Secrets Manager',
-          description: 'Use Keeper Secrets Manager SDK (requires OTA token)',
-          value: 'ksm',
+          description: 'Use Keeper Secrets Manager',
+          value: ModeType.KSM,
         },
       ],
       {

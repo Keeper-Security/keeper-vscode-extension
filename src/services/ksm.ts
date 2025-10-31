@@ -303,7 +303,16 @@ export class KsmService {
     }
 
     const workspaceUri = workspaceFolders[0].uri;
-    const fileUri = Uri.joinPath(workspaceUri, '.vscode', this.configFileName);
+    const vscodeDirUri = Uri.joinPath(workspaceUri, '.vscode');
+    const vscodeDirPath = vscodeDirUri.fsPath;
+
+    // Ensure .vscode directory exists
+    if (!fs.existsSync(vscodeDirPath)) {
+      fs.mkdirSync(vscodeDirPath, { recursive: true });
+      logger.logDebug('Created .vscode directory');
+    }
+
+    const fileUri = Uri.joinPath(vscodeDirUri, this.configFileName);
 
     return fileUri.fsPath;
   }
