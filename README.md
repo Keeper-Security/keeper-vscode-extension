@@ -157,7 +157,7 @@ Once authenticated, you can access the following commands through the Command Pa
    - **Configuration Files**: eg. `config.json`, `docker-compose.yml`
 
 **Example**:
-![DEMO](./assets/save-in-keeper-security-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140869463/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FJXsZGRNKi0hzF1hKuldb%252Fsave-in-keeper-security-demo.gif%3Falt%3Dmedia%26token%3Dde115187-219e-4c27-b74d-82deb89c8f13)
 
 ### Get from Keeper Vault
 
@@ -174,7 +174,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Reference Format**: `keeper://record-uid/field/item`
 
 **Example**:
-![DEMO](./assets/get-from-keeper-security-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140914226/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FTxXHz87rUHAoCQFdYmZk%252Fget-from-keeper-security-demo.gif%3Falt%3Dmedia%26token%3D2e5fe144-f06b-4ada-b712-3eb90eebf186)
 
 ### Run Securely
 
@@ -199,7 +199,7 @@ Once authenticated, you can access the following commands through the Command Pa
 > The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...) which are resolved at runtime when you use Run Securely.
 
 **Example**:
-![DEMO](./assets/run-securely-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=643918593/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F93gBDbbRD6QRveDq0tR1%252Frun-securely-demo.gif%3Falt%3Dmedia%26token%3Dca98d00e-688a-44a9-a5e2-b517f8e29614)
 
 ### Choose Folder
 
@@ -213,7 +213,7 @@ Once authenticated, you can access the following commands through the Command Pa
 4. Select desired folder for this workspace
 5. Future `Save in Keeper Security` and `Generate Password` operations will use the selected folder to store secret in your Keeper Vault.
 
-![DEMO](./assets/choose-folder-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-1729980423/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F0L8pDrdPvDrs6453Pj9M%252Fchoose-folder-demo.gif%3Falt%3Dmedia%26token%3D46dc3552-9499-4ca7-bc8a-3278dfb71cd5)
 
 ### Generate Password
 
@@ -227,7 +227,7 @@ Once authenticated, you can access the following commands through the Command Pa
 4. Password reference will inserted at users last cursor position
 
 **Example**:
-![DEMO](./assets/generate-password-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-2103315273/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F8EGWoQtj1QRSvdFvMmQP%252Fgenerate-password-demo.gif%3Falt%3Dmedia%26token%3Dfa5b57bb-7075-4606-9d4f-c16d373523dd)
 
 ### Open Logs
 
@@ -240,7 +240,7 @@ Once authenticated, you can access the following commands through the Command Pa
 3. Extension opens output panel with detailed logs
 
 **Example**:
-![DEMO](./assets/open-logs-demo.gif)
+![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1108290068/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252Fi6WXeGayUnyx2bVHbaF5%252Fopen-logs-demo.gif%3Falt%3Dmedia%26token%3D23db7d24-2fef-431c-afea-c2dfc0d483b8)
 
 ### Authenticate (KSM Mode Only)
 
