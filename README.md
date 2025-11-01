@@ -1,4 +1,4 @@
-![Keeper Security VS Code Extension Header](https://github.com/user-attachments/assets/6839171a-23c8-47d4-99d7-8bd3f9097100)
+![Keeper Security VS Code Extension Header](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1066884620/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FCbtV07VpzvaDpckn9CpE%252Fkeeper%252Bvs-code.png%3Falt%3Dmedia%26token%3Db86f2285-24d4-4722-b2e5-c025427ab3b0)
 
 # Keeper Security VS Code Extension
 
@@ -22,52 +22,80 @@ This enable developers to manage secrets securely without leaving their developm
 ## Features
 
 - **Secret Management**: Save, retrieve, and generate secrets directly from VS Code using Keeper Security vault
+- **Dual Mode Support**: Choose between **CLI mode** (Keeper Commander CLI) or **KSM mode** (Keeper Secrets Manager)
 - **Secret Detection**: Automatically detect potential secrets from configuration files using pattern recognition (API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more)
 - **Secure Execution**: Run commands with secrets injected from Keeper vault
 - **Comprehensive Logging**: Built-in logging system with debug mode support
 
 ## Prerequisites
 
-- **Keeper Commander CLI**:
-  - The **Keeper Commander CLI** must be installed globally on your system using the official binary.
-  - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
-- **Keeper Security Account**: Active subscription with vault access
 - **System Requirements**:
   - **VS Code**: 1.99.0 or later
 
+### For CLI Mode:
+
+- **Keeper Security Account**: Active subscription with vault access
+- **Keeper Commander CLI**:
+  - The **Keeper Commander CLI** must be installed globally on your system using the official binary.
+  - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
+
+### For KSM Mode:
+
+- **Keeper Security Account**: Active subscription with **secrets manager** access
+
 ## Setup
 
-### Install Keeper Commander CLI Binary
+### For CLI Mode:
+
+#### Install Keeper Commander CLI Binary
 
 1. Follow the [Keeper Commander Installation Guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup) to download and install the binary for your operating system.
-    - [Windows Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-windows#typical-binary-installation-recommended)
-    - [MacOS Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-mac#binary-installation)
-    - [Linux Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-linux)
+   - [Windows Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-windows#typical-binary-installation-recommended)
+   - [MacOS Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-mac#binary-installation)
+   - [Linux Installation](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/installation-on-linux)
 2. Ensure the CLI is accessible from your system shell PATH
 3. Open your terminal and run the following command to verify the installation:
-    - `keeper --version`
-    - You should see output similar to: `Keeper Commander, version 17.1.8`
-    - This confirms that the Commander CLI is installed and accessible globally.
+   - `keeper --version`
+   - You should see output similar to: `Keeper Commander, version 17.1.8`
+   - This confirms that the Commander CLI is installed and accessible globally.
 
-    > After successfully installing the Keeper Commander CLI, please **reopen VS Code** if it was open during the installation.
+   > After successfully installing the Keeper Commander CLI, please **reopen VS Code** if it was open during the installation.
 
-### Authenticate with Keeper Commander CLI
+#### Authenticate with Keeper Commander CLI
 
 1. Open your terminal or command prompt.
 2. Run the following command: `keeper shell`
 3. If you're not already logged in, you'll be prompted to enter your Keeper credentials. Follow the prompts to complete the login process.
 4. Upon successful login, you'll see the command prompt change to: `My Vault>`
-5. While still inside the `My Vault>` prompt, you must complete one of the following steps to complete setup: 
-    - [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in):
-        1. Run: `this-device persistent-login on`
-        2. Then run: `this-device register`
+5. While still inside the `My Vault>` prompt, you must complete one of the following steps to complete setup:
+   - [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in):
+     1. Run: `this-device persistent-login on`
+     2. Then run: `this-device register`
         > **Note:** To set the inactivity logout timer to a certain number of minutes: Run `this-device timeout 600`. This successfully set "logout_timer" to 10 hours.
 
-    - [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication):
-        - Run: `biometric register`
-        - A biometric authentication prompt (fingerprint or Face ID) will be displayed.<br>With successful fingerprint or faceID authentication the registration will be completed.
+   - [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication):
+     - Run: `biometric register`
+     - A biometric authentication prompt (fingerprint or Face ID) will be displayed.<br>With successful fingerprint or faceID authentication the registration will be completed.
 
 Refer to the [Logging in](https://newdocs.keeper.io/keeperpam-and-secrets-manager/~/changes/1754/commander-cli/commander-installation-setup/logging-in) guide for full details.
+
+> **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
+
+### For KSM Mode:
+
+#### Create a Secrets Manager Application
+
+- In the Keeper Vault, navigate to the **Secrets Manager tab** to see a list of Secrets Manager applications. Then click "**Create Application**"
+- Enter a name for the new Secrets Manager Application
+- Next choose the shared folder(s) to share with the new Application. The Application will only have access to the records in the selected folder(s).
+- Choose "**Can Edit**" for Record Permission for Application to give Write access to the Vault records
+- Click "**Generate Access Token**" to create the Application and When a Client Device is created, a One-Time Access Token is generated and displayed. You will need this One-Time Access Token later in the guide. Copy or download the token to use later.
+
+>Note: Ensure that the "**Can Edit**" permission is granted when adding a shared folder to the Secrets Manager application.
+
+> **Create Additional Client Devices (optional)**:<br>\
+> Once the Secrets Manager Application is created, more Client Devices can be created for the Application from the keeper vault.<br>
+> See the [documented instructions](https://docs.keeper.io/en/keeperpam/secrets-manager/about/secrets-manager-configuration#creating-a-secrets-manager-configuration) to create additional Client Devices
 
 ### Install the extension
 
@@ -78,24 +106,23 @@ From the Extensions Marketplace: Search `Keeper Security` and install the extens
 1. Open VS Code Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Type `Keeper Security` to see all available commands
 
-<br>
-
-> **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
-
 ## Usage
 
 ### Available Commands
 
 Once authenticated, you can access the following commands through the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-| Command | Description | Use Case |
-|---------|-------------|----------|
-| **Save in Keeper Security** | Save selected text as secret in vault | Save and Replace hardcoded secrets with keeper references |
-| **Get from Keeper Security** | Insert existing secrets from vault as keeper references | Retrieve stored secrets without exposing values |
-| **Run Securely** | Execute commands with injected keeper secrets | Run applications with vault credentials |
-| **Choose Folder** | Select vault folder for storing secrets in there | To store secret in specific folder |
-| **Generate Password** | Generate and store secure passwords in vault | Create new secure credentials |
-| **Open Logs** | View extension activity logs | Debug and monitor extension operations |
+| Command                           | Description                                             | Use Case                                                  |
+| --------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| **Save in Keeper Security**       | Save selected text as secret in vault                   | Save and Replace hardcoded secrets with keeper references |
+| **Get from Keeper Security**      | Insert existing secrets from vault as keeper references | Retrieve stored secrets without exposing values           |
+| **Run Securely**                  | Execute commands with injected keeper secrets           | Run applications with vault credentials                   |
+| **Choose Folder**                 | Select vault folder for storing secrets in there        | To store secret in specific folder                        |
+| **Generate Password**             | Generate and store secure passwords in vault            | Create new secure credentials                             |
+| **Open Logs**                     | View extension activity logs                            | Debug and monitor extension operations                    |
+| **Authenticate** (KSM Mode only)  | Authenticate KSM using various configuration options.   | To use different secrets manager application              |
+| **Switch to CLI** (KSM Mode only) | Switch to CLI mode for current workspace                | To change to another mode                                 |
+| **Switch to KSM** (CLI Mode only) | Switch to KSM mode for current workspace                | To change to another mode                                 |
 
 ### Commands Details:
 
@@ -103,31 +130,31 @@ Once authenticated, you can access the following commands through the Command Pa
 
 1. **Using Command Palette**
 
-    **Purpose**: Save selected text as a secret in Keeper Security vault and replace it with a keeper reference.
+   **Purpose**: Save selected text as a secret in Keeper Security vault and replace it with a keeper reference.
 
-    **Steps**:
-    1. Select text containing a secret (password, token, API key, ...etc)
-    2. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-    3. Type `Keeper Security: Save in Keeper Vault` and select it
-    4. Extension will authenticate with Keeper Security (if needed)
-    5. Enter record / field name 
-    6. Extension creates new item in Keeper vault
-    7. Selected text is replaced with keeper reference (`keeper://...`) at users last cursor position
+   **Steps**:
+   1. Select text containing a secret (password, token, API key, ...etc)
+   2. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+   3. Type `Keeper Security: Save in Keeper Vault` and select it
+   4. Extension will authenticate with Keeper Security (if needed)
+   5. Enter record / field name
+   6. Extension creates new item in Keeper vault
+   7. Selected text is replaced with keeper reference (`keeper://...`) at users last cursor position
 
 2. **Automatic Secret Detection**
 
-    **Purpose**: Automatically detect potential secrets in your code for easy identification and securing.
+   **Purpose**: Automatically detect potential secrets in your code for easy identification and securing.
 
-    **Features**:
-    - Extension scans files for known secret patterns
-    - Provides CodeLens for detected secrets
-    - CodeLens shows `Save in Keeper Security` option over the secret
-    - Click CodeLens and follow prompts to save detected secret
-    - The keeper reference will be automatically replaced with detected secret at users last cursor position
+   **Features**:
+   - Extension scans files for known secret patterns
+   - Provides CodeLens for detected secrets
+   - CodeLens shows `Save in Keeper Security` option over the secret
+   - Click CodeLens and follow prompts to save detected secret
+   - The keeper reference will be automatically replaced with detected secret at users last cursor position
 
-    **Supported File Types**:
-    - **Environment Files**: eg. `.env`, `.env.*`
-    - **Configuration Files**: eg. `config.json`, `docker-compose.yml`
+   **Supported File Types**:
+   - **Environment Files**: eg. `.env`, `.env.*`
+   - **Configuration Files**: eg. `config.json`, `docker-compose.yml`
 
 **Example**:
 ![DEMO](./assets/save-in-keeper-security-demo.gif)
@@ -156,20 +183,20 @@ Once authenticated, you can access the following commands through the Command Pa
 **Steps**:
 
 1. Open Command Palette<br>
-Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+   Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
 2. Search and select `Keeper Security: Run Securely`.
 3. Choose a `.env` file:
-    - A dropdown will display available `.env` files from your current workspace.
-    - Alternatively, select **"Browse Environment File"** to choose a `.env` file from another location.
-    - If hidden files (like `.env`) are not visible in the file dialog:
-        - On macOS, press `Cmd + Shift + .`
-        - On Windows, press `Ctrl + H` (in some file dialogs)
-        - On Linux, press `Ctrl + H`
+   - A dropdown will display available `.env` files from your current workspace.
+   - Alternatively, select **"Browse Environment File"** to choose a `.env` file from another location.
+   - If hidden files (like `.env`) are not visible in the file dialog:
+     - On macOS, press `Cmd + Shift + .`
+     - On Windows, press `Ctrl + H` (in some file dialogs)
+     - On Linux, press `Ctrl + H`
 4. Enter the command you want to run.
 5. Extension creates terminal with injected secrets from selected `.env` and executes command
 
 > **Note:** To make use of the injected secret values in your application, your code must reference the corresponding environment variables (e.g., `process.env.DB_PASSWORD`, `os.environ.get("API_KEY")`, etc.).<br>
-The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...) which are resolved at runtime when you use Run Securely.
+> The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...) which are resolved at runtime when you use Run Securely.
 
 **Example**:
 ![DEMO](./assets/run-securely-demo.gif)
@@ -215,8 +242,46 @@ The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...
 **Example**:
 ![DEMO](./assets/open-logs-demo.gif)
 
+### Authenticate (KSM Mode Only)
 
-## Extension Settings 
+**Purpose**: Re-authenticate KSM using various configuration options like one-time token, base64 encoded string, or JSON file configuration. Can be use this when you need to use different secrets manager application.
+
+**Steps**:
+
+1. Open Command Palette
+2. Type `Keeper Security: Authenticate` and select it
+3. Choose your preferred authentication method:
+   - **One-Time Token**: Enter a one-time access token
+   - **Base64**: Enter a base64 encoded configuration string
+   - **JSON Config File**: Select a JSON configuration file path
+4. Enter the corresponding authentication value when prompted
+5. KSM authenticated successfully
+
+### Switch to CLI (KSM Mode Only)
+
+**Purpose**: Switch the extension mode from KSM (Keeper Secrets Manager) to CLI (Keeper Commander CLI) for the current workspace.
+
+**Steps**:
+
+1. Open Command Palette
+2. Type `Keeper Security: Switch to CLI` and select it
+3. A confirmation dialog will appear asking to reload the window
+4. Click **"Reload Window"** to confirm the mode switch
+5. VS Code will reload and switch to CLI mode
+
+### Switch to KSM (CLI Mode Only)
+
+**Purpose**: Switch the extension mode from CLI (Keeper Commander CLI) to KSM (Keeper Secrets Manager) for the current workspace.
+
+**Steps**:
+
+1. Open Command Palette
+2. Type `Keeper Security: Switch to KSM` and select it
+3. A confirmation dialog will appear asking to reload the window
+4. Click **"Reload Window"** to confirm the mode switch
+5. VS Code will reload and switch to KSM mode
+
+## Extension Settings
 
 The extension provides configuration options:
 
@@ -224,13 +289,14 @@ The extension provides configuration options:
 2. Search for `Keeper Security`
 3. Configure the following options:
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Debug Enabled** | Enable detailed logging for debugging | `false` |
-| **Secret Detection** | Enable automatic secret detection | `true` |
+| Setting              | Description                           | Default |
+| -------------------- | ------------------------------------- | ------- |
+| **Debug Enabled**    | Enable detailed logging for debugging | `false` |
+| **Secret Detection** | Enable automatic secret detection     | `true`  |
+| **Mode Type**        | Switch between CLI or KSM mode        | `cli`   |
 
-> **Note:** Debug mode requires reloading the extension to take effect.<br>
-Press **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`
+> **Note:** "Debug mode" and "Mode Type" requires reloading the extension to take effect.<br>
+> Press **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`
 
 ## Troubleshooting
 
@@ -242,6 +308,7 @@ Enable debug logging to see detailed information about extension operations:
 2. Search for "Keeper Security"
 3. Enable "Debug" option
 4. Reload the window (`Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → **"Developer: Reload Window"**)
+5. Run "Open Logs" command to see detailed logs
 
 ### Common Issues
 
@@ -267,7 +334,7 @@ Enable debug logging to see detailed information about extension operations:
 - Ensure CLI is accessible from your system PATH
 - Verify installation with `keeper --version` in terminal
 
-#### 3. Authentication Failures
+#### 3. Authentication Failures (For CLI Mode)
 
 **Problem**: "Keeper Commander CLI is not authenticated" errors
 
@@ -303,7 +370,7 @@ Refer to the [Logging in guide](https://newdocs.keeper.io/keeperpam-and-secrets-
 - Verify Node.js version (requires 18.0.0 or later)
 - Try reinstalling the extension
 
-#### 7. Run Securely Command Issues
+#### 6. Run Securely Command Issues
 
 **Problem**: Commands don't have access to injected secrets
 
@@ -314,7 +381,7 @@ Refer to the [Logging in guide](https://newdocs.keeper.io/keeperpam-and-secrets-
 - Ensure all referenced secrets exist in your vault
 - Ensure other unnecessary terminals are deleted and Check that the latest terminal is created by the extension
 
-#### 8. Folder Selection Issues
+#### 7. Folder Selection Issues
 
 **Problem**: Cannot select or change vault folders
 
@@ -324,6 +391,27 @@ Refer to the [Logging in guide](https://newdocs.keeper.io/keeperpam-and-secrets-
 - Check that Keeper Commander CLI has proper permissions
 - Verify folder structure in your vault
 - Try reloading the window.
+
+#### 8. Mode Type Issue from settings
+
+**Problem**: Mode not changing from settings
+
+**Solutions**:
+
+- After changing mode type from dropdown, perform Reload Editor Window (`Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → "Developer: Reload Window")
+
+  OR
+
+- Try running command `Switch to CLI` or `Switch to KSM` accordingly from command pallet
+
+#### 9. Command failing for Save and Generate Password ( For KSM Mode)
+
+**Problem**: Performed correct steps but still command failing
+
+**Solutions**:
+
+- Verify that you have authenticated correctly. See the reference for details
+- Ensure that you have the "Can Edit" permission for the shared folder in your Secrets Manager application.
 
 ## License
 
