@@ -99,7 +99,13 @@ Refer to the [Logging in](https://newdocs.keeper.io/keeperpam-and-secrets-manage
 
 ### Install the extension
 
-From the Extensions Marketplace: Search `Keeper Security` and install the extension.
+The Visual Studio Extension can be installed by visiting **Extensions** tab and search for "**Keeper Security**".
+
+The extension homepage is published at the link below:
+https://marketplace.visualstudio.com/items?itemName=KeeperSecurityDev.ks-vscode
+
+If you're using Cursor or any other VS Code Fork, the Keeper extension is also published to the Open VSX Registry here:
+https://open-vsx.org/extension/KeeperSecurityDev/ks-vscode
 
 ### Verify Extension Access
 
