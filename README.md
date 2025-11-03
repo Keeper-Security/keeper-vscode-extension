@@ -77,7 +77,7 @@ This enable developers to manage secrets securely without leaving their developm
      - Run: `biometric register`
      - A biometric authentication prompt (fingerprint or Face ID) will be displayed.<br>With successful fingerprint or faceID authentication the registration will be completed.
 
-Refer to the [Logging in](https://newdocs.keeper.io/keeperpam-and-secrets-manager/~/changes/1754/commander-cli/commander-installation-setup/logging-in) guide for full details.
+Refer to the [Logging in](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in) guide for full details.
 
 > **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
 
@@ -352,7 +352,7 @@ Enable debug logging to see detailed information about extension operations:
 - Upon successful login, you'll see the command prompt change to: `My Vault>`
 - Then follow these steps to enable [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
 
-Refer to the [Logging in guide](https://newdocs.keeper.io/keeperpam-and-secrets-manager/~/changes/1754/commander-cli/commander-installation-setup/logging-in) for full details.
+Refer to the [Logging in guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in) for full details.
 
 > **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
 
