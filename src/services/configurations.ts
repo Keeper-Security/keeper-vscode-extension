@@ -2,15 +2,18 @@ import type { ConfigurationChangeEvent, Event, ExtensionContext } from 'vscode';
 import { EventEmitter, workspace } from 'vscode';
 import { CONFIG_NAMESPACE } from '../utils/constants';
 import { logger } from '../utils/logger';
+import { Mode } from '../types';
 
 export enum ConfigurationKey {
   DebugEnabled = 'debug.enabled',
   SecretDetectionEnabled = 'editor.secretDetection',
+  ModeType = 'mode.type',
 }
 
 interface ConfigurationItems {
   [ConfigurationKey.DebugEnabled]: boolean;
   [ConfigurationKey.SecretDetectionEnabled]: boolean;
+  [ConfigurationKey.ModeType]: Mode;
 }
 
 class Configuration {

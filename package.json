@@ -2,14 +2,14 @@
   "name": "ks-vscode",
   "displayName": "Keeper Security",
   "description": "Never commit secrets to your code again - secure them in your Keeper vault",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "license": "MIT",
   "publisher": "KeeperSecurityDev",
   "galleryBanner": {
     "color": "#1a365d",
     "theme": "dark"
   },
-  "icon": "keeper_logo.png",
+  "icon": "assets/keeper_logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Keeper-Security/keeper-vscode-extension"
@@ -66,19 +66,68 @@
         "command": "ks-vscode.openLogs",
         "title": "Open Logs",
         "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToCli",
+        "title": "Switch to CLI",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToKsm",
+        "title": "Switch to KSM",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.authenticate",
+        "title": "Authenticate",
+        "category": "Keeper Security"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ks-vscode.openLogs",
+          "when": "config.keeper-security.mode.type === 'cli' || config.keeper-security.mode.type === 'ksm'"
+        },
+        {
+          "command": "ks-vscode.switchToCli",
+          "when": "config.keeper-security.mode.type === 'ksm'"
+        },
+        {
+          "command": "ks-vscode.switchToKsm",
+          "when": "config.keeper-security.mode.type === 'cli'"
+        },
+        {
+          "command": "ks-vscode.authenticate",
+          "when": "config.keeper-security.mode.type === 'ksm'"
+        }
+      ]
+    },
     "configuration": [
       {
         "type": "object",
         "title": "Keeper Security",
         "id": "keeper-security",
         "properties": {
+          "keeper-security.mode.type": {
+            "order": 0,
+            "type": "string",
+            "default": "cli",
+            "description": "Mode type to use for Keeper Security. ( Reload required )",
+            "enum": [
+              "cli",
+              "ksm"
+            ],
+            "enumDescriptions": [
+              "Uses the Keeper commander CLI.",
+              "Uses the Keeper Secrets Manager."
+            ]
+          },
           "keeper-security.debug.enabled": {
             "order": 1,
             "type": "boolean",
             "default": false,
-            "description": "Log debugger data. Reload required."
+            "description": "Log debugger data. ( Reload required )"
           },
           "keeper-security.editor.secretDetection": {
             "order": 2,
@@ -131,6 +180,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@keeper-security/secrets-manager-core": "^17.2.0",
     "dotenv": "^17.2.0"
   }
 }

@@ -11,16 +11,9 @@ import {
 export default class DotEnvParser extends Parser {
   public constructor(document: TextDocument) {
     super(document);
-    logger.logDebug(
-      `DotEnvParser constructor called for document: ${document.fileName}`
-    );
   }
 
   public parse(): void {
-    logger.logDebug(
-      `DotEnvParser.parse starting for document: ${this.document.fileName}`
-    );
-
     for (
       let lineNumber = 0;
       lineNumber < this.document.lineCount;
@@ -42,16 +35,13 @@ export default class DotEnvParser extends Parser {
       fieldValue = fieldValue.replace(/^(["'`])([\S\s]*)\1$/gm, '$2');
 
       if (fieldValue.length === 0 || fieldValue.startsWith('keeper://')) {
-        logger.logDebug(
-          `DotEnvParser: Skipping line ${lineNumber + 1} - empty value or keeper reference`
-        );
         continue;
       }
 
       // Check if it's a secret
       if (this.isSecret(keyValue, fieldValue)) {
         logger.logDebug(
-          `DotEnvParser: Secret detected at line ${lineNumber + 1} - key: ${keyValue}, valueLength: ${fieldValue.length}`
+          `DotEnvParser: Secret detected at line ${lineNumber + 1} - Key: ${keyValue}, Value: ${fieldValue}`
         );
         const index = lineValue.indexOf(fieldValue);
         const range = new Range(
@@ -62,20 +52,11 @@ export default class DotEnvParser extends Parser {
         this.matches.push({ range, fieldValue });
       }
     }
-
-    logger.logDebug(
-      `DotEnvParser.parse completed for document: ${this.document.fileName}, found ${this.matches.length} secrets`
-    );
   }
 
   private isSecret(key: string, value: string): boolean {
-    logger.logDebug(
-      `DotEnvParser.isSecret checking - key: ${key}, valueLength: ${value.length}`
-    );
-
     // Skip if looks like a placeholder
     if (isPlaceholder(value)) {
-      logger.logDebug(`DotEnvParser.isSecret: Value appears to be placeholder`);
       return false;
     }
 
@@ -83,11 +64,8 @@ export default class DotEnvParser extends Parser {
     const isSecretKeyMatch = isSecretKey(key);
     const isSecretValueMatch = isSecretValue(value);
 
-    // Simple logic: if key OR value suggests secret, show CodeLens
+    // if key OR value suggests secret, show CodeLens
     const result = isSecretKeyMatch || isSecretValueMatch;
-    logger.logDebug(
-      `DotEnvParser.isSecret result: ${result} (key suggests secret: ${isSecretKeyMatch}, value suggests secret: ${isSecretValueMatch})`
-    );
 
     return result;
   }

@@ -15,6 +15,19 @@ export interface IFolder {
   folderPath?: string;
 }
 
+export interface ICliListFolderResponse {
+  folder_uid: string;
+  name: string;
+  parent_uid: string;
+  flags?: string;
+}
+
+export interface IKsmGetFoldersResponse {
+  folderUid: string;
+  name: string;
+  parentUid?: string;
+}
+
 export interface ICurrentStorage {
   folderUid: string;
   name: string;
@@ -37,8 +50,16 @@ export interface ICliListCommandResponse {
 }
 
 export interface ICliListFolderResponse {
-  folder_uid: string;
+  uid: string;
   name: string;
   parent_uid: string;
   flags?: string;
+  details: string;
 }
+
+export enum ModeType {
+  CLI = 'cli',
+  KSM = 'ksm',
+}
+
+export type Mode = ModeType.CLI | ModeType.KSM;

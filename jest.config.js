@@ -2,10 +2,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/test/unit', '<rootDir>/src'],
-  testMatch: [
-    '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).ts',
-  ],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   testPathIgnorePatterns: [
     '/node_modules/',
     '/dist/',
@@ -14,9 +11,12 @@ module.exports = {
     'test/unit/commands/index.test.ts',
   ],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tsconfig.test.json'
-    }]
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.test.json',
+      },
+    ],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -28,6 +28,8 @@ module.exports = {
     '!src/providers/secretDetectionCodeLensProvider.ts',
     '!src/services/cli.ts',
     '!src/services/secretDetection.ts',
+    '!src/types/*.ts',
+    '!src/utils/*.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json'],
@@ -35,9 +37,9 @@ module.exports = {
   testTimeout: 10000,
   setupFilesAfterEnv: ['<rootDir>/test/unit/jest.setup.ts'],
   moduleNameMapper: {
-    '^vscode$': '<rootDir>/test/__mocks__/vscode.ts'
+    '^vscode$': '<rootDir>/test/__mocks__/vscode.ts',
   },
   clearMocks: true,
   restoreMocks: true,
-  verbose: true
-}; 
+  verbose: true,
+};
