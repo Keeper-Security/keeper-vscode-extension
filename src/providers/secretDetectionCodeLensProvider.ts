@@ -40,13 +40,6 @@ export class SecretDetectionCodeLensProvider
           codeLenses.push(codeLens);
         }
       }
-
-      // Only log when there are actual CodeLens items
-      if (codeLenses.length > 0) {
-        logger.logDebug(
-          `Created ${codeLenses.length} CodeLens items for ${document.fileName}`
-        );
-      }
     } catch (error) {
       logger.logError('Error providing CodeLens', error);
     }

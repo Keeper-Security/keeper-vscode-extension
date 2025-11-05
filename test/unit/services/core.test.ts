@@ -1,25 +1,30 @@
 import { Core } from '../../../src/services/core';
-import { CliService } from '../../../src/services/cli';
 import { CommandService } from '../../../src/commands';
-import { StorageManager } from '../../../src/commands/storage/storageManager';
 import { SecretDetectionService } from '../../../src/services/secretDetection';
+import { ModeManager } from '../../../src/services/managers/modeManager';
+import { ServiceManager } from '../../../src/services/managers/serviceManager';
 import { StatusBarSpinner } from '../../../src/utils/helper';
 import { logger } from '../../../src/utils/logger';
+import { ModeType } from '../../../src/types';
+import { PREVIOUS_USER_SELECTED_MODE_KEY } from '../../../src/utils/constants';
 import * as vscode from 'vscode';
 
 // Mock dependencies
-jest.mock('../../../src/services/cli');
+jest.mock('../../../src/services/managers/modeManager');
+jest.mock('../../../src/services/managers/serviceManager');
 jest.mock('../../../src/commands');
-jest.mock('../../../src/commands/storage/storageManager');
 jest.mock('../../../src/services/secretDetection');
 jest.mock('../../../src/utils/helper');
 jest.mock('../../../src/utils/logger');
+jest.mock('../../../src/utils/constants', () => ({
+  PREVIOUS_USER_SELECTED_MODE_KEY: 'previousUserSelectedMode',
+}));
 
 describe('Core', () => {
   let mockContext: vscode.ExtensionContext;
-  let mockCliService: jest.Mocked<CliService>;
-  let mockStorageManager: jest.Mocked<StorageManager>;
   let mockSpinner: jest.Mocked<StatusBarSpinner>;
+  let mockServiceManager: jest.Mocked<ServiceManager>;
+  let mockService: { dispose: jest.Mock };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,35 +36,101 @@ describe('Core', () => {
       workspaceState: { get: jest.fn(), update: jest.fn() }
     } as unknown as vscode.ExtensionContext;
 
-    mockCliService = {
-      dispose: jest.fn()
-    } as unknown as jest.Mocked<CliService>;
+    mockService = {
+      dispose: jest.fn(),
+    };
 
-    mockStorageManager = {} as unknown as jest.Mocked<StorageManager>;
+    mockServiceManager = {
+      getCurrentService: jest.fn().mockReturnValue(mockService),
+      getCurrentMode: jest.fn(),
+    } as unknown as jest.Mocked<ServiceManager>;
 
     mockSpinner = {
-      dispose: jest.fn()
+      dispose: jest.fn(),
+      show: jest.fn(),
+      hide: jest.fn(),
     } as unknown as jest.Mocked<StatusBarSpinner>;
 
     (StatusBarSpinner as jest.MockedClass<typeof StatusBarSpinner>).mockImplementation(() => mockSpinner);
-    (CliService as jest.MockedClass<typeof CliService>).mockImplementation(() => mockCliService);
-    (StorageManager as jest.MockedClass<typeof StorageManager>).mockImplementation(() => mockStorageManager);
+    (ServiceManager as jest.MockedClass<typeof ServiceManager>).mockImplementation(() => mockServiceManager);
     (CommandService as jest.MockedClass<typeof CommandService>).mockImplementation(() => ({} as CommandService));
     (SecretDetectionService as jest.MockedClass<typeof SecretDetectionService>).mockImplementation(() => ({} as SecretDetectionService));
+    
+    // Default: mode exists
+    (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(ModeType.CLI);
   });
 
   describe('constructor', () => {
-    it('should initialize core service successfully', () => {
+    it('should initialize core service successfully when mode exists', () => {
       new Core(mockContext);
       
       expect(StatusBarSpinner).toHaveBeenCalled();
-      expect(CliService).toHaveBeenCalledWith(mockContext, mockSpinner);
-      expect(StorageManager).toHaveBeenCalledWith(mockContext, mockCliService, mockSpinner);
-      expect(CommandService).toHaveBeenCalledWith(mockContext, mockCliService, mockSpinner, mockStorageManager);
+      expect(ModeManager.getCurrentMode).toHaveBeenCalled();
+      expect(ServiceManager).toHaveBeenCalledWith(mockContext, mockSpinner, ModeType.CLI);
+      expect(CommandService).toHaveBeenCalledWith(mockContext, mockServiceManager, mockSpinner);
       expect(SecretDetectionService).toHaveBeenCalledWith(mockContext);
       expect(mockContext.subscriptions).toHaveLength(1);
       expect(logger.logDebug).toHaveBeenCalledWith('Initializing Core service');
-      expect(logger.logDebug).toHaveBeenCalledWith('Core service initialization completed');
+    });
+
+    it('should prompt for mode selection when mode does not exist', async () => {
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(undefined);
+      (ModeManager.promptForModeSelection as jest.Mock).mockResolvedValue(ModeType.KSM);
+      (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
+
+      // Core constructor calls initializeServices which is async but not awaited
+      // We need to wait for the async operation
+      new Core(mockContext);
+      
+      // Wait for async operations
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(ModeManager.getCurrentMode).toHaveBeenCalled();
+      expect(ModeManager.promptForModeSelection).toHaveBeenCalled();
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.KSM);
+      expect(ServiceManager).toHaveBeenCalledWith(mockContext, mockSpinner, ModeType.KSM);
+    });
+
+    it('should restore previous user selected mode from workspace state', async () => {
+      const previousMode = ModeType.KSM;
+      (mockContext.workspaceState.get as jest.Mock).mockReturnValue(previousMode);
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(undefined);
+      (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValueOnce(undefined).mockReturnValueOnce(previousMode);
+
+      // Core constructor calls initializeServices which is async but not awaited
+      new Core(mockContext);
+      
+      // Wait for async operations
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(mockContext.workspaceState.get).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY);
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, previousMode);
+      expect(ServiceManager).toHaveBeenCalledWith(mockContext, mockSpinner, previousMode);
+    });
+
+    it('should not restore mode when no previous mode exists in workspace state', async () => {
+      // Reset mocks to ensure clean state
+      (ModeManager.getCurrentMode as jest.Mock).mockReset();
+      (ModeManager.promptForModeSelection as jest.Mock).mockReset();
+      (ModeManager.setMode as jest.Mock).mockReset();
+      (mockContext.workspaceState.get as jest.Mock).mockReset();
+      
+      // No previous mode in workspace state
+      (mockContext.workspaceState.get as jest.Mock).mockReturnValue(undefined);
+      // getCurrentMode returns undefined, prompting user to select
+      (ModeManager.getCurrentMode as jest.Mock).mockReturnValue(undefined);
+      (ModeManager.promptForModeSelection as jest.Mock).mockResolvedValue(ModeType.CLI);
+      (ModeManager.setMode as jest.Mock).mockResolvedValue(undefined);
+
+      new Core(mockContext);
+      
+      // Wait for async operations
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(mockContext.workspaceState.get).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY);
+      expect(ModeManager.promptForModeSelection).toHaveBeenCalled();
+      expect(ModeManager.setMode).toHaveBeenCalledWith(mockContext, ModeType.CLI);
     });
 
     it('should register disposal handler', () => {
@@ -79,7 +150,8 @@ describe('Core', () => {
       const subscription = mockContext.subscriptions[0];
       subscription.dispose();
       
-      expect(mockCliService.dispose).toHaveBeenCalled();
+      expect(mockServiceManager.getCurrentService).toHaveBeenCalled();
+      expect(mockService.dispose).toHaveBeenCalled();
       expect(mockSpinner.dispose).toHaveBeenCalled();
       expect(logger.logDebug).toHaveBeenCalledWith('Disposing Core service resources');
       expect(logger.logDebug).toHaveBeenCalledWith('Core service disposal completed');
