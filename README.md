@@ -22,30 +22,35 @@ This enable developers to manage secrets securely without leaving their developm
 ## Features
 
 - **Secret Management**: Save, retrieve, and generate secrets directly from VS Code using Keeper Security vault
-- **Dual Mode Support**: Choose between **CLI mode** (Keeper Commander CLI) or **KSM mode** (Keeper Secrets Manager)
+- **Dual Mode Support**: Choose between
+  - **CLI mode** (Keeper Commander CLI) - Default
+  - **KSM mode** (Keeper Secrets Manager)
 - **Secret Detection**: Automatically detect potential secrets from configuration files using pattern recognition (API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more)
 - **Secure Execution**: Run commands with secrets injected from Keeper vault
 - **Comprehensive Logging**: Built-in logging system with debug mode support
 
 ## Prerequisites
 
-- **System Requirements**:
-  - **VS Code**: 1.99.0 or later
+- **VS Code**: v1.99.0 or later
+- **Keeper Security Account**: Active subscription with vault access (Consumer, B2B, MSP)
 
 ### For CLI Mode:
 
-- **Keeper Security Account**: Active subscription with vault access
 - **Keeper Commander CLI**:
   - The **Keeper Commander CLI** must be installed globally on your system using the official binary.
   - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
 
 ### For KSM Mode:
 
-- **Keeper Security Account**: Active subscription with **secrets manager** access
+- Requires **Secrets Manager Access**
 
 ## Setup
 
-### For CLI Mode:
+<details>
+
+<summary>
+<strong>For CLI Mode</strong>
+</summary>
 
 #### Install Keeper Commander CLI Binary
 
@@ -81,21 +86,32 @@ Refer to the [Logging in](https://docs.keeper.io/en/keeperpam/commander-cli/comm
 
 > **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
 
-### For KSM Mode:
+</details>
 
-#### Create a Secrets Manager Application
+<details>
 
-- In the Keeper Vault, navigate to the **Secrets Manager tab** to see a list of Secrets Manager applications. Then click "**Create Application**"
-- Enter a name for the new Secrets Manager Application
-- Next choose the shared folder(s) to share with the new Application. The Application will only have access to the records in the selected folder(s).
-- Choose "**Can Edit**" for Record Permission for Application to give Write access to the Vault records
-- Click "**Generate Access Token**" to create the Application and When a Client Device is created, a One-Time Access Token is generated and displayed. You will need this One-Time Access Token later in the guide. Copy or download the token to use later.
+<summary>
+<strong>For KSM Mode</strong>
+</summary>
 
->Note: Ensure that the "**Can Edit**" permission is granted when adding a shared folder to the Secrets Manager application.
+#### Create a Secrets Manager Application in Keeper Vault
+
+1. In the **Keeper Vault**, go to the **Secrets Manager** tab to view your existing applications.
+2. Click **Create Application**.
+3. Enter a _name_ for the new Secrets Manager Application.
+4. Select the shared folder(s) that the application should have access to.
+   - The application will only be able to access records stored in these selected folders.
+5. Under **Record Permission for Application**, choose **Can Edit** to grant write access to the Vault records.
+6. Click **Generate Access Token** to create the application.
+   - A **One-Time Access Token** will be generated for the client device.
+   - Copy or download this token securely — you’ll need it later in the setup process.
+
+> Note: Ensure that the "**Can Edit**" permission is granted when adding a shared folder to the Secrets Manager application.
 
 > **Create Additional Client Devices (optional)**:<br>\
 > Once the Secrets Manager Application is created, more Client Devices can be created for the Application from the keeper vault.<br>
 > See the [documented instructions](https://docs.keeper.io/en/keeperpam/secrets-manager/about/secrets-manager-configuration#creating-a-secrets-manager-configuration) to create additional Client Devices
+</details>
 
 ### Install the extension
 
@@ -118,21 +134,20 @@ https://open-vsx.org/extension/KeeperSecurityDev/ks-vscode
 
 Once authenticated, you can access the following commands through the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-| Command                           | Description                                             | Use Case                                                  |
-| --------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
-| **Save in Keeper Security**       | Save selected text as secret in vault                   | Save and Replace hardcoded secrets with keeper references |
-| **Get from Keeper Security**      | Insert existing secrets from vault as keeper references | Retrieve stored secrets without exposing values           |
-| **Run Securely**                  | Execute commands with injected keeper secrets           | Run applications with vault credentials                   |
-| **Choose Folder**                 | Select vault folder for storing secrets in there        | To store secret in specific folder                        |
-| **Generate Password**             | Generate and store secure passwords in vault            | Create new secure credentials                             |
-| **Open Logs**                     | View extension activity logs                            | Debug and monitor extension operations                    |
-| **Authenticate** (KSM Mode only)  | Authenticate KSM using various configuration options.   | To use different secrets manager application              |
-| **Switch to CLI** (KSM Mode only) | Switch to CLI mode for current workspace                | To change to another mode                                 |
-| **Switch to KSM** (CLI Mode only) | Switch to KSM mode for current workspace                | To change to another mode                                 |
+| Command                          | Description                                             | Use Case                                                  |
+| -------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| **Save in Keeper Security**      | Save selected text as secret in vault                   | Save and Replace hardcoded secrets with keeper references |
+| **Get from Keeper Security**     | Insert existing secrets from vault as keeper references | Retrieve stored secrets without exposing values           |
+| **Run Securely**                 | Execute commands with injected keeper secrets           | Run applications with vault credentials                   |
+| **Choose Folder**                | Select vault folder for storing secrets in there        | To store secret in specific folder                        |
+| **Generate Password**            | Generate and store secure passwords in vault            | Create new secure credentials                             |
+| **Open Logs**                    | View extension activity logs                            | Debug and monitor extension operations                    |
+| **Authenticate** (KSM Mode only) | Authenticate KSM using various configuration options.   | To use different secrets manager application              |
+| **Switch to CLI / KSM**          | Switch to CLI / KSM mode for current workspace          | Toggle between Commander CLI and KSM modes                |
 
 ### Commands Details:
 
-### Save in Keeper Vault
+#### Save in Keeper Vault
 
 1. **Using Command Palette**
 
@@ -160,12 +175,11 @@ Once authenticated, you can access the following commands through the Command Pa
 
    **Supported File Types**:
    - **Environment Files**: eg. `.env`, `.env.*`
-   - **Configuration Files**: eg. `config.json`, `docker-compose.yml`
 
 **Example**:
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140869463/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FJXsZGRNKi0hzF1hKuldb%252Fsave-in-keeper-security-demo.gif%3Falt%3Dmedia%26token%3Dde115187-219e-4c27-b74d-82deb89c8f13)
 
-### Get from Keeper Vault
+#### Get from Keeper Vault
 
 **Purpose**: Insert existing Keeper Security secrets into your code as keeper reference without exposing actual values.
 
@@ -182,7 +196,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Example**:
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140914226/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FTxXHz87rUHAoCQFdYmZk%252Fget-from-keeper-security-demo.gif%3Falt%3Dmedia%26token%3D2e5fe144-f06b-4ada-b712-3eb90eebf186)
 
-### Run Securely
+#### Run Securely
 
 **Purpose**: Execute a command by injecting secret values fetched from Keeper Vault, based on Keeper references defined in a selected `.env` file.
 
@@ -207,7 +221,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Example**:
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=643918593/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F93gBDbbRD6QRveDq0tR1%252Frun-securely-demo.gif%3Falt%3Dmedia%26token%3Dca98d00e-688a-44a9-a5e2-b517f8e29614)
 
-### Choose Folder
+#### Choose Folder
 
 **Purpose**: Specify the vault folder where secrets for this workspace will be stored.
 
@@ -221,7 +235,7 @@ Once authenticated, you can access the following commands through the Command Pa
 
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-1729980423/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F0L8pDrdPvDrs6453Pj9M%252Fchoose-folder-demo.gif%3Falt%3Dmedia%26token%3D46dc3552-9499-4ca7-bc8a-3278dfb71cd5)
 
-### Generate Password
+#### Generate Password
 
 **Purpose**: Generate secure passwords and store them in Keeper Security vault.
 
@@ -235,7 +249,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Example**:
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-2103315273/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F8EGWoQtj1QRSvdFvMmQP%252Fgenerate-password-demo.gif%3Falt%3Dmedia%26token%3Dfa5b57bb-7075-4606-9d4f-c16d373523dd)
 
-### Open Logs
+#### Open Logs
 
 **Purpose**: View extension activity logs for debugging and monitoring.
 
@@ -248,7 +262,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Example**:
 ![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1108290068/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252Fi6WXeGayUnyx2bVHbaF5%252Fopen-logs-demo.gif%3Falt%3Dmedia%26token%3D23db7d24-2fef-431c-afea-c2dfc0d483b8)
 
-### Authenticate (KSM Mode Only)
+#### Authenticate (KSM Mode Only)
 
 **Purpose**: Re-authenticate KSM using various configuration options like one-time token, base64 encoded string, or JSON file configuration. Can be use this when you need to use different secrets manager application.
 
@@ -263,29 +277,16 @@ Once authenticated, you can access the following commands through the Command Pa
 4. Enter the corresponding authentication value when prompted
 5. KSM authenticated successfully
 
-### Switch to CLI (KSM Mode Only)
+#### Switch to CLI / KSM
 
-**Purpose**: Switch the extension mode from KSM (Keeper Secrets Manager) to CLI (Keeper Commander CLI) for the current workspace.
-
-**Steps**:
-
-1. Open Command Palette
-2. Type `Keeper Security: Switch to CLI` and select it
-3. A confirmation dialog will appear asking to reload the window
-4. Click **"Reload Window"** to confirm the mode switch
-5. VS Code will reload and switch to CLI mode
-
-### Switch to KSM (CLI Mode Only)
-
-**Purpose**: Switch the extension mode from CLI (Keeper Commander CLI) to KSM (Keeper Secrets Manager) for the current workspace.
+**Purpose**: Switch the extension mode from CLI (Keeper Commander CLI) to KSM (Keeper Secrets Manager) or vice-versa for the current workspace.
 
 **Steps**:
 
 1. Open Command Palette
-2. Type `Keeper Security: Switch to KSM` and select it
+2. Type `Keeper Security: Switch to CLI` / `Keeper Security: Switch to KSM` and select it
 3. A confirmation dialog will appear asking to reload the window
 4. Click **"Reload Window"** to confirm the mode switch
-5. VS Code will reload and switch to KSM mode
 
 ## Extension Settings
 
@@ -318,19 +319,81 @@ Enable debug logging to see detailed information about extension operations:
 
 ### Common Issues
 
+#### Generic Issues (Apply to Both CLI and KSM Modes)
+
 #### 1. Extension General Issues
 
-**Problem**: Extension takes time to fetch secrets, shows loading continuously, fails to resolve keeper references, latest records not displaying from keeper vault, manual keeper commander CLI authentication changes, or other unexpected issue.
+**Problem**: Extension takes time to fetch secrets, shows loading continuously, fails to resolve keeper references, latest records not displaying from keeper vault, or other unexpected issues.
 
 **Solutions**:
 
 - **Reload Editor Window** (`Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → **"Developer: Reload Window"**)
-- Ensure Keeper Commander CLI is authenticated with **Persistent login** or **Biometric login**
+- For CLI Mode: Ensure Keeper Commander CLI is authenticated with **Persistent login** or **Biometric login**
+- For KSM Mode: Verify KSM authentication is correct
 - Check internet connection and firewall settings
 - Verify Keeper vault accessibility
 - Clear extension cache if issues persist
 
-#### 2. Keeper Commander CLI Not Found
+#### 2. Commands Not Available
+
+**Problem**: Keeper Security extension commands don't appear in Command Palette
+
+**Solution**:
+
+- Ensure you have installed correct `Keeper Security` extension.
+- Reload VS Code window if commands still don't appear
+- Check the extension is properly enabled/activated
+
+#### 3. Extension Not Loading
+
+**Problem**: Extension fails to activate or shows errors
+
+**Solutions**:
+
+- Check VS Code version compatibility (requires `1.99.0` or later)
+- Verify Node.js version (requires 18.0.0 or later)
+- Try reinstalling the extension
+
+#### 4. Run Securely Command Issues
+
+**Problem**: Commands don't have access to injected secrets
+
+**Solutions**:
+
+- To run commands with secrets injected, use the `Keeper Security: Run Securely` command from the Command Palette.
+- Verify your `.env` file contains valid `keeper://` references
+- Ensure all referenced secrets exist in your vault
+- Ensure other unnecessary terminals are deleted and Check that the latest terminal is created by the extension
+
+#### 5. Folder Selection Issues
+
+**Problem**: Cannot select or change vault folders
+
+**Solutions**:
+
+- Ensure you have proper permissions to folders in your vault
+- For CLI Mode: Check that Keeper Commander CLI has proper permissions
+- For KSM Mode: Verify that your Secrets Manager application has access to the shared folder(s)
+- Verify folder structure in your vault
+- Try reloading the window.
+
+#### 6. Mode Type Issue from settings
+
+**Problem**: Mode not changing from settings
+
+**Solutions**:
+
+- After changing mode type from dropdown, perform Reload Editor Window (`Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → "Developer: Reload Window")
+
+  OR
+
+- Try running command `Switch to CLI` or `Switch to KSM` accordingly from command palette to toggle between mode(s)
+
+---
+
+#### CLI Mode Specific Issues
+
+#### 7. Keeper Commander CLI Not Found
 
 **Problem**: "Keeper Commander CLI is not installed" error
 
@@ -340,7 +403,7 @@ Enable debug logging to see detailed information about extension operations:
 - Ensure CLI is accessible from your system PATH
 - Verify installation with `keeper --version` in terminal
 
-#### 3. Authentication Failures (For CLI Mode)
+#### 8. Authentication Failures (CLI Mode)
 
 **Problem**: "Keeper Commander CLI is not authenticated" errors
 
@@ -356,67 +419,17 @@ Refer to the [Logging in guide](https://docs.keeper.io/en/keeperpam/commander-cl
 
 > **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
 
-#### 4. Commands Not Available
+---
 
-**Problem**: Keeper Security extension commands don't appear in Command Palette
+#### KSM Mode Specific Issues
 
-**Solution**:
-
-- Ensure you have installed correct `Keeper Security` extension.
-- Reload VS Code window if commands still don't appear
-- Check the extension is properly enabled/activated
-
-#### 5. Extension Not Loading
-
-**Problem**: Extension fails to activate or shows errors
-
-**Solutions**:
-
-- Check VS Code version compatibility (requires `1.99.0` or later)
-- Verify Node.js version (requires 18.0.0 or later)
-- Try reinstalling the extension
-
-#### 6. Run Securely Command Issues
-
-**Problem**: Commands don't have access to injected secrets
-
-**Solutions**:
-
-- To run commands with secrets injected, use the `Keeper Security: Run Securely` command from the Command Palette.
-- Verify your `.env` file contains valid `keeper://` references
-- Ensure all referenced secrets exist in your vault
-- Ensure other unnecessary terminals are deleted and Check that the latest terminal is created by the extension
-
-#### 7. Folder Selection Issues
-
-**Problem**: Cannot select or change vault folders
-
-**Solutions**:
-
-- Ensure you have proper permissions to folders in your vault
-- Check that Keeper Commander CLI has proper permissions
-- Verify folder structure in your vault
-- Try reloading the window.
-
-#### 8. Mode Type Issue from settings
-
-**Problem**: Mode not changing from settings
-
-**Solutions**:
-
-- After changing mode type from dropdown, perform Reload Editor Window (`Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → "Developer: Reload Window")
-
-  OR
-
-- Try running command `Switch to CLI` or `Switch to KSM` accordingly from command pallet
-
-#### 9. Command failing for Save and Generate Password ( For KSM Mode)
+#### 9. Command failing for Save and Generate Password (KSM Mode)
 
 **Problem**: Performed correct steps but still command failing
 
 **Solutions**:
 
-- Verify that you have authenticated correctly. See the reference for details
+- Verify that you have authenticated correctly. See the [reference](#authenticate-ksm-mode-only) for details
 - Ensure that you have the "Can Edit" permission for the shared folder in your Secrets Manager application.
 
 ## License
