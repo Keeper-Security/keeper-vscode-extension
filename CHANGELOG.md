@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.0.1
+
+- **Security**: Updated dependencies to address known vulnerabilities:
+  - Fixed high-severity issues in `@isaacs/brace-expansion`, `glob`, `jws`, `qs`, and `tar-fs`
+  - Fixed moderate-severity issues in `js-yaml`, `lodash`, and `undici`
+
 ## 2.0.0
 
 - **Dual Mode Support**: Added support for two modes of operation:
