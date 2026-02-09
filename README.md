@@ -1,4 +1,4 @@
-![Keeper Security VS Code Extension Header](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1066884620/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FCbtV07VpzvaDpckn9CpE%252Fkeeper%252Bvs-code.png%3Falt%3Dmedia%26token%3Db86f2285-24d4-4722-b2e5-c025427ab3b0)
+![Keeper Security VS Code Extension Header](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FCbtV07VpzvaDpckn9CpE%252Fkeeper%252Bvs-code.png%3Falt%3Dmedia%26token%3Db86f2285-24d4-4722-b2e5-c025427ab3b0&width=768&dpr=4&quality=100&sign=8eaa9c59&sv=2)
 
 # Keeper Security VS Code Extension
 
@@ -177,7 +177,7 @@ Once authenticated, you can access the following commands through the Command Pa
    - **Environment Files**: eg. `.env`, `.env.*`
 
 **Example**:
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140869463/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FJXsZGRNKi0hzF1hKuldb%252Fsave-in-keeper-security-demo.gif%3Falt%3Dmedia%26token%3Dde115187-219e-4c27-b74d-82deb89c8f13)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FJXsZGRNKi0hzF1hKuldb%252Fsave-in-keeper-security-demo.gif%3Falt%3Dmedia%26token%3Dde115187-219e-4c27-b74d-82deb89c8f13&width=768&dpr=2&quality=100&sign=c3e1618&sv=2)
 
 #### Get from Keeper Vault
 
@@ -194,7 +194,7 @@ Once authenticated, you can access the following commands through the Command Pa
 **Reference Format**: `keeper://record-uid/field/item`
 
 **Example**:
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1140914226/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FTxXHz87rUHAoCQFdYmZk%252Fget-from-keeper-security-demo.gif%3Falt%3Dmedia%26token%3D2e5fe144-f06b-4ada-b712-3eb90eebf186)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FTxXHz87rUHAoCQFdYmZk%252Fget-from-keeper-security-demo.gif%3Falt%3Dmedia%26token%3D2e5fe144-f06b-4ada-b712-3eb90eebf186&width=768&dpr=2&quality=100&sign=38872779&sv=2)
 
 #### Run Securely
 
@@ -219,7 +219,7 @@ Once authenticated, you can access the following commands through the Command Pa
 > The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...) which are resolved at runtime when you use Run Securely.
 
 **Example**:
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=643918593/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F93gBDbbRD6QRveDq0tR1%252Frun-securely-demo.gif%3Falt%3Dmedia%26token%3Dca98d00e-688a-44a9-a5e2-b517f8e29614)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F93gBDbbRD6QRveDq0tR1%252Frun-securely-demo.gif%3Falt%3Dmedia%26token%3Dca98d00e-688a-44a9-a5e2-b517f8e29614&width=768&dpr=2&quality=100&sign=ff06dfac&sv=2)
 
 #### Choose Folder
 
@@ -233,7 +233,7 @@ Once authenticated, you can access the following commands through the Command Pa
 4. Select desired folder for this workspace
 5. Future `Save in Keeper Security` and `Generate Password` operations will use the selected folder to store secret in your Keeper Vault.
 
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-1729980423/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F0L8pDrdPvDrs6453Pj9M%252Fchoose-folder-demo.gif%3Falt%3Dmedia%26token%3D46dc3552-9499-4ca7-bc8a-3278dfb71cd5)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F0L8pDrdPvDrs6453Pj9M%252Fchoose-folder-demo.gif%3Falt%3Dmedia%26token%3D46dc3552-9499-4ca7-bc8a-3278dfb71cd5&width=768&dpr=2&quality=100&sign=99be0580&sv=2)
 
 #### Generate Password
 
@@ -247,7 +247,7 @@ Once authenticated, you can access the following commands through the Command Pa
 4. Password reference will inserted at users last cursor position
 
 **Example**:
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=-2103315273/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F8EGWoQtj1QRSvdFvMmQP%252Fgenerate-password-demo.gif%3Falt%3Dmedia%26token%3Dfa5b57bb-7075-4606-9d4f-c16d373523dd)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F8EGWoQtj1QRSvdFvMmQP%252Fgenerate-password-demo.gif%3Falt%3Dmedia%26token%3Dfa5b57bb-7075-4606-9d4f-c16d373523dd&width=768&dpr=2&quality=100&sign=74ca9de0&sv=2)
 
 #### Open Logs
 
@@ -260,7 +260,7 @@ Once authenticated, you can access the following commands through the Command Pa
 3. Extension opens output panel with detailed logs
 
 **Example**:
-![DEMO](https://images.gitbook.com/__img/dpr=2,width=760,onerror=redirect,format=auto,signature=1108290068/https%3A%2F%2Ffiles.gitbook.com%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252Fi6WXeGayUnyx2bVHbaF5%252Fopen-logs-demo.gif%3Falt%3Dmedia%26token%3D23db7d24-2fef-431c-afea-c2dfc0d483b8)
+![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252Fi6WXeGayUnyx2bVHbaF5%252Fopen-logs-demo.gif%3Falt%3Dmedia%26token%3D23db7d24-2fef-431c-afea-c2dfc0d483b8&width=768&dpr=2&quality=100&sign=9a0ce723&sv=2)
 
 #### Authenticate (KSM Mode Only)
 
