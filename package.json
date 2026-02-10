@@ -2,7 +2,7 @@
   "name": "ks-vscode",
   "displayName": "Keeper Security",
   "description": "Never commit secrets to your code again - secure them in your Keeper vault",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "license": "MIT",
   "publisher": "KeeperSecurityDev",
   "galleryBanner": {
@@ -171,7 +171,7 @@
     "glob": "^11.0.3",
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0",
-    "mocha": "^11.7.1",
+    "mocha": "^11.3.0",
     "prettier": "^3.6.2",
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.2",
