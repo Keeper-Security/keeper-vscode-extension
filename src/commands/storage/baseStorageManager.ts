@@ -2,7 +2,10 @@ import { ExtensionContext, QuickPickItem, window } from 'vscode';
 import { IFolder } from '../../types';
 import { logger } from '../../utils/logger';
 import { commonQuickPickOptions, StatusBarSpinner } from '../../utils/helper';
-import { BASE_HANDLER_MESSAGES } from '../../utils/constants';
+import {
+  BASE_HANDLER_MESSAGES,
+  CLI_SOURCE_KEEPER_DRIVE,
+} from '../../utils/constants';
 
 export abstract class BaseStorageManager {
   constructor(
@@ -205,8 +208,18 @@ export abstract class BaseStorageManager {
       (folder: IFolder) => {
         const isCurrentStorage =
           this.getCurrentStorage()?.folderUid === folder.folderUid;
+
+        const folderType =
+          folder?.source && folder.source !== ''
+            ? folder.source === CLI_SOURCE_KEEPER_DRIVE
+              ? '(Keeper Drive Folder)'
+              : '(Legacy Folder)'
+            : null;
+
         const response: QuickPickItem & { value: string } = {
-          label: isCurrentStorage ? `${folder.name} ✓` : folder.name,
+          label: isCurrentStorage
+            ? `${folder.name} ✓ ${folderType ?? ''}`
+            : `${folder.name} ${folderType ?? ''}`,
           value: folder.folderUid,
         };
         if (folder.folderPath && folder.folderPath !== '/') {

@@ -26,7 +26,6 @@ import {
   promisifyExec,
   parseKeeperReference,
   StatusBarSpinner,
-  resolveFolderPaths,
   documentMatcher,
   isEnvironmentFile
 } from '../../../src/utils/helper';
@@ -225,48 +224,6 @@ describe('Helper Functions', () => {
       spinner.dispose();
       
       expect(mockStatusBarItem.dispose).toHaveBeenCalled();
-    });
-  });
-
-  describe('resolveFolderPaths', () => {
-    it('should resolve simple folder structure', () => {
-      const folders: any[] = [
-        { folder_uid: 'folder1', name: 'Folder1', parent_uid: '/' },
-        { folder_uid: 'folder2', name: 'Folder2', parent_uid: 'folder1' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].folderPath).toBe('My Vault / Folder1');
-      expect(result[1].folderPath).toBe('My Vault / Folder1 / Folder2');
-    });
-
-    it('should resolve complex nested structure', () => {
-      const folders: any[] = [
-        { folder_uid: 'root', name: 'Root', parent_uid: '/' },
-        { folder_uid: 'level1', name: 'Level1', parent_uid: 'root' },
-        { folder_uid: 'level2', name: 'Level2', parent_uid: 'level1' },
-        { folder_uid: 'level3', name: 'Level3', parent_uid: 'level2' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(4);
-      expect(result[3].folderPath).toBe('My Vault / Root / Level1 / Level2 / Level3');
-    });
-
-    it('should handle missing parent folders gracefully', () => {
-      const folders: any[] = [
-        { folder_uid: 'folder1', name: 'Folder1', parent_uid: 'missing' },
-        { folder_uid: 'folder2', name: 'Folder2', parent_uid: '/' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].folderPath).toBe('My Vault / Folder1');
-      expect(result[1].folderPath).toBe('My Vault / Folder2');
     });
   });
 

@@ -176,11 +176,15 @@
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
-    "webpack": "^5.99.7",
+    "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "@keeper-security/secrets-manager-core": "^17.2.0",
     "dotenv": "^17.2.0"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
   }
 }

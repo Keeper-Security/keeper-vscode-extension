@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { IFolder, IVaultFolder, Mode } from '../types';
+import { Mode } from '../types';
 import {
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_NOTATION_PATTERNS,
@@ -159,39 +159,6 @@ export class StatusBarSpinner {
     this.hide();
     this.statusBarItem.dispose();
   }
-}
-
-export function resolveFolderPaths(folders: IVaultFolder[]): IFolder[] {
-  logger.logDebug(`Resolving paths for ${folders.length} folders`);
-  // Map folderUid to folder for quick lookup
-  const folderMap = new Map<string, IVaultFolder>();
-  folders.forEach((folder) => folderMap.set(folder.folder_uid, folder));
-
-  const result = folders.map((folder) => {
-    const pathParts: string[] = [folder.name];
-    let currentParentUid = folder.parent_uid;
-
-    while (currentParentUid !== '/') {
-      const parent = folderMap.get(currentParentUid);
-      if (!parent) {
-        break;
-      }
-      pathParts.unshift(parent.name);
-      currentParentUid = parent.parent_uid;
-    }
-
-    pathParts.unshift('My Vault');
-
-    return {
-      folderUid: folder['folder_uid'],
-      name: folder['name'],
-      parentUid: folder['parent_uid'],
-      folderPath: pathParts.join(' / '),
-    };
-  });
-
-  logger.logDebug(`Resolved paths for ${result.length} folders`);
-  return result;
 }
 
 export const documentMatcher =

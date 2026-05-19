@@ -7,6 +7,14 @@ import {
 } from '../../types';
 import { logger } from '../../utils/logger';
 import { CliService } from '../../services/cli';
+import { CLI_SOURCE_KEEPER_DRIVE } from '../../utils/constants';
+
+function parseParentUidFromDetails(details?: string): string | undefined {
+  if (!details?.includes(', Parent:')) {
+    return undefined;
+  }
+  return details.split(', Parent:')[1]?.trim();
+}
 
 export class CliStorageManager extends BaseStorageManager {
   constructor(
@@ -51,6 +59,7 @@ export class CliStorageManager extends BaseStorageManager {
       name: 'My Vault',
       parentUid: '/',
       folderPath: '/',
+      source: CLI_SOURCE_KEEPER_DRIVE,
     };
 
     const foldersWithPaths = [
@@ -65,30 +74,30 @@ export class CliStorageManager extends BaseStorageManager {
 
   resolveFolderPaths(folders: ICliListFolderResponse[]): IFolder[] {
     logger.logDebug(`Resolving paths for ${folders.length} folders`);
-    // Map folderUid to folder for quick lookup
     const folderMap = new Map<string, ICliListFolderResponse>();
-    folders.forEach((folder) => folderMap.set(folder.folder_uid, folder));
+    folders.forEach((folder) => folderMap.set(folder.uid, folder));
 
     const result = folders.map((folder) => {
       const pathParts: string[] = [folder.name];
-      let currentParentUid = folder?.details?.split(", Parent:")[1]?.trim();
+      let currentParentUid = parseParentUidFromDetails(folder.details);
 
-      while (currentParentUid !== '/') {
+      while (currentParentUid && currentParentUid !== '/') {
         const parent = folderMap.get(currentParentUid);
         if (!parent) {
           break;
         }
         pathParts.unshift(parent.name);
-        currentParentUid = parent.parent_uid;
+        currentParentUid = parseParentUidFromDetails(parent.details);
       }
 
       pathParts.unshift('My Vault');
 
       return {
-        folderUid: folder['uid'],
-        name: folder['name'],
-        parentUid: folder['parent_uid'],
+        folderUid: folder.uid,
+        name: folder.name,
+        parentUid: parseParentUidFromDetails(folder.details) ?? '/',
         folderPath: pathParts.join(' / '),
+        source: folder.source,
       };
     });
 

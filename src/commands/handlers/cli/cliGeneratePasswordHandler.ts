@@ -3,6 +3,7 @@ import { createKeeperReference, StatusBarSpinner } from '../../../utils/helper';
 import { BaseGeneratePasswordHandler } from '../base/baseGeneratePasswordHandler';
 import { logger } from '../../../utils/logger';
 import {
+  CLI_SOURCE_KEEPER_DRIVE,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
@@ -62,13 +63,21 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
         `"password"=$GEN`,
       ];
 
+      // Dynamically determine the record command to execute based on the current storage source
+      let recordCommandToExecute = 'record-add';
+
+      // if currentStorage source is KeeperDrive, then use kd-record-add command or default record-add command
+      if(currentStorage?.source === CLI_SOURCE_KEEPER_DRIVE) {
+        recordCommandToExecute = 'kd-record-add';
+      }
+
       // if currentStorage is not "My Vault", then add folder to args
       if (currentStorage?.folderUid !== '/') {
         args.push(`--folder="${currentStorage?.folderUid}"`);
       }
 
       const recordUid = await this.cliService.executeCommanderCommand(
-        'record-add',
+        recordCommandToExecute, 
         args
       );
 

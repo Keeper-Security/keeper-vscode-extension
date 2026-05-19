@@ -1,18 +1,11 @@
 import { KEEPER_NOTATION_FIELD_TYPES } from '../utils/constants';
 
-export interface IVaultFolder {
-  folder_uid: string;
-  name: string;
-  parent_uid: string;
-  flags?: string;
-  folder_path?: string;
-}
-
 export interface IFolder {
   folderUid: string;
   name: string;
   parentUid: string;
   folderPath?: string;
+  source: string;
 }
 
 export interface ICliListFolderResponse {
@@ -55,6 +48,7 @@ export interface ICliListFolderResponse {
   parent_uid: string;
   flags?: string;
   details: string;
+  source: string;
 }
 
 export enum ModeType {

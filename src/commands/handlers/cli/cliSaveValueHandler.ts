@@ -11,6 +11,7 @@ import {
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
 import {
+  CLI_SOURCE_KEEPER_DRIVE,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
@@ -79,6 +80,14 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
 
       const currentStorage = this.storageManager.getCurrentStorage();
 
+      // Dynamically determine the record command to execute based on the current storage source
+      let recordCommandToExecute = 'record-add';
+
+      // if currentStorage source is KeeperDrive, then use kd-record-add command or default record-add command
+      if (currentStorage?.source === CLI_SOURCE_KEEPER_DRIVE) {
+        recordCommandToExecute = 'kd-record-add';
+      }
+
       /**
        *
        * [<FIELD_SET>][<FIELD_TYPE>][<FIELD_LABEL>]=[FIELD_VALUE]
@@ -100,7 +109,7 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
       }
 
       const recordUid = await this.cliService.executeCommanderCommand(
-        'record-add',
+        recordCommandToExecute,
         args
       );
 

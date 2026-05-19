@@ -304,3 +304,6 @@ export const BASE_HANDLER_MESSAGES = {
 } as const;
 
 export const PREVIOUS_USER_SELECTED_MODE_KEY = 'previousUserSelectedMode';
+
+export const CLI_SOURCE_KEEPER_DRIVE = 'KeeperDrive';
+export const CLI_SOURCE_LEGACY = 'Legacy';
