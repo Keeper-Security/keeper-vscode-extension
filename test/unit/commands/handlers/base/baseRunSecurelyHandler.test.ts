@@ -31,6 +31,7 @@ jest.mock('vscode', () => ({
     showInputBox: jest.fn(),
     showOpenDialog: jest.fn(),
     showInformationMessage: jest.fn(),
+    showErrorMessage: jest.fn(),
     activeTextEditor: undefined,
     createTerminal: jest.fn(),
     createOutputChannel: jest.fn(() => ({
@@ -353,6 +354,26 @@ describe('BaseRunSecurelyHandler', () => {
       await (handler as any).resolveSecrets('/workspace/.env', mockFetchSecret);
 
       expect(logger.logError).toHaveBeenCalled();
+      expect(mockFetchSecret).not.toHaveBeenCalled();
+    });
+
+    it('should reject keeper references with control characters in .env', async () => {
+      const maliciousValue = 'keeper://abc\nksm.bat\n/field/password';
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        `API_PASSWORD="${maliciousValue}"`
+      );
+      (dotenv.parse as jest.Mock).mockReturnValue({
+        API_PASSWORD: maliciousValue,
+      });
+      const mockFetchSecret = jest.fn();
+
+      await expect(
+        (handler as any).resolveSecrets('/workspace/.env', mockFetchSecret)
+      ).rejects.toThrow(/control character/i);
+
+      expect(window.showErrorMessage).toHaveBeenCalledWith(
+        BASE_HANDLER_MESSAGES.ERROR.INVALID_KEEPER_REFERENCE_IN_ENV
+      );
       expect(mockFetchSecret).not.toHaveBeenCalled();
     });
 

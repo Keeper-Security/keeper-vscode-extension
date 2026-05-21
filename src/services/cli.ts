@@ -1,9 +1,15 @@
 import { env, ExtensionContext, Uri, window } from 'vscode';
 import { logger } from '../utils/logger';
-import { promisifyExec, StatusBarSpinner } from '../utils/helper';
+import {
+  hasKeeperNotationControlCharacters,
+  isValidKeeperRecordUid,
+  promisifyExec,
+  StatusBarSpinner,
+} from '../utils/helper';
 import { exec, spawn, ChildProcess } from 'child_process';
 import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
 import { HELPER_MESSAGES } from '../utils/constants';
+import { CLI_ERROR_MESSAGES } from '../utils/cli-messages';
 
 // Patterns to filter out from Keeper Commander output (not real errors)
 const BENIGN_PATTERNS = [
@@ -233,12 +239,19 @@ export class CliService {
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(
           () => reject(new Error('Must be asking for interactive login')),
-          30 * 1000 // 30 seconds timeout for auth check
+          5 * 60 * 1000 // 5 minutes timeout for auth check
         );
       });
 
       // Create execution promise for the actual auth check
-      const execPromise = this.executeCommanderCommandLegacyRaw('this-device');
+      /**
+       * We have updated below command to use 'login-status' command instead of 'this-device' command bec 'this-device' takes long time based upon the data in vault.
+       * 'login-status' command returns "Logged in" or "Not logged in" based upon if persistent login is on or off which is much faster to execute.
+       * 
+       */
+
+      // const execPromise = this.executeCommanderCommandLegacyRaw('this-device');
+      const execPromise = this.executeCommanderCommandLegacyRaw('login-status'); // this returns "Logged in" or "Not logged in" based upon if persistent login is on or off
 
       // Race between execution and timeout to prevent hanging
       const { stdout, stderr } = await Promise.race([
@@ -252,10 +265,12 @@ export class CliService {
       }
 
       const out = `${stdout}\n${stderr}`;
-      const persistentOn = /Persistent Login:\s*ON/i.test(out);
+      // const persistentOn = /Persistent Login:\s*ON/i.test(out);
+      const isUserLoggedIn = /Logged in/i.test(out); // this returns true if user is logged in, false otherwise
+
 
       // If persistent login is on, we're authenticated
-      if (persistentOn) {
+      if (isUserLoggedIn) {
         logger.logInfo(`Keeper Commander CLI Authenticated: YES (Persistent)`);
         return true;
       }
@@ -357,10 +372,24 @@ export class CliService {
     }
   }
 
+  private assertSafeCommanderArgs(command: string, args: string[]): void {
+    for (const arg of args) {
+      if (hasKeeperNotationControlCharacters(arg)) {
+        throw new Error(CLI_ERROR_MESSAGES.INVALID_COMMANDER_ARGUMENT);
+      }
+    }
+
+    if (command === 'get' && args.length > 0 && !isValidKeeperRecordUid(args[0])) {
+      throw new Error(CLI_ERROR_MESSAGES.INVALID_COMMANDER_RECORD_UID);
+    }
+  }
+
   public async executeCommanderCommand(
     command: string,
     args: string[] = []
   ): Promise<string> {
+    this.assertSafeCommanderArgs(command, args);
+
     // Initialize on first use
     if (!this.isInitialized) {
       await this.lazyInitialize();

@@ -21,6 +21,9 @@ export const CLI_ERROR_MESSAGES = {
   FAILED_TO_CHOOSE_FOLDER: 'Failed to choose folder',
   FAILED_TO_SAVE_SECRET: 'Failed to save secret',
   FAILED_TO_SWITCH_TO_KSM: 'Failed to switch to KSM mode',
+  INVALID_COMMANDER_ARGUMENT:
+    'Invalid Keeper Commander argument: control characters are not allowed.',
+  INVALID_COMMANDER_RECORD_UID: 'Invalid Keeper record UID.',
 } as const;
 
 export const CLI_LOGGER_DEBUG_MESSAGES = {

@@ -123,6 +123,24 @@ describe('CliService', () => {
   });
 
   describe('executeCommanderCommand', () => {
+    it('should reject get command when record UID contains a newline', async () => {
+      await expect(
+        cliService.executeCommanderCommand('get', [
+          'abc\nksm.bat\n',
+          '--format=json',
+        ])
+      ).rejects.toThrow(/control characters/i);
+    });
+
+    it('should reject get command when record UID has invalid characters', async () => {
+      await expect(
+        cliService.executeCommanderCommand('get', [
+          'not valid!',
+          '--format=json',
+        ])
+      ).rejects.toThrow(/Invalid Keeper record UID/i);
+    });
+
     it('should use legacy mode when not initialized', async () => {
       mockExecFunction.mockResolvedValue({ stdout: 'test output', stderr: '' });
       

@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Mode } from '../types';
 import {
+  BASE_HANDLER_MESSAGES,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_NOTATION_PATTERNS,
+  KEEPER_RECORD_UID_PATTERN,
 } from './constants';
 import { logger } from './logger';
 import {
@@ -12,8 +14,36 @@ import {
   window,
 } from 'vscode';
 
+/** Matches ASCII control characters including \\r, \\n, \\0, and \\t. */
+const KEEPER_NOTATION_CONTROL_CHAR_PATTERN = /[\x00-\x1F\x7F]/;
+
+export function hasKeeperNotationControlCharacters(value: string): boolean {
+  return KEEPER_NOTATION_CONTROL_CHAR_PATTERN.test(value);
+}
+
+export function isValidKeeperRecordUid(recordUid: string): boolean {
+  return KEEPER_RECORD_UID_PATTERN.test(recordUid);
+}
+
+export function assertSafeKeeperNotationEnvValue(
+  value: string,
+  envKey: string
+): void {
+  if (hasKeeperNotationControlCharacters(value)) {
+    const message =
+      BASE_HANDLER_MESSAGES.ERROR.INVALID_KEEPER_REFERENCE_IN_ENV +
+      ` (${envKey})`;
+    logger.logError(message);
+    throw new Error(message);
+  }
+}
+
 export function validateKeeperReference(reference: string): boolean {
   logger.logDebug(`Validating keeper reference: ${reference}`);
+  if (hasKeeperNotationControlCharacters(reference)) {
+    logger.logDebug('Keeper reference validation result: false (control char)');
+    return false;
+  }
   const isValid = KEEPER_NOTATION_PATTERNS.FIELD.test(reference);
   logger.logDebug(`Keeper reference validation result: ${isValid}`);
   return isValid;
@@ -30,6 +60,10 @@ export function createKeeperReference(
 
   if (!recordUid) {
     logger.logError('recordUid is required to create a keeper reference');
+    return null;
+  }
+  if (!isValidKeeperRecordUid(recordUid)) {
+    logger.logError('recordUid contains invalid characters');
     return null;
   }
   if (!itemName) {
@@ -65,21 +99,29 @@ export function parseKeeperReference(reference: string): {
 } | null {
   logger.logDebug(`Parsing keeper reference: ${reference}`);
 
-  // Check if the reference is vaild keeper notation
   if (!validateKeeperReference(reference)) {
     logger.logError(`Invalid keeper notation reference: ${reference}`);
     return null;
   }
 
-  // Parse the reference
-  const removedKeeperPrefix = reference.replace('keeper://', '');
-  const [recordUid, fieldType, itemName] = removedKeeperPrefix.split('/');
+  const match = KEEPER_NOTATION_PATTERNS.FIELD.exec(reference);
+  if (!match) {
+    logger.logError(`Invalid keeper notation reference: ${reference}`);
+    return null;
+  }
 
-  const result = {
-    recordUid,
-    fieldType: fieldType as KEEPER_NOTATION_FIELD_TYPES,
-    itemName,
-  };
+  const recordUid = match[1];
+  const fieldType = match[2] as KEEPER_NOTATION_FIELD_TYPES;
+  const itemName = match[3];
+
+  if (!isValidKeeperRecordUid(recordUid)) {
+    logger.logError(
+      `Invalid keeper record UID in reference: ${reference}`
+    );
+    return null;
+  }
+
+  const result = { recordUid, fieldType, itemName };
   logger.logDebug(`Parsed keeper reference:`, result);
   return result;
 }

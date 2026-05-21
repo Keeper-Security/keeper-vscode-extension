@@ -27,7 +27,10 @@ import {
   parseKeeperReference,
   StatusBarSpinner,
   documentMatcher,
-  isEnvironmentFile
+  isEnvironmentFile,
+  hasKeeperNotationControlCharacters,
+  isValidKeeperRecordUid,
+  assertSafeKeeperNotationEnvValue,
 } from '../../../src/utils/helper';
 import { KEEPER_NOTATION_FIELD_TYPES } from '../../../src/utils/constants';
 import { logger } from '../../../src/utils/logger';
@@ -86,6 +89,64 @@ describe('Helper Functions', () => {
       const result = validateKeeperReference(invalidReference);
       
       expect(result).toBe(false);
+    });
+
+    it('should reject multiline keeper reference (command injection PoC)', () => {
+      const multilineReference =
+        'keeper://abc\nksm.bat\n/field/password';
+      expect(validateKeeperReference(multilineReference)).toBe(false);
+    });
+
+    it('should reject record UID with invalid characters', () => {
+      const invalidUidReference = 'keeper://not valid!/field/password';
+      expect(validateKeeperReference(invalidUidReference)).toBe(false);
+    });
+
+    it('should accept real-style record UID', () => {
+      const reference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/password';
+      expect(validateKeeperReference(reference)).toBe(true);
+    });
+  });
+
+  describe('hasKeeperNotationControlCharacters', () => {
+    it('should detect newline, carriage return, tab, and null', () => {
+      expect(hasKeeperNotationControlCharacters('a\nb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\rb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\tb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\0b')).toBe(true);
+    });
+
+    it('should allow normal keeper notation strings', () => {
+      expect(
+        hasKeeperNotationControlCharacters(
+          'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/password'
+        )
+      ).toBe(false);
+    });
+  });
+
+  describe('isValidKeeperRecordUid', () => {
+    it('should accept URL-safe base64-style UIDs', () => {
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYRA')).toBe(true);
+      expect(isValidKeeperRecordUid('record123')).toBe(true);
+    });
+
+    it('should reject UIDs with slashes, spaces, or newlines', () => {
+      expect(isValidKeeperRecordUid('abc\nksm')).toBe(false);
+      expect(isValidKeeperRecordUid('foo/bar')).toBe(false);
+      expect(isValidKeeperRecordUid('has space')).toBe(false);
+    });
+  });
+
+  describe('assertSafeKeeperNotationEnvValue', () => {
+    it('should throw for control characters in env value', () => {
+      expect(() =>
+        assertSafeKeeperNotationEnvValue(
+          'keeper://abc\nksm.bat\n/field/password',
+          'API_PASSWORD'
+        )
+      ).toThrow(/control character/i);
     });
   });
 
@@ -180,6 +241,24 @@ describe('Helper Functions', () => {
     it('should return null for empty reference', () => {
       const result = parseKeeperReference('');
       expect(result).toBeNull();
+    });
+
+    it('should return null for multiline keeper reference', () => {
+      const result = parseKeeperReference(
+        'keeper://abc\nksm.bat\n/field/password'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should parse real-style record UID', () => {
+      const result = parseKeeperReference(
+        'keeper://G_qXL4pQ8Ebi-tewfu_iaQ/field/password'
+      );
+      expect(result).toEqual({
+        recordUid: 'G_qXL4pQ8Ebi-tewfu_iaQ',
+        fieldType: 'field',
+        itemName: 'password',
+      });
     });
   });
 
