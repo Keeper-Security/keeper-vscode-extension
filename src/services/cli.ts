@@ -265,8 +265,10 @@ export class CliService {
       }
 
       const out = `${stdout}\n${stderr}`;
+      
       // const persistentOn = /Persistent Login:\s*ON/i.test(out);
-      const isUserLoggedIn = /Logged in/i.test(out); // this returns true if user is logged in, false otherwise
+      const isUserLoggedIn =
+        /Not logged in/i.test(out) ? false : /Logged in/i.test(out);
 
 
       // If persistent login is on, we're authenticated

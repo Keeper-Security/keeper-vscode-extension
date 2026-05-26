@@ -5,7 +5,7 @@ import { StatusBarSpinner } from '../../../../src/utils/helper';
 import { logger } from '../../../../src/utils/logger';
 import { safeJsonParse } from '../../../../src/utils/helper';
 import { ICliListFolderResponse, IFolder } from '../../../../src/types';
-import { CLI_SOURCE_KEEPER_DRIVE } from '../../../../src/utils/constants';
+import { CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER } from '../../../../src/utils/constants';
 
 // Mock dependencies
 jest.mock('../../../../src/services/cli');
@@ -74,8 +74,7 @@ describe('CliStorageManager', () => {
   });
 
   describe('ensureValidStorage', () => {
-    it('should call parent ensureValidStorage with fetchAvailableFolders', async () => {
-      // Use a folder that's NOT My Vault so validation actually calls fetchAvailableFolders
+    it('should validate current storage using getFolderByUid', async () => {
       const mockStorage: IFolder = {
         folderUid: '123',
         name: 'Test Folder',
@@ -86,21 +85,28 @@ describe('CliStorageManager', () => {
 
       mockCliService.executeCommanderCommand
         .mockResolvedValueOnce('') // sync-down
-        .mockResolvedValueOnce('[{"uid":"123","folder_uid":"123","name":"Test Folder","parent_uid":"root-folder","details":"Test Folder, Parent:root-folder"}]'); // ls
+        .mockResolvedValueOnce(
+          '[{"folder_uid":"123","name":"Test Folder"}]'
+        ); // get
 
       (safeJsonParse as jest.Mock).mockReturnValue([
         {
-          uid: '123',
           folder_uid: '123',
           name: 'Test Folder',
-          parent_uid: 'root-folder',
-          details: 'Test Folder, Parent:root-folder',
         },
       ]);
 
       const result = await cliStorageManager.ensureValidStorage();
 
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down --force');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('get', [
+        '123',
+        '--format=json',
+      ]);
+      expect(mockCliService.executeCommanderCommand).not.toHaveBeenCalledWith(
+        'ls',
+        expect.anything()
+      );
       expect(result).toBe(true);
     });
   });
@@ -125,7 +131,7 @@ describe('CliStorageManager', () => {
 
       const result = await cliStorageManager.fetchAvailableFolders();
 
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down --force');
       expect(logger.logDebug).toHaveBeenCalledWith(
         'CliStorageManager: Syncing down latest records from vault'
       );
@@ -147,7 +153,7 @@ describe('CliStorageManager', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
-        source: CLI_SOURCE_KEEPER_DRIVE,
+        source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
       });
       expect(result.availableFolders.length).toBeGreaterThan(0);
       expect(result.availableFolders[0]).toEqual(result.rootFolder);

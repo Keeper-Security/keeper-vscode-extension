@@ -16,7 +16,7 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
   CLI_SUCCESS_MESSAGES,
 } from '../../../utils/cli-messages';
-import { ICliListCommandResponse } from '../../../types';
+import { ICliListRecordResponse } from '../../../types';
 
 export class CliGetValueHandler extends BaseGetValueHandler {
   constructor(
@@ -43,7 +43,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
           ': ' +
           CLI_LOGGER_DEBUG_MESSAGES.SYNCING_DOWN_LATEST_RECORDS_FROM_VAULT
       );
-      await this.cliService.executeCommanderCommand('sync-down');
+      await this.cliService.executeCommanderCommand('sync-down --force');
 
       // List available records
       logger.logDebug(
@@ -51,11 +51,14 @@ export class CliGetValueHandler extends BaseGetValueHandler {
           ': ' +
           CLI_LOGGER_DEBUG_MESSAGES.EXECUTING_LIST_COMMAND_TO_GET_AVAILABLE_RECORDS
       );
+
+      // TODO: 1. run nsf-list --records --format json if selected storage is nested share folder else current implementation
+      // 2. for record display title add NSF or Legacy suffix
       const secrets = await this.cliService.executeCommanderCommand('list', [
         '--format=json',
       ]);
       // Use safe parser that cleans output first
-      const allRecords: ICliListCommandResponse[] = safeJsonParse(secrets, []);
+      const allRecords: ICliListRecordResponse[] = safeJsonParse(secrets, []);
       logger.logDebug(
         this.constructor.name +
           ': ' +
@@ -82,7 +85,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
        */
       const processedAllRecords: IRecordQuickPick[] = allRecords.map(
         (record) => ({
-          label: record.title,
+          label: `${record.title} (${record.record_category})`,
           value: record.record_uid,
         })
       );

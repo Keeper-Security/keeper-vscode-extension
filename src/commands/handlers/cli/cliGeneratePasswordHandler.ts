@@ -3,7 +3,7 @@ import { createKeeperReference, StatusBarSpinner } from '../../../utils/helper';
 import { BaseGeneratePasswordHandler } from '../base/baseGeneratePasswordHandler';
 import { logger } from '../../../utils/logger';
 import {
-  CLI_SOURCE_KEEPER_DRIVE,
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
@@ -66,9 +66,9 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       // Dynamically determine the record command to execute based on the current storage source
       let recordCommandToExecute = 'record-add';
 
-      // if currentStorage source is KeeperDrive, then use kd-record-add command or default record-add command
-      if(currentStorage?.source === CLI_SOURCE_KEEPER_DRIVE) {
-        recordCommandToExecute = 'kd-record-add';
+      // if currentStorage source is KeeperDrive, then use nsf-record-add command or default record-add command
+      if(currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
+        recordCommandToExecute = 'nsf-record-add';
       }
 
       // if currentStorage is not "My Vault", then add folder to args

@@ -144,6 +144,7 @@ describe('KsmStorageManager', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: 'My Vault / My Vault', // This is what the code actually produces
+        source: '',
       });
     });
 
@@ -238,6 +239,7 @@ describe('KsmStorageManager', () => {
         name: 'Folder 1',
         parentUid: '/',
         folderPath: 'My Vault / Folder 1',
+        source: '',
       });
       expect(logger.logDebug).toHaveBeenCalledWith('Resolving paths for 1 folders');
       expect(logger.logDebug).toHaveBeenCalledWith('Resolved paths for 1 folders');
@@ -265,12 +267,14 @@ describe('KsmStorageManager', () => {
         name: 'Parent Folder',
         parentUid: '/',
         folderPath: 'My Vault / Parent Folder',
+        source: '',
       });
       expect(result[1]).toEqual({
         folderUid: '456',
         name: 'Child Folder',
         parentUid: '123',
         folderPath: 'My Vault / Parent Folder / Child Folder',
+        source: '',
       });
     });
 
@@ -305,6 +309,7 @@ describe('KsmStorageManager', () => {
         name: 'Child Folder',
         parentUid: '999',
         folderPath: 'My Vault / Child Folder',
+        source: '',
       });
     });
 
@@ -334,6 +339,7 @@ describe('KsmStorageManager', () => {
         name: 'Level 3',
         parentUid: '2',
         folderPath: 'My Vault / Level 1 / Level 2 / Level 3',
+        source: '',
       });
     });
 

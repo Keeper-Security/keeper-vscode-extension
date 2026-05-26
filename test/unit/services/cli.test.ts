@@ -97,10 +97,16 @@ describe('CliService', () => {
     });
 
     it('should return true when both installed and authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' }) // --version
-        .mockResolvedValueOnce({ stdout: 'Persistent Login: ON', stderr: '' }); // this-device
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await cliService.isCLIReady();
       expect(result).toBe(true);
     });
@@ -113,10 +119,19 @@ describe('CliService', () => {
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' }) // --version
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }); // this-device
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await cliService.isCLIReady();
       expect(result).toBe(false);
     });
@@ -247,35 +262,49 @@ describe('CliService', () => {
 
   describe('checkCommanderAuth', () => {
     it('should return true when persistent login is on', async () => {
-      mockExecFunction.mockResolvedValue({ 
-        stdout: 'Persistent Login: ON', 
-        stderr: '' 
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
       });
-      
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(true);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: YES (Persistent)');
     });
 
     it('should return true when biometric authentication is detected', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }) // this-device
-        .mockResolvedValueOnce({ stdout: 'Status: SUCCESSFUL', stderr: '' }); // biometric verify
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'Status: SUCCESSFUL', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(true);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: YES (Biometric)');
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }) // this-device
-        .mockResolvedValueOnce({ stdout: 'No biometric', stderr: '' }); // biometric verify
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(false);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: NO');
     });
@@ -320,19 +349,22 @@ describe('CliService', () => {
   describe('Additional Coverage Tests', () => {
     // Test lazy initialization when already initialized
     it('should skip initialization when already initialized', async () => {
-      // First call to initialize
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' })
-        .mockResolvedValueOnce({ stdout: 'Persistent Login: ON', stderr: '' });
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       await cliService.isCLIReady();
-      
-      // Clear only the logDebug calls, not all mocks
+
       (mockLogger.logDebug as jest.Mock).mockClear();
-      
-      // Call lazyInitialize directly to test the skip path
+
       await (cliService as any).lazyInitialize();
-      
+
       expect(mockLogger.logDebug).toHaveBeenCalledWith(
         'CliService.lazyInitialize: Already initialized, skipping'
       );
@@ -350,12 +382,21 @@ describe('CliService', () => {
 
     // Test authentication error handling
     it('should handle authentication check failure and show error', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' })
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' });
-      
+      mockExecFunction.mockImplementation((command: string) => {
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       await cliService.isCLIReady();
-      
+
       expect(mockLogger.logError).toHaveBeenCalledWith('Keeper Commander CLI is not authenticated');
       expect(mockSpinner.hide).toHaveBeenCalled();
     });

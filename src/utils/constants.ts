@@ -318,5 +318,7 @@ export const BASE_HANDLER_MESSAGES = {
 
 export const PREVIOUS_USER_SELECTED_MODE_KEY = 'previousUserSelectedMode';
 
-export const CLI_SOURCE_KEEPER_DRIVE = 'KeeperDrive';
-export const CLI_SOURCE_LEGACY = 'Legacy';
+export const CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER = 'Nested Share Folder';
+export const CLI_FOLDER_SOURCE_LEGACY = 'Legacy';
+export const CLI_RECORD_CATEGORY_NESTED = 'Nested';
+export const CLI_RECORD_CATEGORY_CLASSIC = 'Classic';

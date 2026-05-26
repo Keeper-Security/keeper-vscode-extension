@@ -128,7 +128,7 @@ describe('CliGetValueHandler', () => {
 
       expect(mockCliService.isCLIReady).toHaveBeenCalled();
       expect(mockSpinner.show).toHaveBeenCalledWith(CLI_INFO_MESSAGES.RETRIEVING_SECRETS);
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down --force');
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('list', ['--format=json']);
       expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('get', ['record1', '--format=json']);
       expect(logger.logDebug).toHaveBeenCalledWith(

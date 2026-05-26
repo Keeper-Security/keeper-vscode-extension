@@ -11,7 +11,7 @@ import {
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
 import {
-  CLI_SOURCE_KEEPER_DRIVE,
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
@@ -83,9 +83,9 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
       // Dynamically determine the record command to execute based on the current storage source
       let recordCommandToExecute = 'record-add';
 
-      // if currentStorage source is KeeperDrive, then use kd-record-add command or default record-add command
-      if (currentStorage?.source === CLI_SOURCE_KEEPER_DRIVE) {
-        recordCommandToExecute = 'kd-record-add';
+      // if currentStorage source is KeeperDrive, then use nsf-record-add command or default record-add command
+      if (currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
+        recordCommandToExecute = 'nsf-record-add';
       }
 
       /**

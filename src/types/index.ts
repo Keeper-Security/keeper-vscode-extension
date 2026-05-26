@@ -35,20 +35,30 @@ export interface IField {
   fieldType?: KEEPER_NOTATION_FIELD_TYPES;
 }
 
-export interface ICliListCommandResponse {
+export interface ICliListRecordResponse {
   record_uid: string;
   title: string;
   type: string;
   shared: string;
+  record_category: string;
 }
 
 export interface ICliListFolderResponse {
   uid: string;
   name: string;
-  parent_uid: string;
-  flags?: string;
+  // parent_uid: string; // this currenlty not used
+  // flags?: string; // this currenlty not used
   details: string;
   source: string;
+}
+
+export interface ICliGetFolderResponse {
+  folder_uid: string; // this attribute for KD-Folder's and classic non shared folder
+  shared_folder_uid?: string; // this is required for shared folders response
+
+  type?: string;
+  name: string;
+  parent_folder_uid?: string;
 }
 
 export enum ModeType {
