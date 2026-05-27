@@ -11,10 +11,10 @@ import {
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
 import {
-  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
+import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
 
 export class CliSaveValueHandler extends BaseSaveValueHandler {
   constructor(
@@ -76,17 +76,20 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
         return;
       }
 
-      this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
-
       const currentStorage = this.storageManager.getCurrentStorage();
 
-      // Dynamically determine the record command to execute based on the current storage source
-      let recordCommandToExecute = 'record-add';
-
-      // if currentStorage source is KeeperDrive, then use nsf-record-add command or default record-add command
-      if (currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
-        recordCommandToExecute = 'nsf-record-add';
+      const recordCommandToExecute =
+        await resolveRecordAddCommand(currentStorage);
+      if (!recordCommandToExecute) {
+        logger.logDebug(
+          this.constructor.name +
+            ': ' +
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_PERMISSION_MODEL_SELECTION
+        );
+        return;
       }
+
+      this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
 
       /**
        *

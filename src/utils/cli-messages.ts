@@ -6,6 +6,8 @@ export const CLI_INFO_MESSAGES = {
   RETRIEVING_SECRET_DETAILS: 'Retrieving secret details...',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
   NO_FIELDS_TO_SHOW: 'No renderable fields. Field list is empty or only contains object-type values that were excluded from display.',
+  QUICK_PICK_FOR_PERMISSION_MODEL_TITLE: 'Select permission model',
+  QUICK_PICK_FOR_PERMISSION_MODEL_PLACEHOLDER: 'Choose how the new record should be created in My Vault',
 } as const;
 
 export const CLI_SUCCESS_MESSAGES = {
@@ -33,6 +35,7 @@ export const CLI_LOGGER_DEBUG_MESSAGES = {
   NO_RECORDS_FOUND: 'No records found',
   NO_RECORD_DATA_FOUND_FOR_RECORD_UID: 'No record data found for record UID',
   USER_CANCELLED_RECORD_NAME_INPUT: 'User cancelled while entering record name',
+  USER_CANCELLED_PERMISSION_MODEL_SELECTION: 'User cancelled while selecting permission model',
   ENSURING_VALID_STORAGE: 'Ensuring valid storage',
   SYNCING_DOWN_LATEST_RECORDS_FROM_VAULT: 'Syncing down latest records from vault',
   EXECUTING_LIST_COMMAND_TO_GET_AVAILABLE_RECORDS: 'Executing list command to get available records',

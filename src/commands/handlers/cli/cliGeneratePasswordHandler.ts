@@ -3,7 +3,6 @@ import { createKeeperReference, StatusBarSpinner } from '../../../utils/helper';
 import { BaseGeneratePasswordHandler } from '../base/baseGeneratePasswordHandler';
 import { logger } from '../../../utils/logger';
 import {
-  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
@@ -15,6 +14,7 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
+import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
 
 export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
   constructor(
@@ -53,23 +53,26 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
         return;
       }
 
-      this.spinner.show(CLI_INFO_MESSAGES.GENERATING_PASSWORD);
-
       const currentStorage = this.storageManager.getCurrentStorage();
+
+      const recordCommandToExecute =
+        await resolveRecordAddCommand(currentStorage);
+      if (!recordCommandToExecute) {
+        logger.logDebug(
+          this.constructor.name +
+            ': ' +
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_PERMISSION_MODEL_SELECTION
+        );
+        return;
+      }
+
+      this.spinner.show(CLI_INFO_MESSAGES.GENERATING_PASSWORD);
 
       const args = [
         `--title="${recordName}"`,
         `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
         `"password"=$GEN`,
       ];
-
-      // Dynamically determine the record command to execute based on the current storage source
-      let recordCommandToExecute = 'record-add';
-
-      // if currentStorage source is KeeperDrive, then use nsf-record-add command or default record-add command
-      if(currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
-        recordCommandToExecute = 'nsf-record-add';
-      }
 
       // if currentStorage is not "My Vault", then add folder to args
       if (currentStorage?.folderUid !== '/') {

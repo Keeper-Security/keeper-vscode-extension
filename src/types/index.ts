@@ -38,9 +38,12 @@ export interface IField {
 export interface ICliListRecordResponse {
   record_uid: string;
   title: string;
-  type: string;
-  shared: string;
   record_category: string;
+}
+
+export interface ICliNsfListRecordResponse {
+  UID: string;
+  Title: string;
 }
 
 export interface ICliListFolderResponse {

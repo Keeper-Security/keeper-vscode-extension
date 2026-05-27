@@ -61,7 +61,7 @@ export class CliStorageManager extends BaseStorageManager {
       name: 'My Vault',
       parentUid: '/',
       folderPath: '/',
-      source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+      source: "",
     };
 
     const foldersWithPaths = [
