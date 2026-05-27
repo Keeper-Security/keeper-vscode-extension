@@ -1,7 +1,12 @@
 import { window } from 'vscode';
 import { logger } from '../../../utils/logger';
 import { BaseGetValueHandler } from '../base/baseGetValueHandler';
-import { CLI_FOLDER_SOURCE_LEGACY, CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER, CLI_RECORD_CATEGORY_CLASSIC, KEEPER_NOTATION_FIELD_TYPES } from '../../../utils/constants';
+import {
+  CLI_FOLDER_SOURCE_LEGACY,
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+  CLI_RECORD_CATEGORY_CLASSIC,
+  KEEPER_NOTATION_FIELD_TYPES,
+} from '../../../utils/constants';
 import {
   createKeeperReference,
   safeJsonParse,
@@ -16,7 +21,10 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
   CLI_SUCCESS_MESSAGES,
 } from '../../../utils/cli-messages';
-import { ICliListRecordResponse, ICliNsfListRecordResponse } from '../../../types';
+import {
+  ICliListRecordResponse,
+  ICliNsfListRecordResponse,
+} from '../../../types';
 import { CliStorageManager } from '../../storage/cliStorageManager';
 
 export class CliGetValueHandler extends BaseGetValueHandler {
@@ -65,18 +73,17 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       const currentStorage = this.storageManager.getCurrentStorage();
       let processedAllRecords: IRecordQuickPick[] = [];
 
-      if (currentStorage?.folderUid === '/') {
-        // My Vault: fetch both NSF and classic records. CLI service blocks parallel
-        // commands (see `isExecutingCommand` in services/cli.ts), so run sequentially.
-        const nsfQuickPickItems = await this.fetchAndProcessNsfRecords();
-        const classicQuickPickItems = await this.fetchAndProcessClassicRecords();
-        processedAllRecords = [...nsfQuickPickItems, ...classicQuickPickItems];
-      } else if (
-        currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER
-      ) {
+      if (currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
         processedAllRecords = await this.fetchAndProcessNsfRecords();
       } else if (currentStorage?.source === CLI_FOLDER_SOURCE_LEGACY) {
         processedAllRecords = await this.fetchAndProcessClassicRecords();
+      } else {
+        // My Vault: fetch both NSF and classic records. CLI service blocks parallel
+        // commands (see `isExecutingCommand` in services/cli.ts), so run sequentially.
+        const nsfQuickPickItems = await this.fetchAndProcessNsfRecords();
+        const classicQuickPickItems =
+          await this.fetchAndProcessClassicRecords();
+        processedAllRecords = [...nsfQuickPickItems, ...classicQuickPickItems];
       }
 
       logger.logDebug(
@@ -230,7 +237,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
     );
 
     return nsfRecords.map((record) => ({
-      label: `${record.Title} (Nested)`, 
+      label: `${record.Title} (Nested)`,
       value: record.UID,
     }));
   }
@@ -250,7 +257,9 @@ export class CliGetValueHandler extends BaseGetValueHandler {
     );
 
     return classicRecords
-      .filter((record) => record.record_category === CLI_RECORD_CATEGORY_CLASSIC)
+      .filter(
+        (record) => record.record_category === CLI_RECORD_CATEGORY_CLASSIC
+      )
       .map((record) => ({
         label: `${record.title} (Classic)`,
         value: record.record_uid,

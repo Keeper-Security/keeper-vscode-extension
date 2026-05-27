@@ -5,7 +5,6 @@ import { StatusBarSpinner } from '../../../../src/utils/helper';
 import { logger } from '../../../../src/utils/logger';
 import { safeJsonParse } from '../../../../src/utils/helper';
 import { ICliListFolderResponse, IFolder } from '../../../../src/types';
-import { CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER } from '../../../../src/utils/constants';
 
 // Mock dependencies
 jest.mock('../../../../src/services/cli');
@@ -153,7 +152,7 @@ describe('CliStorageManager', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
-        source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+        source: '',
       });
       expect(result.availableFolders.length).toBeGreaterThan(0);
       expect(result.availableFolders[0]).toEqual(result.rootFolder);

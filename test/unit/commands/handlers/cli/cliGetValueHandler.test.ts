@@ -1,6 +1,7 @@
 import { window } from 'vscode';
 import { CliGetValueHandler } from '../../../../../src/commands/handlers/cli/cliGetValueHandler';
 import { CliService } from '../../../../../src/services/cli';
+import { CliStorageManager } from '../../../../../src/commands/storage/cliStorageManager';
 import { StatusBarSpinner } from '../../../../../src/utils/helper';
 import { logger } from '../../../../../src/utils/logger';
 import {
@@ -10,12 +11,17 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
   CLI_SUCCESS_MESSAGES,
 } from '../../../../../src/utils/cli-messages';
-import { KEEPER_NOTATION_FIELD_TYPES } from '../../../../../src/utils/constants';
-import { ICliListCommandResponse } from '../../../../../src/types';
+import {
+  CLI_FOLDER_SOURCE_LEGACY,
+  CLI_RECORD_CATEGORY_CLASSIC,
+  KEEPER_NOTATION_FIELD_TYPES,
+} from '../../../../../src/utils/constants';
+import { ICliListRecordResponse } from '../../../../../src/types';
 import { IRecordQuickPick } from '../../../../../src/types/ksm';
 
 // Mock dependencies
 jest.mock('../../../../../src/services/cli');
+jest.mock('../../../../../src/commands/storage/cliStorageManager');
 jest.mock('../../../../../src/utils/logger');
 jest.mock('../../../../../src/utils/helper', () => ({
   ...jest.requireActual('../../../../../src/utils/helper'),
@@ -47,8 +53,19 @@ const { createKeeperReference, safeJsonParse } = require('../../../../../src/uti
 describe('CliGetValueHandler', () => {
   let mockCliService: jest.Mocked<CliService>;
   let mockSpinner: jest.Mocked<StatusBarSpinner>;
+  let mockStorageManager: jest.Mocked<CliStorageManager>;
   let cliGetValueHandler: CliGetValueHandler;
   let mockActiveTextEditor: any;
+
+  // Default current storage used by most tests: a Legacy (classic) folder so the
+  // handler routes to the `list --format=json` command path.
+  const legacyFolderStorage = {
+    folderUid: 'folder123',
+    name: 'Classic Folder',
+    parentUid: '/',
+    folderPath: '/Classic Folder',
+    source: CLI_FOLDER_SOURCE_LEGACY,
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -65,6 +82,10 @@ describe('CliGetValueHandler', () => {
       updateMessage: jest.fn(),
     } as unknown as jest.Mocked<StatusBarSpinner>;
 
+    mockStorageManager = {
+      getCurrentStorage: jest.fn().mockReturnValue(legacyFolderStorage),
+    } as unknown as jest.Mocked<CliStorageManager>;
+
     mockActiveTextEditor = {
       document: {
         uri: { fsPath: '/test/file.txt' },
@@ -76,7 +97,11 @@ describe('CliGetValueHandler', () => {
       edit: jest.fn().mockResolvedValue(true),
     };
 
-    cliGetValueHandler = new CliGetValueHandler(mockSpinner, mockCliService);
+    cliGetValueHandler = new CliGetValueHandler(
+      mockSpinner,
+      mockCliService,
+      mockStorageManager
+    );
 
     // Reset mocks
     (createKeeperReference as jest.Mock).mockReset();
@@ -84,18 +109,22 @@ describe('CliGetValueHandler', () => {
   });
 
   describe('constructor', () => {
-    it('should initialize with spinner and cliService', () => {
+    it('should initialize with spinner, cliService and storageManager', () => {
       expect(cliGetValueHandler).toBeInstanceOf(CliGetValueHandler);
-      const handler = new CliGetValueHandler(mockSpinner, mockCliService);
+      const handler = new CliGetValueHandler(
+        mockSpinner,
+        mockCliService,
+        mockStorageManager
+      );
       expect(handler).toBeDefined();
     });
   });
 
   describe('execute', () => {
     it('should execute successfully with records and fields', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
-        { record_uid: 'record2', title: 'Record 2', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
+        { record_uid: 'record2', title: 'Record 2', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [
@@ -179,8 +208,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should return early when user cancels record selection', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
 
       mockCliService.isCLIReady.mockResolvedValue(true);
@@ -199,8 +228,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should show no record data message when record data is empty', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const selectedRecord: IRecordQuickPick = { label: 'Record 1', value: 'record1' };
 
@@ -226,8 +255,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should show no fields message when no fields available', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = { fields: [], custom: [] };
       const selectedRecord: IRecordQuickPick = { label: 'Record 1', value: 'record1' };
@@ -251,8 +280,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should return early when user cancels field selection', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [{ type: 'login', label: 'Username', value: ['user1'] }],
@@ -281,8 +310,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should throw error when createKeeperReference returns null', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [{ type: 'login', label: 'Username', value: ['user1'] }],
@@ -318,8 +347,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should not show success message when insert fails', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [{ type: 'login', label: 'Username', value: ['user1'] }],
@@ -389,8 +418,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should process both fields and custom fields', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [
@@ -432,8 +461,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should trim record value before creating keeper reference', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: [{ type: 'login', label: 'Username', value: ['user1'] }],
@@ -467,8 +496,8 @@ describe('CliGetValueHandler', () => {
     });
 
     it('should handle null/undefined fields and custom arrays', async () => {
-      const mockRecords: ICliListCommandResponse[] = [
-        { record_uid: 'record1', title: 'Record 1', type: 'record', shared: 'false' },
+      const mockRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
       ];
       const mockRecordData = {
         fields: null,

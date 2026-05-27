@@ -58,7 +58,9 @@ describe('BaseGetValueHandler', () => {
 
       expect(window.showQuickPick).toHaveBeenCalledWith(items, {
         ...commonQuickPickOptions,
-        title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_TITLE,
+        title:
+          BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_TITLE +
+          ' (Showing compatible records)',
         placeHolder: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_PLACEHOLDER,
       });
       expect(result).toEqual(selectedItem);
