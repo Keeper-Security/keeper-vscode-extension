@@ -16,10 +16,10 @@ export const COMMANDS = {
   SWITCH_TO_KSM: makeCommand('switchToKsm'),
 };
 
-/** Keeper record UIDs are URL-safe base64 tokens (no slashes, whitespace, or control chars). */
-export const KEEPER_RECORD_UID_PATTERN = /^[A-Za-z0-9_-]+$/;
+/** Keeper record UIDs are URL-safe base64 tokens of exactly 22 characters (no slashes, whitespace, or control chars). */
+export const KEEPER_RECORD_UID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 
-const KEEPER_NOTATION_RECORD_UID = '([A-Za-z0-9_-]+)';
+const KEEPER_NOTATION_RECORD_UID = '([A-Za-z0-9_-]{22})';
 
 export const KEEPER_NOTATION_PATTERNS = {
   BASIC: new RegExp(
@@ -318,7 +318,7 @@ export const BASE_HANDLER_MESSAGES = {
 
 export const PREVIOUS_USER_SELECTED_MODE_KEY = 'previousUserSelectedMode';
 
-export const CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER = 'Nested Share Folder';
-export const CLI_FOLDER_SOURCE_LEGACY = 'Legacy';
-export const CLI_RECORD_CATEGORY_NESTED = 'Nested';
-export const CLI_RECORD_CATEGORY_CLASSIC = 'Classic';
+export const CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER = 'nested_share_folder';
+export const CLI_FOLDER_SOURCE_LEGACY = 'classic_folder';
+export const CLI_RECORD_CATEGORY_NESTED = 'nested';
+export const CLI_RECORD_CATEGORY_CLASSIC = 'classic';

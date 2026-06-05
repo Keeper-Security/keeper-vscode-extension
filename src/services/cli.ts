@@ -6,7 +6,7 @@ import {
   promisifyExec,
   StatusBarSpinner,
 } from '../utils/helper';
-import { exec, spawn, ChildProcess } from 'child_process';
+import { execFile, spawn, ChildProcess } from 'child_process';
 import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
 import { HELPER_MESSAGES } from '../utils/constants';
 import { CLI_ERROR_MESSAGES } from '../utils/cli-messages';
@@ -317,7 +317,9 @@ export class CliService {
         );
       });
 
-      const execPromise = this.executeCommanderCommandLegacyRaw('biometric verify');
+      const execPromise = this.executeCommanderCommandLegacyRaw('biometric', [
+        'verify',
+      ]);
 
       const { stdout, stderr } = await Promise.race([
         execPromise,
@@ -340,13 +342,39 @@ export class CliService {
     }
   }
 
-  // add a raw executor (no cleaning)
+  /**
+   * Raw executor for the Keeper Commander CLI (no output cleaning).
+   *
+   * Spawns `keeper` directly via `execFile` with a pre-tokenized argv. No
+   * shell is involved, so shell metacharacters in `command` or `args`
+   * (`;`, `&&`, `|`, `$`, backticks, redirections, globs, ...) are passed
+   * to the child as plain bytes and cannot be interpreted as syntax. This
+   * is the structural defense behind `assertSafeCommanderArgs` — the regex
+   * is the policy, this is the mechanism.
+   *
+   * On Windows the `keeper` entry point may be a `.cmd` shim that Node's
+   * `execFile` does not always resolve, so we route through `cmd /c` (the
+   * same pattern the persistent-process path already uses). Args are still
+   * passed as a tokenized array; cmd.exe receives them as separate argv
+   * entries, not concatenated into a string.
+   *
+   * `command` must be a single argv token (e.g. `"get"`, `"login-status"`).
+   * Multi-word subcommands such as `biometric verify` must be passed as
+   * `("biometric", ["verify"])`.
+   */
   private async executeCommanderCommandLegacyRaw(
     command: string,
     args: string[] = []
   ): Promise<{ stdout: string; stderr: string }> {
-    const fullCommand = `keeper ${command} ${args.join(' ')}`;
-    const { stdout, stderr } = await promisifyExec(exec)(fullCommand);
+    const isWindows = process.platform === 'win32';
+    const file = isWindows ? 'cmd' : 'keeper';
+    const argv = isWindows
+      ? ['/c', 'keeper', command, ...args]
+      : [command, ...args];
+
+    const { stdout, stderr } = await promisifyExec(execFile)(file, argv, {
+      maxBuffer: 10 * 1024 * 1024,
+    });
     return { stdout: String(stdout || ''), stderr: String(stderr || '') };
   }
 

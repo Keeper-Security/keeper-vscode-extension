@@ -256,9 +256,10 @@ export class CliGetValueHandler extends BaseGetValueHandler {
       []
     );
 
+    // filter records to only include classic records
     return classicRecords
       .filter(
-        (record) => record.record_category === CLI_RECORD_CATEGORY_CLASSIC
+        (record) => record.record_category.toLowerCase() === CLI_RECORD_CATEGORY_CLASSIC
       )
       .map((record) => ({
         label: `${record.title} (Classic)`,

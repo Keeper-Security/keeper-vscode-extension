@@ -14,6 +14,7 @@ jest.mock('../../../src/utils/helper', () => ({
 jest.mock('../../../src/utils/logger');
 jest.mock('child_process', () => ({
   exec: jest.fn(),
+  execFile: jest.fn(),
   spawn: jest.fn()
 }));
 jest.mock('vscode', () => ({
@@ -34,6 +35,17 @@ jest.mock('vscode', () => ({
     parse: jest.fn()
   }
 }));
+
+/**
+ * Reconstruct the equivalent shell command string from an `execFile`-style
+ * call so existing pattern-matching test logic (`includes('--version')`,
+ * `includes('biometric verify')`, ...) keeps working without rewriting every
+ * dispatch arm. This is test-only sugar — the production code never builds
+ * this string.
+ */
+function joinExecCall(file: string, args: string[] = []): string {
+  return [file, ...args].join(' ');
+}
 
 describe('CliService', () => {
   let mockContext: ExtensionContext;
@@ -97,7 +109,8 @@ describe('CliService', () => {
     });
 
     it('should return true when both installed and authenticated', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('--version')) {
           return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
         }
@@ -119,7 +132,8 @@ describe('CliService', () => {
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('--version')) {
           return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
         }
@@ -193,8 +207,18 @@ describe('CliService', () => {
       mockExecFunction.mockResolvedValue({ stdout: 'test output', stderr: '' });
       
       const result = await cliService.executeCommanderCommandLegacy('test-command', ['arg1', 'arg2']);
-      
-      expect(mockExecFunction).toHaveBeenCalledWith('keeper test-command arg1 arg2');
+
+      const isWindows = process.platform === 'win32';
+      const expectedFile = isWindows ? 'cmd' : 'keeper';
+      const expectedArgv = isWindows
+        ? ['/c', 'keeper', 'test-command', 'arg1', 'arg2']
+        : ['test-command', 'arg1', 'arg2'];
+
+      expect(mockExecFunction).toHaveBeenCalledWith(
+        expectedFile,
+        expectedArgv,
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
       expect(result).toBe('test output');
     });
 
@@ -262,7 +286,8 @@ describe('CliService', () => {
 
   describe('checkCommanderAuth', () => {
     it('should return true when persistent login is on', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('login-status')) {
           return Promise.resolve({ stdout: 'Logged in', stderr: '' });
         }
@@ -276,7 +301,8 @@ describe('CliService', () => {
     });
 
     it('should return true when biometric authentication is detected', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('login-status')) {
           return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
         }
@@ -293,7 +319,8 @@ describe('CliService', () => {
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('login-status')) {
           return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
         }
@@ -349,7 +376,8 @@ describe('CliService', () => {
   describe('Additional Coverage Tests', () => {
     // Test lazy initialization when already initialized
     it('should skip initialization when already initialized', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('--version')) {
           return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
         }
@@ -382,7 +410,8 @@ describe('CliService', () => {
 
     // Test authentication error handling
     it('should handle authentication check failure and show error', async () => {
-      mockExecFunction.mockImplementation((command: string) => {
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
         if (command.includes('--version')) {
           return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
         }
@@ -494,11 +523,50 @@ describe('CliService', () => {
     // Test executeCommanderCommandLegacyRaw
     it('should execute raw command without cleaning', async () => {
       mockExecFunction.mockResolvedValue({ stdout: 'raw output', stderr: 'raw error' });
-      
+
       const result = await (cliService as any).executeCommanderCommandLegacyRaw('test-command', ['arg1']);
-      
+
+      const isWindows = process.platform === 'win32';
+      const expectedFile = isWindows ? 'cmd' : 'keeper';
+      const expectedArgv = isWindows
+        ? ['/c', 'keeper', 'test-command', 'arg1']
+        : ['test-command', 'arg1'];
+
       expect(result).toEqual({ stdout: 'raw output', stderr: 'raw error' });
-      expect(mockExecFunction).toHaveBeenCalledWith('keeper test-command arg1');
+      expect(mockExecFunction).toHaveBeenCalledWith(
+        expectedFile,
+        expectedArgv,
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
+    });
+
+    // Security regression test: shell metacharacters in args must be passed
+    // as a single argv element, never to a shell. With execFile/array-args
+    // there is no shell, so the metacharacters are inert.
+    it('should pass shell metacharacters as a single argv element with no shell involved', async () => {
+      mockExecFunction.mockResolvedValue({ stdout: 'ok', stderr: '' });
+
+      const malicious = 'foo;cd $HOME && id > /tmp/pwned.txt;#';
+      await (cliService as any).executeCommanderCommandLegacyRaw('get', [
+        malicious,
+        '--format=json',
+      ]);
+
+      const [file, argv, options] = mockExecFunction.mock.calls[0];
+
+      // No call should ever target a shell binary.
+      expect(file).not.toMatch(/\/(?:ba)?sh$/);
+      expect(file).not.toBe('sh');
+      expect(file).not.toBe('bash');
+      expect(file).not.toBe('zsh');
+      // Args must be a real array — not a single shell-parsed string.
+      expect(Array.isArray(argv)).toBe(true);
+      // The malicious payload must appear as ONE argv entry, byte-for-byte.
+      expect(argv).toContain(malicious);
+      // options must be passed (covers maxBuffer plumbing).
+      expect(options).toEqual(
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
     });
 
     // Test cleanCommanderNoise function

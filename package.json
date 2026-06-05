@@ -186,5 +186,11 @@
   "overrides": {
     "diff": "^8.0.3",
     "serialize-javascript": "^7.0.5"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Keeper Security accesses local CLI binaries and reads .env files; untrusted workspaces could include malicious .env files or workspace-relative tools that hijack the extension's CLI calls."
+    }
   }
 }

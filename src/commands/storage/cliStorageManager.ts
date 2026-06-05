@@ -8,7 +8,6 @@ import {
 } from '../../types';
 import { logger } from '../../utils/logger';
 import { CliService } from '../../services/cli';
-import { CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER } from '../../utils/constants';
 
 function parseParentUidFromDetails(details?: string): string | undefined {
   if (!details?.includes(', Parent:')) {
@@ -105,18 +104,18 @@ export class CliStorageManager extends BaseStorageManager {
       name: 'My Vault',
       parentUid: '/',
       folderPath: '/',
-      source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+      source: "",
     };
 
     const updatedParsedFolder = parsedFolder.map((folder) => {
       // in below return we dont care about parentUid, folderPath, source because we are only using folderUid to check if the folder is valid or not
-      // So those fields are set to empty string and CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER
+      // So those fields are set to empty string
       return {
-        folderUid : folder.shared_folder_uid ? folder.shared_folder_uid : folder.folder_uid,
+        folderUid : folder.folder_uid,
         name: folder.name,
         parentUid: "",
         folderPath: '',
-        source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+        source: "",
       };
     });
 

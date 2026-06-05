@@ -49,19 +49,15 @@ export interface ICliNsfListRecordResponse {
 export interface ICliListFolderResponse {
   uid: string;
   name: string;
-  // parent_uid: string; // this currenlty not used
-  // flags?: string; // this currenlty not used
   details: string;
   source: string;
 }
 
 export interface ICliGetFolderResponse {
-  folder_uid: string; // this attribute for KD-Folder's and classic non shared folder
-  shared_folder_uid?: string; // this is required for shared folders response
-
+  folder_uid: string;
   type?: string;
   name: string;
-  parent_folder_uid?: string;
+  parent_uid?: string;
 }
 
 export enum ModeType {

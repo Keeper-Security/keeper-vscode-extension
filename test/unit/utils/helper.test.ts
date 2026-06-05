@@ -56,18 +56,20 @@ describe('Helper Functions', () => {
   describe('validateKeeperReference', () => {
     it('should validate correct keeper reference', () => {
       // Use a reference that matches the FIELD pattern: field or custom_field
-      const validReference = 'keeper://record123/field/MyPassword';
+      const validReference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/MyPassword';
       const result = validateKeeperReference(validReference);
-      
+
       expect(result).toBe(true);
       expect(logger.logDebug).toHaveBeenCalledWith(`Validating keeper reference: ${validReference}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Keeper reference validation result: ${result}`);
     });
 
     it('should validate custom_field reference', () => {
-      const validReference = 'keeper://record123/custom_field/MyCustomField';
+      const validReference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/custom_field/MyCustomField';
       const result = validateKeeperReference(validReference);
-      
+
       expect(result).toBe(true);
     });
 
@@ -129,13 +131,19 @@ describe('Helper Functions', () => {
   describe('isValidKeeperRecordUid', () => {
     it('should accept URL-safe base64-style UIDs', () => {
       expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYRA')).toBe(true);
-      expect(isValidKeeperRecordUid('record123')).toBe(true);
+      expect(isValidKeeperRecordUid('G_qXL4pQ8Ebi-tewfu_iaQ')).toBe(true);
     });
 
     it('should reject UIDs with slashes, spaces, or newlines', () => {
       expect(isValidKeeperRecordUid('abc\nksm')).toBe(false);
       expect(isValidKeeperRecordUid('foo/bar')).toBe(false);
       expect(isValidKeeperRecordUid('has space')).toBe(false);
+    });
+
+    it('should reject UIDs that are not exactly 22 characters', () => {
+      expect(isValidKeeperRecordUid('record123')).toBe(false);
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYR')).toBe(false);
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYRAA')).toBe(false);
     });
   });
 
@@ -152,12 +160,12 @@ describe('Helper Functions', () => {
 
   describe('createKeeperReference', () => {
     it('should create valid keeper reference', () => {
-      const recordUid = 'record123';
-      const fieldType = KEEPER_NOTATION_FIELD_TYPES.FIELD; // Use the correct enum value
+      const recordUid = 'PD-SYa1nmuiK1M1xQ0IYRA';
+      const fieldType = KEEPER_NOTATION_FIELD_TYPES.FIELD;
       const itemName = 'MyPassword';
-      
+
       const result = createKeeperReference(recordUid, fieldType, itemName);
-      
+
       expect(result).toBe(`keeper://${recordUid}/${fieldType}/${itemName}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Creating keeper reference - recordUid: ${recordUid}, fieldType: ${fieldType}, itemName: ${itemName}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Created keeper reference: ${result}`);
@@ -165,16 +173,31 @@ describe('Helper Functions', () => {
 
     it('should return null when recordUid is missing', () => {
       const result = createKeeperReference('', KEEPER_NOTATION_FIELD_TYPES.FIELD, 'MyPassword');
-      
+
       expect(result).toBeNull();
       expect(logger.logError).toHaveBeenCalledWith('recordUid is required to create a keeper reference');
     });
 
     it('should return null when itemName is missing', () => {
-      const result = createKeeperReference('record123', KEEPER_NOTATION_FIELD_TYPES.FIELD, '');
-      
+      const result = createKeeperReference(
+        'PD-SYa1nmuiK1M1xQ0IYRA',
+        KEEPER_NOTATION_FIELD_TYPES.FIELD,
+        ''
+      );
+
       expect(result).toBeNull();
       expect(logger.logError).toHaveBeenCalledWith('itemName is required to create a keeper reference');
+    });
+
+    it('should return null when recordUid is not a valid 22-char URL-safe token', () => {
+      const result = createKeeperReference(
+        'record123',
+        KEEPER_NOTATION_FIELD_TYPES.FIELD,
+        'MyPassword'
+      );
+
+      expect(result).toBeNull();
+      expect(logger.logError).toHaveBeenCalledWith('recordUid contains invalid characters');
     });
   });
 
@@ -206,12 +229,11 @@ describe('Helper Functions', () => {
 
   describe('parseKeeperReference', () => {
     it('should parse valid keeper reference', () => {
-      // Use a reference that matches the FIELD pattern
-      const reference = 'keeper://record123/field/MyPassword';
+      const reference = 'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/MyPassword';
       const result = parseKeeperReference(reference);
-      
+
       expect(result).toEqual({
-        recordUid: 'record123',
+        recordUid: 'PD-SYa1nmuiK1M1xQ0IYRA',
         fieldType: 'field',
         itemName: 'MyPassword'
       });
@@ -220,11 +242,12 @@ describe('Helper Functions', () => {
     });
 
     it('should parse custom_field reference', () => {
-      const reference = 'keeper://record123/custom_field/MyCustomField';
+      const reference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/custom_field/MyCustomField';
       const result = parseKeeperReference(reference);
-      
+
       expect(result).toEqual({
-        recordUid: 'record123',
+        recordUid: 'PD-SYa1nmuiK1M1xQ0IYRA',
         fieldType: 'custom_field',
         itemName: 'MyCustomField'
       });
