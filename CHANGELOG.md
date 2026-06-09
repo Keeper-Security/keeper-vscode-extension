@@ -1,5 +1,25 @@
 # Change Log
 
+## 2.1.0
+
+- **Nested Share Folder Support** (In CLI mode): Added support for Keeper's new nested share folders alongside classic folders.
+  - Folder picker now distinguishes between `(Nested Share Folder)` and `(Classic Folder)` folders.
+- **Permission Model Selection in My Vault** (In CLI mode): When the current storage is `My Vault` (root), `Generate Password` and `Save Value to Vault` now prompt the user to choose between:
+  - `Use classic permission model` — creates the record with classic permission model.
+  - `Use new permission model` — creates the record with new permission model.
+- **Security fixes**:
+  - Reject Keeper references containing line breaks or other control characters in `.env` files used by the `Run Securely` command.
+  - Validate Keeper record UIDs and arguments passed to Keeper Commander, rejecting values that contain control characters or unsafe characters.
+  - Hardened `createKeeperReference` and `validateKeeperReference` to reject record UIDs that are not URL-safe base64 tokens.
+  - The legacy Keeper Commander executor now spawns the CLI directly via `execFile` with a tokenized argv instead of `exec` with a concatenated command string. No shell is involved, so shell metacharacters in arguments cannot be interpreted as syntax even if they bypass upstream validation. The persistent-process path already used this model; the legacy path now matches it.
+  - Declared `capabilities.untrustedWorkspaces.supported = false` so the extension is disabled by default in VS Code Restricted Mode. The Run Securely command parses workspace `.env` files and invokes a local CLI; running in untrusted workspaces is not safe.
+- **Performance**:
+  - Faster authentication check: replaced the `this-device` probe with `login-status`, which is significantly quicker for vaults with large amounts of data. Auth-check timeout extended to 5 minutes for slow networks/setups.
+  - `sync-down` is now invoked with `--force` so that the latest records are always fetched when retrieving folders or records.
+- **Dependencies**:
+  - Bumped `webpack` to `^5.105.2`.
+  - Added overrides for `diff` and `serialize-javascript` to address transitive vulnerabilities.
+
 ## 2.0.1
 
 - **Security**: Updated dependencies to address known vulnerabilities:

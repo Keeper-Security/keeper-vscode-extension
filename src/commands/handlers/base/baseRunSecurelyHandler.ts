@@ -5,6 +5,7 @@ import {
   commonInputBoxOptions,
   commonQuickPickOptions,
   isEnvironmentFile,
+  assertSafeKeeperNotationEnvValue,
   parseKeeperReference,
   StatusBarSpinner,
   validateKeeperReference,
@@ -275,6 +276,17 @@ export abstract class BaseRunSecurelyHandler extends BaseCommandHandler {
     >();
 
     for (const [key, value] of Object.entries(envConfig)) {
+      if (typeof value === 'string' && value.startsWith('keeper://')) {
+        try {
+          assertSafeKeeperNotationEnvValue(value, key);
+        } catch (error) {
+          window.showErrorMessage(
+            BASE_HANDLER_MESSAGES.ERROR.INVALID_KEEPER_REFERENCE_IN_ENV
+          );
+          throw error;
+        }
+      }
+
       if (typeof value === 'string' && validateKeeperReference(value)) {
         const parsedRef = parseKeeperReference(value);
         if (!parsedRef) {

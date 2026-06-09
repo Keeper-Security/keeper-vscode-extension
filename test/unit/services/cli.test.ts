@@ -14,6 +14,7 @@ jest.mock('../../../src/utils/helper', () => ({
 jest.mock('../../../src/utils/logger');
 jest.mock('child_process', () => ({
   exec: jest.fn(),
+  execFile: jest.fn(),
   spawn: jest.fn()
 }));
 jest.mock('vscode', () => ({
@@ -34,6 +35,17 @@ jest.mock('vscode', () => ({
     parse: jest.fn()
   }
 }));
+
+/**
+ * Reconstruct the equivalent shell command string from an `execFile`-style
+ * call so existing pattern-matching test logic (`includes('--version')`,
+ * `includes('biometric verify')`, ...) keeps working without rewriting every
+ * dispatch arm. This is test-only sugar — the production code never builds
+ * this string.
+ */
+function joinExecCall(file: string, args: string[] = []): string {
+  return [file, ...args].join(' ');
+}
 
 describe('CliService', () => {
   let mockContext: ExtensionContext;
@@ -97,10 +109,17 @@ describe('CliService', () => {
     });
 
     it('should return true when both installed and authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' }) // --version
-        .mockResolvedValueOnce({ stdout: 'Persistent Login: ON', stderr: '' }); // this-device
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await cliService.isCLIReady();
       expect(result).toBe(true);
     });
@@ -113,16 +132,44 @@ describe('CliService', () => {
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' }) // --version
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }); // this-device
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await cliService.isCLIReady();
       expect(result).toBe(false);
     });
   });
 
   describe('executeCommanderCommand', () => {
+    it('should reject get command when record UID contains a newline', async () => {
+      await expect(
+        cliService.executeCommanderCommand('get', [
+          'abc\nksm.bat\n',
+          '--format=json',
+        ])
+      ).rejects.toThrow(/control characters/i);
+    });
+
+    it('should reject get command when record UID has invalid characters', async () => {
+      await expect(
+        cliService.executeCommanderCommand('get', [
+          'not valid!',
+          '--format=json',
+        ])
+      ).rejects.toThrow(/Invalid Keeper record UID/i);
+    });
+
     it('should use legacy mode when not initialized', async () => {
       mockExecFunction.mockResolvedValue({ stdout: 'test output', stderr: '' });
       
@@ -160,8 +207,18 @@ describe('CliService', () => {
       mockExecFunction.mockResolvedValue({ stdout: 'test output', stderr: '' });
       
       const result = await cliService.executeCommanderCommandLegacy('test-command', ['arg1', 'arg2']);
-      
-      expect(mockExecFunction).toHaveBeenCalledWith('keeper test-command arg1 arg2');
+
+      const isWindows = process.platform === 'win32';
+      const expectedFile = isWindows ? 'cmd' : 'keeper';
+      const expectedArgv = isWindows
+        ? ['/c', 'keeper', 'test-command', 'arg1', 'arg2']
+        : ['test-command', 'arg1', 'arg2'];
+
+      expect(mockExecFunction).toHaveBeenCalledWith(
+        expectedFile,
+        expectedArgv,
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
       expect(result).toBe('test output');
     });
 
@@ -229,35 +286,52 @@ describe('CliService', () => {
 
   describe('checkCommanderAuth', () => {
     it('should return true when persistent login is on', async () => {
-      mockExecFunction.mockResolvedValue({ 
-        stdout: 'Persistent Login: ON', 
-        stderr: '' 
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
       });
-      
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(true);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: YES (Persistent)');
     });
 
     it('should return true when biometric authentication is detected', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }) // this-device
-        .mockResolvedValueOnce({ stdout: 'Status: SUCCESSFUL', stderr: '' }); // biometric verify
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'Status: SUCCESSFUL', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(true);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: YES (Biometric)');
     });
 
     it('should return false when not authenticated', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' }) // this-device
-        .mockResolvedValueOnce({ stdout: 'No biometric', stderr: '' }); // biometric verify
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       const result = await (cliService as unknown as any).checkCommanderAuth();
-      
+
       expect(result).toBe(false);
       expect(mockLogger.logInfo).toHaveBeenCalledWith('Keeper Commander CLI Authenticated: NO');
     });
@@ -302,19 +376,23 @@ describe('CliService', () => {
   describe('Additional Coverage Tests', () => {
     // Test lazy initialization when already initialized
     it('should skip initialization when already initialized', async () => {
-      // First call to initialize
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' })
-        .mockResolvedValueOnce({ stdout: 'Persistent Login: ON', stderr: '' });
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Logged in', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       await cliService.isCLIReady();
-      
-      // Clear only the logDebug calls, not all mocks
+
       (mockLogger.logDebug as jest.Mock).mockClear();
-      
-      // Call lazyInitialize directly to test the skip path
+
       await (cliService as any).lazyInitialize();
-      
+
       expect(mockLogger.logDebug).toHaveBeenCalledWith(
         'CliService.lazyInitialize: Already initialized, skipping'
       );
@@ -332,12 +410,22 @@ describe('CliService', () => {
 
     // Test authentication error handling
     it('should handle authentication check failure and show error', async () => {
-      mockExecFunction
-        .mockResolvedValueOnce({ stdout: 'version 1.0.0', stderr: '' })
-        .mockResolvedValueOnce({ stdout: 'Not logged in', stderr: '' });
-      
+      mockExecFunction.mockImplementation((file: string, args: string[]) => {
+        const command = joinExecCall(file, args);
+        if (command.includes('--version')) {
+          return Promise.resolve({ stdout: 'version 1.0.0', stderr: '' });
+        }
+        if (command.includes('login-status')) {
+          return Promise.resolve({ stdout: 'Not logged in', stderr: '' });
+        }
+        if (command.includes('biometric verify')) {
+          return Promise.resolve({ stdout: 'No biometric', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
       await cliService.isCLIReady();
-      
+
       expect(mockLogger.logError).toHaveBeenCalledWith('Keeper Commander CLI is not authenticated');
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
@@ -435,11 +523,50 @@ describe('CliService', () => {
     // Test executeCommanderCommandLegacyRaw
     it('should execute raw command without cleaning', async () => {
       mockExecFunction.mockResolvedValue({ stdout: 'raw output', stderr: 'raw error' });
-      
+
       const result = await (cliService as any).executeCommanderCommandLegacyRaw('test-command', ['arg1']);
-      
+
+      const isWindows = process.platform === 'win32';
+      const expectedFile = isWindows ? 'cmd' : 'keeper';
+      const expectedArgv = isWindows
+        ? ['/c', 'keeper', 'test-command', 'arg1']
+        : ['test-command', 'arg1'];
+
       expect(result).toEqual({ stdout: 'raw output', stderr: 'raw error' });
-      expect(mockExecFunction).toHaveBeenCalledWith('keeper test-command arg1');
+      expect(mockExecFunction).toHaveBeenCalledWith(
+        expectedFile,
+        expectedArgv,
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
+    });
+
+    // Security regression test: shell metacharacters in args must be passed
+    // as a single argv element, never to a shell. With execFile/array-args
+    // there is no shell, so the metacharacters are inert.
+    it('should pass shell metacharacters as a single argv element with no shell involved', async () => {
+      mockExecFunction.mockResolvedValue({ stdout: 'ok', stderr: '' });
+
+      const malicious = 'foo;cd $HOME && id > /tmp/pwned.txt;#';
+      await (cliService as any).executeCommanderCommandLegacyRaw('get', [
+        malicious,
+        '--format=json',
+      ]);
+
+      const [file, argv, options] = mockExecFunction.mock.calls[0];
+
+      // No call should ever target a shell binary.
+      expect(file).not.toMatch(/\/(?:ba)?sh$/);
+      expect(file).not.toBe('sh');
+      expect(file).not.toBe('bash');
+      expect(file).not.toBe('zsh');
+      // Args must be a real array — not a single shell-parsed string.
+      expect(Array.isArray(argv)).toBe(true);
+      // The malicious payload must appear as ONE argv entry, byte-for-byte.
+      expect(argv).toContain(malicious);
+      // options must be passed (covers maxBuffer plumbing).
+      expect(options).toEqual(
+        expect.objectContaining({ maxBuffer: expect.any(Number) })
+      );
     });
 
     // Test cleanCommanderNoise function

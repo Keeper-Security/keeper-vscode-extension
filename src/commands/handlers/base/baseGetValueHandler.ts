@@ -17,7 +17,7 @@ export abstract class BaseGetValueHandler extends BaseCommandHandler {
   ): Promise<IRecordQuickPick | undefined> {
     return await window.showQuickPick(items, {
       ...commonQuickPickOptions,
-      title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_TITLE,
+      title: BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_TITLE + ' (Showing compatible records)',
       placeHolder:
         BASE_HANDLER_MESSAGES.INPUT.QUICK_PICK_FOR_RECORDS_PLACEHOLDER,
     });

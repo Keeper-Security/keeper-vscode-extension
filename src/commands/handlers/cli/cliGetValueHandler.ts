@@ -1,7 +1,12 @@
 import { window } from 'vscode';
 import { logger } from '../../../utils/logger';
 import { BaseGetValueHandler } from '../base/baseGetValueHandler';
-import { KEEPER_NOTATION_FIELD_TYPES } from '../../../utils/constants';
+import {
+  CLI_FOLDER_SOURCE_LEGACY,
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+  CLI_RECORD_CATEGORY_CLASSIC,
+  KEEPER_NOTATION_FIELD_TYPES,
+} from '../../../utils/constants';
 import {
   createKeeperReference,
   safeJsonParse,
@@ -16,12 +21,17 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
   CLI_SUCCESS_MESSAGES,
 } from '../../../utils/cli-messages';
-import { ICliListCommandResponse } from '../../../types';
+import {
+  ICliListRecordResponse,
+  ICliNsfListRecordResponse,
+} from '../../../types';
+import { CliStorageManager } from '../../storage/cliStorageManager';
 
 export class CliGetValueHandler extends BaseGetValueHandler {
   constructor(
     private spinner: StatusBarSpinner,
-    private cliService: CliService
+    private cliService: CliService,
+    private storageManager: CliStorageManager
   ) {
     super();
   }
@@ -43,7 +53,7 @@ export class CliGetValueHandler extends BaseGetValueHandler {
           ': ' +
           CLI_LOGGER_DEBUG_MESSAGES.SYNCING_DOWN_LATEST_RECORDS_FROM_VAULT
       );
-      await this.cliService.executeCommanderCommand('sync-down');
+      await this.cliService.executeCommanderCommand('sync-down --force');
 
       // List available records
       logger.logDebug(
@@ -51,21 +61,41 @@ export class CliGetValueHandler extends BaseGetValueHandler {
           ': ' +
           CLI_LOGGER_DEBUG_MESSAGES.EXECUTING_LIST_COMMAND_TO_GET_AVAILABLE_RECORDS
       );
-      const secrets = await this.cliService.executeCommanderCommand('list', [
-        '--format=json',
-      ]);
-      // Use safe parser that cleans output first
-      const allRecords: ICliListCommandResponse[] = safeJsonParse(secrets, []);
+
+      /*
+          IF current storage is "My Vault" (root folder), run BOTH nsf-list and list
+          and combine their records into a single quick pick.
+          IF NSF folder is selected, then run nsf-list --records --format json
+          IF Legacy folder is selected, then run list --format json and filter
+          only classic records.
+      */
+
+      const currentStorage = this.storageManager.getCurrentStorage();
+      let processedAllRecords: IRecordQuickPick[] = [];
+
+      if (currentStorage?.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER) {
+        processedAllRecords = await this.fetchAndProcessNsfRecords();
+      } else if (currentStorage?.source === CLI_FOLDER_SOURCE_LEGACY) {
+        processedAllRecords = await this.fetchAndProcessClassicRecords();
+      } else {
+        // My Vault: fetch both NSF and classic records. CLI service blocks parallel
+        // commands (see `isExecutingCommand` in services/cli.ts), so run sequentially.
+        const nsfQuickPickItems = await this.fetchAndProcessNsfRecords();
+        const classicQuickPickItems =
+          await this.fetchAndProcessClassicRecords();
+        processedAllRecords = [...nsfQuickPickItems, ...classicQuickPickItems];
+      }
+
       logger.logDebug(
         this.constructor.name +
           ': ' +
           CLI_LOGGER_DEBUG_MESSAGES.RETRIEVED_RECORDS_FROM_VAULT +
-          `- ${allRecords.length}`
+          `- ${processedAllRecords.length}`
       );
 
       this.spinner.hide();
 
-      if (!allRecords || allRecords.length === 0) {
+      if (processedAllRecords.length === 0) {
         logger.logDebug(
           this.constructor.name +
             ': ' +
@@ -74,18 +104,6 @@ export class CliGetValueHandler extends BaseGetValueHandler {
         window.showInformationMessage(CLI_SUCCESS_MESSAGES.NO_RECORDS_FOUND);
         return;
       }
-
-      /**
-       * Process all records to show in quick pick
-       * label: record title
-       * value: record uid
-       */
-      const processedAllRecords: IRecordQuickPick[] = allRecords.map(
-        (record) => ({
-          label: record.title,
-          value: record.record_uid,
-        })
-      );
 
       const selectedRecord =
         await this.showQuickPickForRecords(processedAllRecords);
@@ -202,5 +220,50 @@ export class CliGetValueHandler extends BaseGetValueHandler {
     } finally {
       this.spinner.hide();
     }
+  }
+
+  /**
+   * Fetches records from a nested share folder via `nsf-list --records --format=json`
+   * and maps them into quick-pick items.
+   */
+  private async fetchAndProcessNsfRecords(): Promise<IRecordQuickPick[]> {
+    const nsfRecordsRaw = await this.cliService.executeCommanderCommand(
+      'nsf-list',
+      ['--records', '--format=json']
+    );
+    const nsfRecords: ICliNsfListRecordResponse[] = safeJsonParse(
+      nsfRecordsRaw,
+      []
+    );
+
+    return nsfRecords.map((record) => ({
+      label: `${record.Title} (Nested)`,
+      value: record.UID,
+    }));
+  }
+
+  /**
+   * Fetches records from the classic vault via `list --format=json`, filters to
+   * `Classic` records only, and maps them into quick-pick items.
+   */
+  private async fetchAndProcessClassicRecords(): Promise<IRecordQuickPick[]> {
+    const classicRecordsRaw = await this.cliService.executeCommanderCommand(
+      'list',
+      ['--format=json']
+    );
+    const classicRecords: ICliListRecordResponse[] = safeJsonParse(
+      classicRecordsRaw,
+      []
+    );
+
+    // filter records to only include classic records
+    return classicRecords
+      .filter(
+        (record) => record.record_category.toLowerCase() === CLI_RECORD_CATEGORY_CLASSIC
+      )
+      .map((record) => ({
+        label: `${record.title} (Classic)`,
+        value: record.record_uid,
+      }));
   }
 }

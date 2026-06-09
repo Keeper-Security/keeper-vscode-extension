@@ -16,11 +16,21 @@ export const COMMANDS = {
   SWITCH_TO_KSM: makeCommand('switchToKsm'),
 };
 
+/** Keeper record UIDs are URL-safe base64 tokens of exactly 22 characters (no slashes, whitespace, or control chars). */
+export const KEEPER_RECORD_UID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
+
+const KEEPER_NOTATION_RECORD_UID = '([A-Za-z0-9_-]{22})';
+
 export const KEEPER_NOTATION_PATTERNS = {
-  BASIC: /^keeper:\/\/([^\/]+)\/(type|title|notes)$/,
-  FILE: /^keeper:\/\/([^\/]+)\/file\/([^\/\[\]]+)$/,
-  FIELD:
-    /^keeper:\/\/([^\/]+)\/(field|custom_field)\/([^\/\[\]]+)(?:\[([^\]]*)\])?(?:\[([^\]]*)\])?$/,
+  BASIC: new RegExp(
+    `^keeper://${KEEPER_NOTATION_RECORD_UID}/(type|title|notes)$`
+  ),
+  FILE: new RegExp(
+    `^keeper://${KEEPER_NOTATION_RECORD_UID}/file/([^\\/\\[\\]]+)$`
+  ),
+  FIELD: new RegExp(
+    `^keeper://${KEEPER_NOTATION_RECORD_UID}/(field|custom_field)/([^\\/\\[\\]]+)(?:\\[([^\\]]*)\\])?(?:\\[([^\\]]*)\\])?$`
+  ),
 };
 
 export const KEEPER_COMMANDER_DOCS_URLS = {
@@ -270,6 +280,9 @@ export const BASE_HANDLER_MESSAGES = {
     SELECTED_FILE_IS_NOT_AN_ENVIRONMENT_FILE:
       'Selected file is not an environment file. Must be a .env or .env.* file',
     FAILED_TO_PARSE_KEEPER_REFERENCE: 'Failed to parse keeper:// reference',
+    INVALID_KEEPER_REFERENCE_IN_ENV:
+      'Invalid Keeper reference in .env — contains line break or control character.',
+    INVALID_KEEPER_RECORD_UID: 'Invalid Keeper record UID.',
   },
   DEBUG: {},
   INPUT: {
@@ -304,3 +317,8 @@ export const BASE_HANDLER_MESSAGES = {
 } as const;
 
 export const PREVIOUS_USER_SELECTED_MODE_KEY = 'previousUserSelectedMode';
+
+export const CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER = 'nested_share_folder';
+export const CLI_FOLDER_SOURCE_LEGACY = 'classic_folder';
+export const CLI_RECORD_CATEGORY_NESTED = 'nested';
+export const CLI_RECORD_CATEGORY_CLASSIC = 'classic';

@@ -37,7 +37,7 @@ This enable developers to manage secrets securely without leaving their developm
 ### For CLI Mode:
 
 - **Keeper Commander CLI**:
-  - The **Keeper Commander CLI** must be installed globally on your system using the official binary.
+  - The **Keeper Commander CLI v18.0.5 or later** must be installed globally on your system using the official binary.
   - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
 
 ### For KSM Mode:

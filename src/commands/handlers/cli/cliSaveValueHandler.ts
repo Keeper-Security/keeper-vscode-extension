@@ -14,6 +14,7 @@ import {
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
+import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
 
 export class CliSaveValueHandler extends BaseSaveValueHandler {
   constructor(
@@ -75,9 +76,20 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
         return;
       }
 
-      this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
-
       const currentStorage = this.storageManager.getCurrentStorage();
+
+      const recordCommandToExecute =
+        await resolveRecordAddCommand(currentStorage);
+      if (!recordCommandToExecute) {
+        logger.logDebug(
+          this.constructor.name +
+            ': ' +
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_PERMISSION_MODEL_SELECTION
+        );
+        return;
+      }
+
+      this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
 
       /**
        *
@@ -100,7 +112,7 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
       }
 
       const recordUid = await this.cliService.executeCommanderCommand(
-        'record-add',
+        recordCommandToExecute,
         args
       );
 

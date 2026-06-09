@@ -33,3 +33,12 @@ test/**
 
 # Source maps
 **/*.map
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp/
+*.temp.idea/
