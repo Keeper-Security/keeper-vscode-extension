@@ -2,7 +2,10 @@ import { ExtensionContext, QuickPickItem, window } from 'vscode';
 import { IFolder } from '../../types';
 import { logger } from '../../utils/logger';
 import { commonQuickPickOptions, StatusBarSpinner } from '../../utils/helper';
-import { BASE_HANDLER_MESSAGES } from '../../utils/constants';
+import {
+  BASE_HANDLER_MESSAGES,
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+} from '../../utils/constants';
 
 export abstract class BaseStorageManager {
   constructor(
@@ -18,6 +21,10 @@ export abstract class BaseStorageManager {
 
   private async validateCurrentStorage(
     getAvailableFolders: () => Promise<{
+      availableFolders: IFolder[];
+      rootFolder: IFolder;
+    }>,
+    getFolderByUid?: (uid: string) => Promise<{
       availableFolders: IFolder[];
       rootFolder: IFolder;
     }>
@@ -57,7 +64,9 @@ export abstract class BaseStorageManager {
       return true;
     }
 
-    const { availableFolders } = await getAvailableFolders();
+    const availableFolders = getFolderByUid
+      ? (await getFolderByUid(currentStorage.folderUid)).availableFolders
+      : (await getAvailableFolders()).availableFolders;
 
     const folderExists = availableFolders.some(
       (folder) => folder.folderUid === currentStorage.folderUid
@@ -94,6 +103,10 @@ export abstract class BaseStorageManager {
     getAvailableFolders: () => Promise<{
       availableFolders: IFolder[];
       rootFolder: IFolder;
+    }>,
+    getFolderByUid?: (uid: string) => Promise<{
+      availableFolders: IFolder[];
+      rootFolder: IFolder;
     }>
   ): Promise<boolean> {
     // if currentStorage is not set, choose a folder
@@ -117,7 +130,7 @@ export abstract class BaseStorageManager {
       );
       // Validate current storage
       const isFolderExistsOnKeeperVault =
-        await this.validateCurrentStorage(getAvailableFolders);
+        await this.validateCurrentStorage(getAvailableFolders, getFolderByUid);
 
       if (!isFolderExistsOnKeeperVault) {
         logger.logDebug(
@@ -205,8 +218,18 @@ export abstract class BaseStorageManager {
       (folder: IFolder) => {
         const isCurrentStorage =
           this.getCurrentStorage()?.folderUid === folder.folderUid;
+
+        const folderType =
+          folder?.source && folder.source !== ''
+            ? folder.source === CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER
+              ? '(Nested Share Folder)'
+              : '(Classic Folder)'
+            : null;
+
         const response: QuickPickItem & { value: string } = {
-          label: isCurrentStorage ? `${folder.name} ✓` : folder.name,
+          label: isCurrentStorage
+            ? `${folder.name} ✓ ${folderType ?? ''}`
+            : `${folder.name} ${folderType ?? ''}`,
           value: folder.folderUid,
         };
         if (folder.folderPath && folder.folderPath !== '/') {

@@ -20,6 +20,7 @@ jest.mock('vscode', () => ({
   ...jest.requireActual('vscode'),
   window: {
     showInputBox: jest.fn(),
+    showQuickPick: jest.fn(),
     showInformationMessage: jest.fn(),
     showErrorMessage: jest.fn(),
     showTextDocument: jest.fn(),
@@ -74,6 +75,15 @@ describe('CliSaveValueHandler', () => {
     } as unknown as jest.Mocked<CliStorageManager>;
 
     handler = new CliSaveValueHandler(mockSpinner, mockCliService, mockStorageManager);
+
+    // Default permission-model selection for My Vault scenarios.
+    // resolveRecordAddCommand prompts via showQuickPick when storage is the root
+    // folder; default to the classic option so existing tests keep using
+    // the `record-add` command.
+    (window.showQuickPick as jest.Mock).mockResolvedValue({
+      label: 'Use classic permission model',
+      value: 'record-add',
+    });
   });
 
   const spyGetSelectedText = () => jest.spyOn(BaseSaveValueHandler.prototype as any, 'getSelectedText');

@@ -125,7 +125,11 @@ describe('HandlerFactory', () => {
       );
 
       // Verify CliGetValueHandler was created
-      expect(CliGetValueHandler).toHaveBeenCalledWith(mockSpinner, mockCliService);
+      expect(CliGetValueHandler).toHaveBeenCalledWith(
+        mockSpinner,
+        mockCliService,
+        mockCliStorageManager
+      );
 
       // Verify CliGeneratePasswordHandler was created
       expect(CliGeneratePasswordHandler).toHaveBeenCalledWith(

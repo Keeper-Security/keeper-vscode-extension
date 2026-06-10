@@ -221,6 +221,31 @@ describe('BaseStorageManager', () => {
         'TestStorageManager: Folder no longer exists on Keeper vault with value: Test Folder'
       );
     });
+
+    it('should use getFolderByUid when provided instead of fetching all folders', async () => {
+      const mockStorage: IFolder = {
+        folderUid: '123',
+        name: 'Test Folder',
+        parentUid: 'root-folder',
+        folderPath: '/Test Folder',
+      };
+      (mockContext.workspaceState.get as jest.Mock).mockReturnValue(mockStorage);
+
+      const mockFetchAvailableFolders = jest.fn();
+      const mockGetFolderByUid = jest.fn().mockResolvedValue({
+        availableFolders: [mockStorage],
+        rootFolder: { folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' },
+      });
+
+      const result = await (storageManager as any).validateCurrentStorage(
+        mockFetchAvailableFolders,
+        mockGetFolderByUid
+      );
+
+      expect(result).toBe(true);
+      expect(mockGetFolderByUid).toHaveBeenCalledWith('123');
+      expect(mockFetchAvailableFolders).not.toHaveBeenCalled();
+    });
   });
 
   describe('ensureValidStorage', () => {
@@ -419,9 +444,9 @@ describe('BaseStorageManager', () => {
 
       expect(window.showQuickPick).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ label: 'My Vault', value: '/' }),
-          expect.objectContaining({ label: 'Folder 1', value: '123' }),
-          expect.objectContaining({ label: 'Folder 2', value: '456' }),
+          expect.objectContaining({ label: 'My Vault ', value: '/' }),
+          expect.objectContaining({ label: 'Folder 1 ', value: '123' }),
+          expect.objectContaining({ label: 'Folder 2 ', value: '456' }),
         ]),
         expect.objectContaining({
           title: 'Available folders',
@@ -461,9 +486,9 @@ describe('BaseStorageManager', () => {
 
       expect(window.showQuickPick).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ label: 'My Vault', value: '/' }),
-          expect.objectContaining({ label: 'Folder 1 ✓', value: '123' }),
-          expect.objectContaining({ label: 'Folder 2', value: '456' }),
+          expect.objectContaining({ label: 'My Vault ', value: '/' }),
+          expect.objectContaining({ label: 'Folder 1 ✓ ', value: '123' }),
+          expect.objectContaining({ label: 'Folder 2 ', value: '456' }),
         ]),
         expect.any(Object)
       );
@@ -493,9 +518,9 @@ describe('BaseStorageManager', () => {
 
       expect(window.showQuickPick).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ label: 'My Vault', value: '/' }),
+          expect.objectContaining({ label: 'My Vault ', value: '/' }),
           expect.objectContaining({
-            label: 'Folder 1',
+            label: 'Folder 1 ',
             value: '123',
             detail: 'Path: /My Vault / Folder 1',
           }),

@@ -2,11 +2,19 @@ import { ExtensionContext } from 'vscode';
 import { BaseStorageManager } from './baseStorageManager';
 import { safeJsonParse, StatusBarSpinner } from '../../utils/helper';
 import {
+  ICliGetFolderResponse,
   ICliListFolderResponse,
   IFolder,
 } from '../../types';
 import { logger } from '../../utils/logger';
 import { CliService } from '../../services/cli';
+
+function parseParentUidFromDetails(details?: string): string | undefined {
+  if (!details?.includes(', Parent:')) {
+    return undefined;
+  }
+  return details.split(', Parent:')[1]?.trim();
+}
 
 export class CliStorageManager extends BaseStorageManager {
   constructor(
@@ -19,7 +27,8 @@ export class CliStorageManager extends BaseStorageManager {
 
   async ensureValidStorage(): Promise<boolean> {
     return await super.ensureValidStorage(
-      this.fetchAvailableFolders.bind(this)
+      this.fetchAvailableFolders.bind(this),
+      this.getFolderByUid.bind(this)
     );
   }
 
@@ -31,7 +40,7 @@ export class CliStorageManager extends BaseStorageManager {
     logger.logDebug(
       'CliStorageManager: Syncing down latest records from vault'
     );
-    await this.cliService.executeCommanderCommand('sync-down');
+    await this.cliService.executeCommanderCommand('sync-down --force');
 
     logger.logDebug('CliStorageManager: Sync down completed');
 
@@ -51,6 +60,7 @@ export class CliStorageManager extends BaseStorageManager {
       name: 'My Vault',
       parentUid: '/',
       folderPath: '/',
+      source: "",
     };
 
     const foldersWithPaths = [
@@ -63,32 +73,84 @@ export class CliStorageManager extends BaseStorageManager {
     };
   }
 
+  // this method is used to get a folder by uid, it is used to validate the current storage when user selects a folder from the quick pick only
+  async getFolderByUid(uid: string): Promise<{
+    availableFolders: IFolder[];
+    rootFolder: IFolder;
+  }> {
+    // Sync-down the latest records from the vault
+    logger.logDebug(
+      'CliStorageManager: Syncing down latest records from vault'
+    );
+    await this.cliService.executeCommanderCommand('sync-down --force');
+
+    logger.logDebug('CliStorageManager: Sync down completed');
+
+    logger.logDebug('Fetching folder by uid from Keeper vault');
+
+    const folderResponse = await this.cliService.executeCommanderCommand(
+      'get',
+      [`${uid}`, '--format=json']
+    );
+
+    const parsedFolder: ICliGetFolderResponse[] = safeJsonParse(
+      folderResponse,
+      []
+    );
+    logger.logDebug(`Retrieved folder by uid (${uid}) from vault`);
+
+    const rootFolder: IFolder = {
+      folderUid: '/',
+      name: 'My Vault',
+      parentUid: '/',
+      folderPath: '/',
+      source: "",
+    };
+
+    const updatedParsedFolder = parsedFolder.map((folder) => {
+      // in below return we dont care about parentUid, folderPath, source because we are only using folderUid to check if the folder is valid or not
+      // So those fields are set to empty string
+      return {
+        folderUid : folder.folder_uid,
+        name: folder.name,
+        parentUid: "",
+        folderPath: '',
+        source: "",
+      };
+    });
+
+    return {
+      availableFolders: updatedParsedFolder,
+      rootFolder,
+    };
+  }
+
   resolveFolderPaths(folders: ICliListFolderResponse[]): IFolder[] {
     logger.logDebug(`Resolving paths for ${folders.length} folders`);
-    // Map folderUid to folder for quick lookup
     const folderMap = new Map<string, ICliListFolderResponse>();
-    folders.forEach((folder) => folderMap.set(folder.folder_uid, folder));
+    folders.forEach((folder) => folderMap.set(folder.uid, folder));
 
     const result = folders.map((folder) => {
       const pathParts: string[] = [folder.name];
-      let currentParentUid = folder?.details?.split(", Parent:")[1]?.trim();
+      let currentParentUid = parseParentUidFromDetails(folder.details);
 
-      while (currentParentUid !== '/') {
+      while (currentParentUid && currentParentUid !== '/') {
         const parent = folderMap.get(currentParentUid);
         if (!parent) {
           break;
         }
         pathParts.unshift(parent.name);
-        currentParentUid = parent.parent_uid;
+        currentParentUid = parseParentUidFromDetails(parent.details);
       }
 
       pathParts.unshift('My Vault');
 
       return {
-        folderUid: folder['uid'],
-        name: folder['name'],
-        parentUid: folder['parent_uid'],
+        folderUid: folder.uid,
+        name: folder.name,
+        parentUid: parseParentUidFromDetails(folder.details) ?? '/',
         folderPath: pathParts.join(' / '),
+        source: folder.source,
       };
     });
 

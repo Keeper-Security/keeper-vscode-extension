@@ -14,6 +14,7 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
+import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
 
 export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
   constructor(
@@ -52,9 +53,20 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
         return;
       }
 
-      this.spinner.show(CLI_INFO_MESSAGES.GENERATING_PASSWORD);
-
       const currentStorage = this.storageManager.getCurrentStorage();
+
+      const recordCommandToExecute =
+        await resolveRecordAddCommand(currentStorage);
+      if (!recordCommandToExecute) {
+        logger.logDebug(
+          this.constructor.name +
+            ': ' +
+            CLI_LOGGER_DEBUG_MESSAGES.USER_CANCELLED_PERMISSION_MODEL_SELECTION
+        );
+        return;
+      }
+
+      this.spinner.show(CLI_INFO_MESSAGES.GENERATING_PASSWORD);
 
       const args = [
         `--title="${recordName}"`,
@@ -68,7 +80,7 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       }
 
       const recordUid = await this.cliService.executeCommanderCommand(
-        'record-add',
+        recordCommandToExecute, 
         args
       );
 

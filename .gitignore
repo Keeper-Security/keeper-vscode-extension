@@ -39,5 +39,5 @@ yarn-error.log*
 .env.*.local
 
 # Temporary files
-*.tmp
+*.tmp/
 *.temp.idea/

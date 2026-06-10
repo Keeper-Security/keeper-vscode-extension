@@ -2,7 +2,7 @@
   "name": "ks-vscode",
   "displayName": "Keeper Security",
   "description": "Never commit secrets to your code again - secure them in your Keeper vault",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "license": "MIT",
   "publisher": "KeeperSecurityDev",
   "galleryBanner": {
@@ -176,11 +176,21 @@
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
-    "webpack": "^5.99.7",
+    "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "@keeper-security/secrets-manager-core": "^17.2.0",
     "dotenv": "^17.2.0"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Keeper Security accesses local CLI binaries and reads .env files; untrusted workspaces could include malicious .env files or workspace-relative tools that hijack the extension's CLI calls."
+    }
   }
 }

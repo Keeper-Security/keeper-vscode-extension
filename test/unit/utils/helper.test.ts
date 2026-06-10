@@ -26,9 +26,11 @@ import {
   promisifyExec,
   parseKeeperReference,
   StatusBarSpinner,
-  resolveFolderPaths,
   documentMatcher,
-  isEnvironmentFile
+  isEnvironmentFile,
+  hasKeeperNotationControlCharacters,
+  isValidKeeperRecordUid,
+  assertSafeKeeperNotationEnvValue,
 } from '../../../src/utils/helper';
 import { KEEPER_NOTATION_FIELD_TYPES } from '../../../src/utils/constants';
 import { logger } from '../../../src/utils/logger';
@@ -54,18 +56,20 @@ describe('Helper Functions', () => {
   describe('validateKeeperReference', () => {
     it('should validate correct keeper reference', () => {
       // Use a reference that matches the FIELD pattern: field or custom_field
-      const validReference = 'keeper://record123/field/MyPassword';
+      const validReference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/MyPassword';
       const result = validateKeeperReference(validReference);
-      
+
       expect(result).toBe(true);
       expect(logger.logDebug).toHaveBeenCalledWith(`Validating keeper reference: ${validReference}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Keeper reference validation result: ${result}`);
     });
 
     it('should validate custom_field reference', () => {
-      const validReference = 'keeper://record123/custom_field/MyCustomField';
+      const validReference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/custom_field/MyCustomField';
       const result = validateKeeperReference(validReference);
-      
+
       expect(result).toBe(true);
     });
 
@@ -88,16 +92,80 @@ describe('Helper Functions', () => {
       
       expect(result).toBe(false);
     });
+
+    it('should reject multiline keeper reference (command injection PoC)', () => {
+      const multilineReference =
+        'keeper://abc\nksm.bat\n/field/password';
+      expect(validateKeeperReference(multilineReference)).toBe(false);
+    });
+
+    it('should reject record UID with invalid characters', () => {
+      const invalidUidReference = 'keeper://not valid!/field/password';
+      expect(validateKeeperReference(invalidUidReference)).toBe(false);
+    });
+
+    it('should accept real-style record UID', () => {
+      const reference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/password';
+      expect(validateKeeperReference(reference)).toBe(true);
+    });
+  });
+
+  describe('hasKeeperNotationControlCharacters', () => {
+    it('should detect newline, carriage return, tab, and null', () => {
+      expect(hasKeeperNotationControlCharacters('a\nb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\rb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\tb')).toBe(true);
+      expect(hasKeeperNotationControlCharacters('a\0b')).toBe(true);
+    });
+
+    it('should allow normal keeper notation strings', () => {
+      expect(
+        hasKeeperNotationControlCharacters(
+          'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/password'
+        )
+      ).toBe(false);
+    });
+  });
+
+  describe('isValidKeeperRecordUid', () => {
+    it('should accept URL-safe base64-style UIDs', () => {
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYRA')).toBe(true);
+      expect(isValidKeeperRecordUid('G_qXL4pQ8Ebi-tewfu_iaQ')).toBe(true);
+    });
+
+    it('should reject UIDs with slashes, spaces, or newlines', () => {
+      expect(isValidKeeperRecordUid('abc\nksm')).toBe(false);
+      expect(isValidKeeperRecordUid('foo/bar')).toBe(false);
+      expect(isValidKeeperRecordUid('has space')).toBe(false);
+    });
+
+    it('should reject UIDs that are not exactly 22 characters', () => {
+      expect(isValidKeeperRecordUid('record123')).toBe(false);
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYR')).toBe(false);
+      expect(isValidKeeperRecordUid('PD-SYa1nmuiK1M1xQ0IYRAA')).toBe(false);
+    });
+  });
+
+  describe('assertSafeKeeperNotationEnvValue', () => {
+    it('should throw for control characters in env value', () => {
+      expect(() =>
+        assertSafeKeeperNotationEnvValue(
+          'keeper://abc\nksm.bat\n/field/password',
+          'API_PASSWORD'
+        )
+      ).toThrow(/control character/i);
+    });
   });
 
   describe('createKeeperReference', () => {
     it('should create valid keeper reference', () => {
-      const recordUid = 'record123';
-      const fieldType = KEEPER_NOTATION_FIELD_TYPES.FIELD; // Use the correct enum value
+      const recordUid = 'PD-SYa1nmuiK1M1xQ0IYRA';
+      const fieldType = KEEPER_NOTATION_FIELD_TYPES.FIELD;
       const itemName = 'MyPassword';
-      
+
       const result = createKeeperReference(recordUid, fieldType, itemName);
-      
+
       expect(result).toBe(`keeper://${recordUid}/${fieldType}/${itemName}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Creating keeper reference - recordUid: ${recordUid}, fieldType: ${fieldType}, itemName: ${itemName}`);
       expect(logger.logDebug).toHaveBeenCalledWith(`Created keeper reference: ${result}`);
@@ -105,16 +173,31 @@ describe('Helper Functions', () => {
 
     it('should return null when recordUid is missing', () => {
       const result = createKeeperReference('', KEEPER_NOTATION_FIELD_TYPES.FIELD, 'MyPassword');
-      
+
       expect(result).toBeNull();
       expect(logger.logError).toHaveBeenCalledWith('recordUid is required to create a keeper reference');
     });
 
     it('should return null when itemName is missing', () => {
-      const result = createKeeperReference('record123', KEEPER_NOTATION_FIELD_TYPES.FIELD, '');
-      
+      const result = createKeeperReference(
+        'PD-SYa1nmuiK1M1xQ0IYRA',
+        KEEPER_NOTATION_FIELD_TYPES.FIELD,
+        ''
+      );
+
       expect(result).toBeNull();
       expect(logger.logError).toHaveBeenCalledWith('itemName is required to create a keeper reference');
+    });
+
+    it('should return null when recordUid is not a valid 22-char URL-safe token', () => {
+      const result = createKeeperReference(
+        'record123',
+        KEEPER_NOTATION_FIELD_TYPES.FIELD,
+        'MyPassword'
+      );
+
+      expect(result).toBeNull();
+      expect(logger.logError).toHaveBeenCalledWith('recordUid contains invalid characters');
     });
   });
 
@@ -146,12 +229,11 @@ describe('Helper Functions', () => {
 
   describe('parseKeeperReference', () => {
     it('should parse valid keeper reference', () => {
-      // Use a reference that matches the FIELD pattern
-      const reference = 'keeper://record123/field/MyPassword';
+      const reference = 'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/MyPassword';
       const result = parseKeeperReference(reference);
-      
+
       expect(result).toEqual({
-        recordUid: 'record123',
+        recordUid: 'PD-SYa1nmuiK1M1xQ0IYRA',
         fieldType: 'field',
         itemName: 'MyPassword'
       });
@@ -160,11 +242,12 @@ describe('Helper Functions', () => {
     });
 
     it('should parse custom_field reference', () => {
-      const reference = 'keeper://record123/custom_field/MyCustomField';
+      const reference =
+        'keeper://PD-SYa1nmuiK1M1xQ0IYRA/custom_field/MyCustomField';
       const result = parseKeeperReference(reference);
-      
+
       expect(result).toEqual({
-        recordUid: 'record123',
+        recordUid: 'PD-SYa1nmuiK1M1xQ0IYRA',
         fieldType: 'custom_field',
         itemName: 'MyCustomField'
       });
@@ -181,6 +264,24 @@ describe('Helper Functions', () => {
     it('should return null for empty reference', () => {
       const result = parseKeeperReference('');
       expect(result).toBeNull();
+    });
+
+    it('should return null for multiline keeper reference', () => {
+      const result = parseKeeperReference(
+        'keeper://abc\nksm.bat\n/field/password'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should parse real-style record UID', () => {
+      const result = parseKeeperReference(
+        'keeper://G_qXL4pQ8Ebi-tewfu_iaQ/field/password'
+      );
+      expect(result).toEqual({
+        recordUid: 'G_qXL4pQ8Ebi-tewfu_iaQ',
+        fieldType: 'field',
+        itemName: 'password',
+      });
     });
   });
 
@@ -225,48 +326,6 @@ describe('Helper Functions', () => {
       spinner.dispose();
       
       expect(mockStatusBarItem.dispose).toHaveBeenCalled();
-    });
-  });
-
-  describe('resolveFolderPaths', () => {
-    it('should resolve simple folder structure', () => {
-      const folders: any[] = [
-        { folder_uid: 'folder1', name: 'Folder1', parent_uid: '/' },
-        { folder_uid: 'folder2', name: 'Folder2', parent_uid: 'folder1' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].folderPath).toBe('My Vault / Folder1');
-      expect(result[1].folderPath).toBe('My Vault / Folder1 / Folder2');
-    });
-
-    it('should resolve complex nested structure', () => {
-      const folders: any[] = [
-        { folder_uid: 'root', name: 'Root', parent_uid: '/' },
-        { folder_uid: 'level1', name: 'Level1', parent_uid: 'root' },
-        { folder_uid: 'level2', name: 'Level2', parent_uid: 'level1' },
-        { folder_uid: 'level3', name: 'Level3', parent_uid: 'level2' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(4);
-      expect(result[3].folderPath).toBe('My Vault / Root / Level1 / Level2 / Level3');
-    });
-
-    it('should handle missing parent folders gracefully', () => {
-      const folders: any[] = [
-        { folder_uid: 'folder1', name: 'Folder1', parent_uid: 'missing' },
-        { folder_uid: 'folder2', name: 'Folder2', parent_uid: '/' }
-      ];
-      
-      const result = resolveFolderPaths(folders);
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].folderPath).toBe('My Vault / Folder1');
-      expect(result[1].folderPath).toBe('My Vault / Folder2');
     });
   });
 

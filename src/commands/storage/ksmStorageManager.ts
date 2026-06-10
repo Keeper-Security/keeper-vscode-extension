@@ -65,6 +65,7 @@ export class KsmStorageManager extends BaseStorageManager {
         name: folder.name,
         parentUid: folder.parentUid || '/',
         folderPath: pathParts.join(' / '),
+        source: "", // TODO: add source , currenlty we are not fetting KD-Folder's from KSM
       };
     });
 

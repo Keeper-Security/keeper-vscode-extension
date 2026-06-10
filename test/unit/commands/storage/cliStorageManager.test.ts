@@ -73,8 +73,7 @@ describe('CliStorageManager', () => {
   });
 
   describe('ensureValidStorage', () => {
-    it('should call parent ensureValidStorage with fetchAvailableFolders', async () => {
-      // Use a folder that's NOT My Vault so validation actually calls fetchAvailableFolders
+    it('should validate current storage using getFolderByUid', async () => {
       const mockStorage: IFolder = {
         folderUid: '123',
         name: 'Test Folder',
@@ -85,21 +84,28 @@ describe('CliStorageManager', () => {
 
       mockCliService.executeCommanderCommand
         .mockResolvedValueOnce('') // sync-down
-        .mockResolvedValueOnce('[{"uid":"123","folder_uid":"123","name":"Test Folder","parent_uid":"root-folder","details":"Test Folder, Parent:root-folder"}]'); // ls
+        .mockResolvedValueOnce(
+          '[{"folder_uid":"123","name":"Test Folder"}]'
+        ); // get
 
       (safeJsonParse as jest.Mock).mockReturnValue([
         {
-          uid: '123',
           folder_uid: '123',
           name: 'Test Folder',
-          parent_uid: 'root-folder',
-          details: 'Test Folder, Parent:root-folder',
         },
       ]);
 
       const result = await cliStorageManager.ensureValidStorage();
 
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down --force');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('get', [
+        '123',
+        '--format=json',
+      ]);
+      expect(mockCliService.executeCommanderCommand).not.toHaveBeenCalledWith(
+        'ls',
+        expect.anything()
+      );
       expect(result).toBe(true);
     });
   });
@@ -124,7 +130,7 @@ describe('CliStorageManager', () => {
 
       const result = await cliStorageManager.fetchAvailableFolders();
 
-      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down');
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('sync-down --force');
       expect(logger.logDebug).toHaveBeenCalledWith(
         'CliStorageManager: Syncing down latest records from vault'
       );
@@ -146,6 +152,7 @@ describe('CliStorageManager', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       expect(result.availableFolders.length).toBeGreaterThan(0);
       expect(result.availableFolders[0]).toEqual(result.rootFolder);
@@ -463,6 +470,41 @@ describe('CliStorageManager', () => {
 
       const childFolder = result.find((f) => f.folderUid === '456');
       expect(childFolder?.folderPath).toBe('My Vault / Parent Folder / Child Folder');
+    });
+
+    it('should resolve paths from real CLI JSON (uid + Flags details only)', () => {
+      const mockCliFolders: ICliListFolderResponse[] = [
+        {
+          uid: 'G_qXL4pQ8Ebi-tewfu_iaQ',
+          name: 'Engineering 2',
+          parent_uid: '/',
+          details: 'Flags: , Parent: /',
+          source: 'KeeperDrive',
+        },
+        {
+          uid: '6fnkWl6cOahMM5FVod4lSw',
+          name: 'nested',
+          parent_uid: '/',
+          details: 'Flags: , Parent: G_qXL4pQ8Ebi-tewfu_iaQ',
+          source: 'KeeperDrive',
+        },
+        {
+          uid: 'AYAWw5zqQRasy9_ordJeKg',
+          name: 'nested 2',
+          parent_uid: '/',
+          details: 'Flags: , Parent: 6fnkWl6cOahMM5FVod4lSw',
+          source: 'KeeperDrive',
+        },
+      ];
+
+      const result = cliStorageManager.resolveFolderPaths(mockCliFolders);
+
+      expect(result.find((f) => f.name === 'nested')?.folderPath).toBe(
+        'My Vault / Engineering 2 / nested'
+      );
+      expect(result.find((f) => f.name === 'nested 2')?.folderPath).toBe(
+        'My Vault / Engineering 2 / nested / nested 2'
+      );
     });
   });
 });

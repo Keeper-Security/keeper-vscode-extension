@@ -37,7 +37,7 @@ This enable developers to manage secrets securely without leaving their developm
 ### For CLI Mode:
 
 - **Keeper Commander CLI**:
-  - The **Keeper Commander CLI** must be installed globally on your system using the official binary.
+  - The **Keeper Commander CLI v18.0.5 or later** must be installed globally on your system using the official binary.
   - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
 
 ### For KSM Mode:
@@ -147,7 +147,7 @@ Once authenticated, you can access the following commands through the Command Pa
 
 ### Commands Details:
 
-#### Save in Keeper Vault
+#### Save in Keeper Security
 
 1. **Using Command Palette**
 
@@ -156,11 +156,21 @@ Once authenticated, you can access the following commands through the Command Pa
    **Steps**:
    1. Select text containing a secret (password, token, API key, ...etc)
    2. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-   3. Type `Keeper Security: Save in Keeper Vault` and select it
+   3. Type `Keeper Security: Save in Keeper Security` and select it
    4. Extension will authenticate with Keeper Security (if needed)
    5. Enter record / field name
-   6. Extension creates new item in Keeper vault
-   7. Selected text is replaced with keeper reference (`keeper://...`) at users last cursor position
+   6. **(CLI mode, My Vault only)** Choose where the new record should live:
+      - **Use classic permission model** — creates the record with classic permission model.
+      - **Use new permission model** — creates the record with new permission model.
+        > This prompt appears only when your current storage is `My Vault`. If you have already chosen a specific folder via `Choose Folder`, the record is added there directly without prompting.
+        >
+        > **Example**:
+        >
+        > - Current storage = `My Vault` → you'll see the permission-model prompt before the record is created.
+        > - Current storage = `Backend / API Secrets (Classic Folder)` → the record is created with classic permission model and added directly to that folder, no prompt.
+        > - Current storage = `Team Shared / DB Credentials (Nested Share Folder)` → the record is added directly using the new permission model, no prompt.
+   7. Extension creates the new item in your Keeper vault
+   8. Selected text is replaced with the keeper reference (`keeper://...`) at the user's last cursor position
 
 2. **Automatic Secret Detection**
 
@@ -179,17 +189,19 @@ Once authenticated, you can access the following commands through the Command Pa
 **Example**:
 ![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252FJXsZGRNKi0hzF1hKuldb%252Fsave-in-keeper-security-demo.gif%3Falt%3Dmedia%26token%3Dde115187-219e-4c27-b74d-82deb89c8f13&width=768&dpr=2&quality=100&sign=c3e1618&sv=2)
 
-#### Get from Keeper Vault
+#### Get from Keeper Security
 
 **Purpose**: Insert existing Keeper Security secrets into your code as keeper reference without exposing actual values.
 
 **Steps**:
 
 1. Open Command Palette
-2. Type `Keeper Security: Get from Keeper Vault` and select it
-3. Extension shows list of available records
-4. Select specific `record` and then `field` that you want to use
-5. Extension inserts secret reference at users last cursor position
+2. Type `Keeper Security: Get from Keeper Security` and select it
+3. Extension shows the list of available records:
+   - **(CLI mode, My Vault only)** Classic and NSF records are shown together. Each entry is tagged `(Classic)` or `(Nested)` to make the source clear.
+   - When a specific folder is selected via `Choose Folder`, only records from that folder are shown.
+4. Select a `record`, then the `field` you want to use
+5. Extension inserts the keeper reference at the user's last cursor position
 
 **Reference Format**: `keeper://record-uid/field/item`
 
@@ -213,10 +225,14 @@ Once authenticated, you can access the following commands through the Command Pa
      - On Windows, press `Ctrl + H` (in some file dialogs)
      - On Linux, press `Ctrl + H`
 4. Enter the command you want to run.
-5. Extension creates terminal with injected secrets from selected `.env` and executes command
+5. Extension creates a terminal with injected secrets from the selected `.env` and executes the command.
 
 > **Note:** To make use of the injected secret values in your application, your code must reference the corresponding environment variables (e.g., `process.env.DB_PASSWORD`, `os.environ.get("API_KEY")`, etc.).<br>
-> The `.env` file should contain Keeper references (e.g., DB_PASSWORD=keeper://...) which are resolved at runtime when you use Run Securely.
+> The `.env` file should contain Keeper references (e.g., `DB_PASSWORD=keeper://...`) which are resolved at runtime when you use Run Securely.
+
+> **Reference validation**: Each `keeper://` reference is validated before being resolved. References that contain line breaks, control characters, or record UIDs that are not valid Keeper URL-safe base64 tokens are rejected and skipped — the resolver does not call the Keeper CLI for them and the corresponding environment variable is left as-is. This ensures malformed or tampered `.env` entries cannot influence what the CLI executes.
+
+> **Untrusted workspaces**: For security reasons, this extension is disabled in VS Code Restricted Mode. To use Run Securely (or any other Keeper Security command) in a workspace, you must explicitly trust the workspace via **Workspaces: Manage Workspace Trust**.
 
 **Example**:
 ![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F93gBDbbRD6QRveDq0tR1%252Frun-securely-demo.gif%3Falt%3Dmedia%26token%3Dca98d00e-688a-44a9-a5e2-b517f8e29614&width=768&dpr=2&quality=100&sign=ff06dfac&sv=2)
@@ -229,9 +245,11 @@ Once authenticated, you can access the following commands through the Command Pa
 
 1. Open Command Palette
 2. Type `Keeper Security: Choose Folder` and select it
-3. Extension displays available vault folders
-4. Select desired folder for this workspace
-5. Future `Save in Keeper Security` and `Generate Password` operations will use the selected folder to store secret in your Keeper Vault.
+3. Extension displays available vault folders, including `My Vault` (root)
+   - **(CLI mode)** Each non-root entry is tagged `(Classic Folder)` or `(Nested Share Folder)` for folder type identification.
+4. Select the desired folder for this workspace
+5. Future `Save in Keeper Security` and `Generate Password` operations will use the selected folder to store the secret in your Keeper Vault.
+   - Selecting `My Vault` defers the choice to record-creation time: you'll then be prompted for the permission model (classic vs new) each time you save or generate a password.
 
 ![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F0L8pDrdPvDrs6453Pj9M%252Fchoose-folder-demo.gif%3Falt%3Dmedia%26token%3D46dc3552-9499-4ca7-bc8a-3278dfb71cd5&width=768&dpr=2&quality=100&sign=99be0580&sv=2)
 
@@ -243,8 +261,18 @@ Once authenticated, you can access the following commands through the Command Pa
 
 1. Open Command Palette
 2. Type `Keeper Security: Generate Password` and select it
-3. Enter `record` name
-4. Password reference will inserted at users last cursor position
+3. Enter the `record` name
+4. **(CLI mode, My Vault only)** Choose where the new record should live:
+   - **Use classic permission model** — creates the record with classic permission model.
+   - **Use new permission model** — creates the record with new permission model.
+     > This prompt appears only when your current storage is `My Vault`. If you have already chosen a specific folder via `Choose Folder`, the record is added there directly without prompting.
+     >
+     > **Example**:
+     >
+     > - Current storage = `My Vault` → you'll see the permission-model prompt before the password is stored.
+     > - Current storage = `Backend / API Secrets (Classic Folder)` → the record with auto-generated password is created with classic permission model and added directly to that folder, no prompt.
+     > - Current storage = `Team Shared / DB Credentials (Nested Share Folder)` → the record with auto-generated password is added directly using the new permission model, no prompt.
+5. The password reference will be inserted at the user's last cursor position
 
 **Example**:
 ![DEMO](https://docs.keeper.io/en/~gitbook/image?url=https%3A%2F%2F762006384-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F-MJXOXEifAmpyvNVL1to%252Fuploads%252F8EGWoQtj1QRSvdFvMmQP%252Fgenerate-password-demo.gif%3Falt%3Dmedia%26token%3Dfa5b57bb-7075-4606-9d4f-c16d373523dd&width=768&dpr=2&quality=100&sign=74ca9de0&sv=2)

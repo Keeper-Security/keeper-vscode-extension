@@ -46,7 +46,7 @@ export class HandlerFactory {
       );
       handlers.set(
         COMMANDS.GET_VALUE_FROM_VAULT,
-        new CliGetValueHandler(spinner, cliService)
+        new CliGetValueHandler(spinner, cliService, storageManager)
       );
       handlers.set(
         COMMANDS.GENERATE_PASSWORD,

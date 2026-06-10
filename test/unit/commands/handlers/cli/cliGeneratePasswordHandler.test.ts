@@ -28,6 +28,7 @@ jest.mock('vscode', () => ({
   ...jest.requireActual('vscode'),
   window: {
     showInputBox: jest.fn(),
+    showQuickPick: jest.fn(),
     showInformationMessage: jest.fn(),
     showErrorMessage: jest.fn(),
     activeTextEditor: null,
@@ -91,6 +92,15 @@ describe('CliGeneratePasswordHandler', () => {
 
     // Reset mocks
     (createKeeperReference as jest.Mock).mockReset();
+
+    // Default permission-model selection for My Vault scenarios.
+    // resolveRecordAddCommand prompts via showQuickPick when storage is the root
+    // folder; default to the classic option so existing tests keep using
+    // the `record-add` command.
+    (window.showQuickPick as jest.Mock).mockResolvedValue({
+      label: 'Use classic permission model',
+      value: 'record-add',
+    });
   });
 
   describe('constructor', () => {
