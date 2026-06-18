@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.2.0
+
+- **Security fixes**:
+  - **Save in Keeper Security** and **Generate Password** now escape backslashes and double quotes in record titles, field values, and folder UIDs before building `record-add` / `nsf-record-add` arguments. Repository-controlled secret text (e.g. from a malicious `.env` or source file) can no longer break out of quoted Commander arguments and inject additional CLI flags such as `--title=` when the extension writes to the persistent Commander shell.
+  - Reject control characters in record-add field data before the command is sent to Keeper Commander.
+
 ## 2.1.0
 
 - **Nested Share Folder Support** (In CLI mode): Added support for Keeper's new nested share folders alongside classic folders.
@@ -7,6 +13,7 @@
 - **Permission Model Selection in My Vault** (In CLI mode): When the current storage is `My Vault` (root), `Generate Password` and `Save Value to Vault` now prompt the user to choose between:
   - `Use classic permission model` — creates the record with classic permission model.
   - `Use new permission model` — creates the record with new permission model.
+- **Combined Record Listing for My Vault** (In CLI mode): **Get from Keeper Security** fetches both classic and nested share folder records and shows them together in a single list when current storage is `My Vault`.
 - **Security fixes**:
   - Reject Keeper references containing line breaks or other control characters in `.env` files used by the `Run Securely` command.
   - Validate Keeper record UIDs and arguments passed to Keeper Commander, rejecting values that contain control characters or unsafe characters.
