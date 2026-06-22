@@ -25,6 +25,8 @@ export const CLI_ERROR_MESSAGES = {
   FAILED_TO_SWITCH_TO_KSM: 'Failed to switch to KSM mode',
   INVALID_COMMANDER_ARGUMENT:
     'Invalid Keeper Commander argument: control characters are not allowed.',
+  INVALID_COMMANDER_RECORD_ADD_VALUE:
+    'Value contains characters that are not allowed in Keeper Commander record fields (control characters).',
   INVALID_COMMANDER_RECORD_UID: 'Invalid Keeper record UID.',
 } as const;
 

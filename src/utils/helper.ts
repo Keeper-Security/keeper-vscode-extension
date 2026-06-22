@@ -21,6 +21,27 @@ export function hasKeeperNotationControlCharacters(value: string): boolean {
   return KEEPER_NOTATION_CONTROL_CHAR_PATTERN.test(value);
 }
 
+/**
+ * Escape a value embedded inside Keeper Commander double-quoted tokens.
+ * Backslashes and double quotes are escaped so repository-controlled field
+ * data cannot break out and inject additional CLI flags (e.g. `--title=`).
+ */
+export function escapeCommanderDoubleQuotedValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Join a Commander shell command and pre-built args into the line written to
+ * the persistent REPL stdin. Centralizes serialization so escaping rules stay
+ * consistent across call sites.
+ */
+export function serializeCommanderShellCommand(
+  command: string,
+  args: string[]
+): string {
+  return `${command} ${args.join(' ')}\n`;
+}
+
 export function isValidKeeperRecordUid(recordUid: string): boolean {
   return KEEPER_RECORD_UID_PATTERN.test(recordUid);
 }

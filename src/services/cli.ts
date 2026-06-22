@@ -4,6 +4,7 @@ import {
   hasKeeperNotationControlCharacters,
   isValidKeeperRecordUid,
   promisifyExec,
+  serializeCommanderShellCommand,
   StatusBarSpinner,
 } from '../utils/helper';
 import { execFile, spawn, ChildProcess } from 'child_process';
@@ -617,7 +618,9 @@ export class CliService {
             this.persistentProcess?.stdin?.write('\x03');
 
             setTimeout(() => {
-              this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
+              this.persistentProcess?.stdin?.write(
+                serializeCommanderShellCommand(command, args)
+              );
             }, 500); // 0.5 seconds timeout
             return;
           }
@@ -670,7 +673,9 @@ export class CliService {
       this.persistentProcess?.stderr?.on('data', onStderr);
 
       // Send command to Keeper Commander process via stdin
-      this.persistentProcess?.stdin?.write(`${command} ${args.join(' ')}\n`);
+      this.persistentProcess?.stdin?.write(
+        serializeCommanderShellCommand(command, args)
+      );
 
       // Wait for command completion by checking for shell prompt
       const checkCompletion = (): void => {

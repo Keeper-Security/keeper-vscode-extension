@@ -118,6 +118,33 @@ describe('CliSaveValueHandler', () => {
       expect(mockSpinner.hide).toHaveBeenCalled();
     });
 
+    it('should escape quote-breakout payloads in selected secret text', async () => {
+      const maliciousValue = 'SAFE_VALUE" --title="SAFE_INJECTED';
+      spyGetSelectedText().mockResolvedValue(maliciousValue);
+      mockCliService.isCLIReady.mockResolvedValue(true);
+      spyGetRecordNameFromUser().mockResolvedValue('SAFE_ORIGINAL');
+      spyGetSecretFieldNameFromUser().mockResolvedValue('password');
+      mockStorageManager.ensureValidStorage.mockResolvedValue(true);
+      mockStorageManager.getCurrentStorage.mockReturnValue({
+        folderUid: '/',
+        name: 'My Vault',
+        parentUid: '/',
+        folderPath: '/',
+      });
+      spyGetFieldType().mockReturnValue('secret');
+      mockCliService.executeCommanderCommand.mockResolvedValue('rec123');
+      mockedCreateKeeperReference.mockReturnValue('keeper://rec123/custom_field/password');
+      spyInsert().mockResolvedValue(true);
+
+      await handler.execute();
+
+      expect(mockCliService.executeCommanderCommand).toHaveBeenCalledWith('record-add', [
+        '--title="SAFE_ORIGINAL"',
+        `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
+        `"c.secret.password"="SAFE_VALUE\\" --title=\\"SAFE_INJECTED"`,
+      ]);
+    });
+
     it('should save to custom folder (adds --folder)', async () => {
       spyGetSelectedText().mockResolvedValue('secret-value');
       mockCliService.isCLIReady.mockResolvedValue(true);

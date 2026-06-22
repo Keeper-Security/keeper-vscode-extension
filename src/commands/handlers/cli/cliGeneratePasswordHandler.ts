@@ -14,7 +14,7 @@ import {
   CLI_LOGGER_ERROR_MESSAGES,
 } from '../../../utils/cli-messages';
 import { CliStorageManager } from '../../storage/cliStorageManager';
-import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
+import { resolveRecordAddCommand, buildRecordAddArgs } from '../../utils/cliRecordCommandResolver';
 
 export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
   constructor(
@@ -68,16 +68,13 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
 
       this.spinner.show(CLI_INFO_MESSAGES.GENERATING_PASSWORD);
 
-      const args = [
-        `--title="${recordName}"`,
-        `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
-        `"password"=$GEN`,
-      ];
-
-      // if currentStorage is not "My Vault", then add folder to args
-      if (currentStorage?.folderUid !== '/') {
-        args.push(`--folder="${currentStorage?.folderUid}"`);
-      }
+      const args = buildRecordAddArgs({
+        title: recordName,
+        recordType: KEEPER_RECORD_TYPES.LOGIN,
+        fieldKey: 'password',
+        fieldValue: { kind: 'generate', token: '$GEN' },
+        folderUid: currentStorage?.folderUid,
+      });
 
       const recordUid = await this.cliService.executeCommanderCommand(
         recordCommandToExecute, 

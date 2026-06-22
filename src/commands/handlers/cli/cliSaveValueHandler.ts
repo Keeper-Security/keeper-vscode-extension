@@ -14,7 +14,7 @@ import {
   KEEPER_NOTATION_FIELD_TYPES,
   KEEPER_RECORD_TYPES,
 } from '../../../utils/constants';
-import { resolveRecordAddCommand } from '../../utils/cliRecordCommandResolver';
+import { resolveRecordAddCommand, buildRecordAddArgs } from '../../utils/cliRecordCommandResolver';
 
 export class CliSaveValueHandler extends BaseSaveValueHandler {
   constructor(
@@ -91,25 +91,14 @@ export class CliSaveValueHandler extends BaseSaveValueHandler {
 
       this.spinner.show(CLI_INFO_MESSAGES.SAVING_SECRET);
 
-      /**
-       *
-       * [<FIELD_SET>][<FIELD_TYPE>][<FIELD_LABEL>]=[FIELD_VALUE]
-       *
-       * `"c.${this.getFieldType(recordFieldName)}.${recordFieldName}"="${selectedText}"`
-       *
-       * Create custom field with detect recordFieldName that can be secret or text
-       */
-
-      const args = [
-        `--title="${recordName}"`,
-        `--record-type=${KEEPER_RECORD_TYPES.LOGIN}`,
-        `"c.${this.getFieldType(recordFieldName)}.${recordFieldName}"="${selectedText}"`,
-      ];
-
-      // if currentStorage is not "My Vault", then add folder to args
-      if (currentStorage?.folderUid !== '/') {
-        args.push(`--folder="${currentStorage?.folderUid}"`);
-      }
+      const fieldKey = `c.${this.getFieldType(recordFieldName)}.${recordFieldName}`;
+      const args = buildRecordAddArgs({
+        title: recordName,
+        recordType: KEEPER_RECORD_TYPES.LOGIN,
+        fieldKey,
+        fieldValue: { kind: 'literal', value: selectedText },
+        folderUid: currentStorage?.folderUid,
+      });
 
       const recordUid = await this.cliService.executeCommanderCommand(
         recordCommandToExecute,

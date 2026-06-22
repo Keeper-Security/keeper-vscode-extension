@@ -29,6 +29,8 @@ import {
   documentMatcher,
   isEnvironmentFile,
   hasKeeperNotationControlCharacters,
+  escapeCommanderDoubleQuotedValue,
+  serializeCommanderShellCommand,
   isValidKeeperRecordUid,
   assertSafeKeeperNotationEnvValue,
 } from '../../../src/utils/helper';
@@ -125,6 +127,28 @@ describe('Helper Functions', () => {
           'keeper://PD-SYa1nmuiK1M1xQ0IYRA/field/password'
         )
       ).toBe(false);
+    });
+  });
+
+  describe('escapeCommanderDoubleQuotedValue', () => {
+    it('should escape backslashes and double quotes', () => {
+      expect(escapeCommanderDoubleQuotedValue('SAFE_VALUE" --title="SAFE_INJECTED')).toBe(
+        'SAFE_VALUE\\" --title=\\"SAFE_INJECTED'
+      );
+      expect(escapeCommanderDoubleQuotedValue('path\\to\\secret')).toBe(
+        'path\\\\to\\\\secret'
+      );
+    });
+  });
+
+  describe('serializeCommanderShellCommand', () => {
+    it('should join command and args with a trailing newline', () => {
+      expect(
+        serializeCommanderShellCommand('record-add', [
+          '--title="My Record"',
+          '--record-type=login',
+        ])
+      ).toBe('record-add --title="My Record" --record-type=login\n');
     });
   });
 
