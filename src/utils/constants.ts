@@ -43,6 +43,9 @@ export const KEEPER_COMMANDER_DOCS_URLS = {
 export const HELPER_MESSAGES = {
   OPEN_INSTALLATION_DOCS: 'Open Installation Documentation',
   OPEN_AUTHENTICATION_DOCS: 'Open Authentication Documentation',
+  INSTALL_AUTOMATICALLY: 'Install Automatically',
+  LOG_IN_NOW: 'Log In Now',
+  RETRY: 'Retry',
   CLI_NOT_INSTALLED:
     'Keeper Commander CLI is not installed. Please install it first.',
   CLI_NOT_AUTHENTICATED:

@@ -10,6 +10,7 @@ import {
 import { execFile, spawn, ChildProcess } from 'child_process';
 import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
 import { HELPER_MESSAGES } from '../utils/constants';
+import { CommanderInstallerService } from './commanderInstaller';
 import { CLI_ERROR_MESSAGES } from '../utils/cli-messages';
 
 // Patterns to filter out from Keeper Commander output (not real errors)
@@ -86,6 +87,7 @@ export class CliService {
   private shellReady = false;
   private shellReadyPromise: Promise<void> | null = null;
   private isExecutingCommand = false;
+  private keeperBinaryPath: string = 'keeper';
 
   // Add reset cli timeout
   private resetCliTimeout: NodeJS.Timeout | null = null;
@@ -109,6 +111,27 @@ export class CliService {
     try {
       logger.logDebug('CliService.lazyInitialize: Starting initialization');
       this.spinner.show('Initializing Keeper Security Extension...');
+
+      // Resolve the keeper binary from known candidate paths before running any checks.
+      // VS Code does not source ~/.zshrc, so 'keeper' may not be on its PATH even if
+      // the CLI is installed. resolveExistingBinary() searches full paths directly.
+      const installer = new CommanderInstallerService(this.context);
+      const resolved  = installer.resolveExistingBinary();
+      if (resolved) {
+        this.keeperBinaryPath = resolved;
+        logger.logDebug(`CliService.lazyInitialize: Resolved keeper binary at ${resolved}`);
+
+        // Check for available upgrades asynchronously — never blocks startup.
+        // If the user chooses to upgrade, keeperBinaryPath is updated after install completes.
+        installer.checkAndUpgrade(resolved).then((upgradedPath) => {
+          if (upgradedPath !== resolved) {
+            this.keeperBinaryPath = upgradedPath;
+            logger.logDebug(`CliService: Binary updated after upgrade to ${upgradedPath}`);
+          }
+        }).catch((err) => {
+          logger.logError('CliService: upgrade check error', err);
+        });
+      }
 
       logger.logDebug(
         'CliService.lazyInitialize: Checking commander installation and authentication'
@@ -368,7 +391,7 @@ export class CliService {
     args: string[] = []
   ): Promise<{ stdout: string; stderr: string }> {
     const isWindows = process.platform === 'win32';
-    const file = isWindows ? 'cmd' : 'keeper';
+    const file = isWindows ? 'cmd' : this.keeperBinaryPath;
     const argv = isWindows
       ? ['/c', 'keeper', command, ...args]
       : [command, ...args];
@@ -508,7 +531,7 @@ export class CliService {
         });
       } else {
         // On other platforms, spawn directly
-        this.persistentProcess = spawn('keeper', ['shell'], {
+        this.persistentProcess = spawn(this.keeperBinaryPath, ['shell'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: false,
         });
@@ -740,16 +763,26 @@ export class CliService {
     this.resetCliService();
   }
 
-  // Show user-friendly error when Keeper Commander is not installed
+  // Show user-friendly error when Keeper Commander is not installed.
+  // Offers auto-install via CommanderInstallerService before falling back to docs.
   private async promptCommanderInstallationError(): Promise<void> {
     const action = await window.showErrorMessage(
       HELPER_MESSAGES.CLI_NOT_INSTALLED,
+      HELPER_MESSAGES.INSTALL_AUTOMATICALLY,
       HELPER_MESSAGES.OPEN_INSTALLATION_DOCS
     );
 
-    if (action === HELPER_MESSAGES.OPEN_INSTALLATION_DOCS) {
+    if (action === HELPER_MESSAGES.INSTALL_AUTOMATICALLY) {
+      const installer  = new CommanderInstallerService(this.context);
+      const binaryPath = await installer.promptAndInstall();
+
+      if (binaryPath) {
+        this.keeperBinaryPath = binaryPath;
+        // Reset so lazyInitialize re-runs with the newly installed binary
+        this.isInitialized = false;
+      }
+    } else if (action === HELPER_MESSAGES.OPEN_INSTALLATION_DOCS) {
       const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.INSTALLATION);
-      // Open installation documentation
       env.openExternal(docsUrl);
     }
   }
@@ -763,7 +796,6 @@ export class CliService {
 
     if (action === HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS) {
       const docsUrl = Uri.parse(KEEPER_COMMANDER_DOCS_URLS.AUTHENTICATION);
-      // Open authentication documentation
       env.openExternal(docsUrl);
     }
   }
