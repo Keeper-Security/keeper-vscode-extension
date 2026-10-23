@@ -1,5 +1,13 @@
 # Change Log
 
+## 2.3.0
+
+- **Accounts without Nested Share Folders** (In CLI mode): The extension now detects when nested share folders are not enabled for the logged-in account and skips `nsf-*` commands instead of failing.
+  - **Get from Keeper Security** in `My Vault` no longer fails with `CLI returned non-JSON output`; it shows classic records only.
+  - **Generate Password** and **Save Value to Vault** in `My Vault` skip the permission model prompt and create records with the classic permission model.
+  - Support is detected from the first `nsf-*` command and re-checked whenever the CLI service resets (every 10 minutes or on re-authentication), so enabling nested share folders or switching accounts is picked up without reloading the window.
+  - If nested share folder records cannot be parsed, classic records are still shown instead of the whole command failing.
+
 ## 2.2.0
 
 - **Security fixes**:

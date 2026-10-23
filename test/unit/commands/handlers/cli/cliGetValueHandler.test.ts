@@ -73,6 +73,7 @@ describe('CliGetValueHandler', () => {
     mockCliService = {
       isCLIReady: jest.fn(),
       executeCommanderCommand: jest.fn(),
+      executeNsfCommand: jest.fn(),
     } as unknown as jest.Mocked<CliService>;
 
     mockSpinner = {
@@ -205,6 +206,80 @@ describe('CliGetValueHandler', () => {
         CLI_SUCCESS_MESSAGES.NO_RECORDS_FOUND
       );
       expect(mockSpinner.hide).toHaveBeenCalled();
+    });
+
+    describe('My Vault', () => {
+      const myVaultStorage = {
+        folderUid: '/',
+        name: 'My Vault',
+        parentUid: '/',
+        folderPath: '/',
+        source: '',
+      };
+      const classicRecords: ICliListRecordResponse[] = [
+        { record_uid: 'record1', title: 'Record 1', record_category: CLI_RECORD_CATEGORY_CLASSIC },
+      ];
+
+      beforeEach(() => {
+        mockStorageManager.getCurrentStorage.mockReturnValue(myVaultStorage);
+        mockCliService.isCLIReady.mockResolvedValue(true);
+        mockCliService.executeCommanderCommand
+          .mockResolvedValueOnce('') // sync-down
+          .mockResolvedValueOnce(JSON.stringify(classicRecords)); // list
+        (window.showQuickPick as jest.Mock).mockResolvedValueOnce(undefined);
+      });
+
+      const recordsShownInQuickPick = () =>
+        (window.showQuickPick as jest.Mock).mock.calls[0][0];
+
+      it('should combine nested and classic records when NSF is supported', async () => {
+        mockCliService.executeNsfCommand.mockResolvedValue('[...]');
+        (safeJsonParse as jest.Mock)
+          .mockReturnValueOnce([{ UID: 'nsf1', Title: 'Nested 1' }])
+          .mockReturnValueOnce(classicRecords);
+
+        await cliGetValueHandler.execute();
+
+        expect(mockCliService.executeNsfCommand).toHaveBeenCalledWith('nsf-list', [
+          '--records',
+          '--format=json',
+        ]);
+        expect(recordsShownInQuickPick()).toEqual([
+          { label: 'Nested 1 (Nested)', value: 'nsf1' },
+          expect.objectContaining({ value: 'record1' }),
+        ]);
+      });
+
+      it('should show only classic records when NSF is not supported', async () => {
+        mockCliService.executeNsfCommand.mockResolvedValue(null);
+        (safeJsonParse as jest.Mock).mockReturnValueOnce(classicRecords);
+
+        await cliGetValueHandler.execute();
+
+        expect(logger.logError).not.toHaveBeenCalled();
+        expect(recordsShownInQuickPick()).toEqual([
+          expect.objectContaining({ value: 'record1' }),
+        ]);
+      });
+
+      it('should still show classic records when nsf-list output cannot be parsed', async () => {
+        mockCliService.executeNsfCommand.mockResolvedValue('unexpected output');
+        (safeJsonParse as jest.Mock)
+          .mockImplementationOnce(() => {
+            throw new Error('CLI returned non-JSON output');
+          })
+          .mockReturnValueOnce(classicRecords);
+
+        await cliGetValueHandler.execute();
+
+        expect(logger.logError).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to parse nested share folder records'),
+          expect.any(Error)
+        );
+        expect(recordsShownInQuickPick()).toEqual([
+          expect.objectContaining({ value: 'record1' }),
+        ]);
+      });
     });
 
     it('should return early when user cancels record selection', async () => {

@@ -194,6 +194,66 @@ describe('CliService', () => {
     });
   });
 
+  describe('nested share folder support', () => {
+    const helpOutput = 'Available Commands\n  ────────\n  Record Commands\n    append-notes (an)   Append notes';
+    let executeSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      executeSpy = jest.spyOn(cliService, 'executeCommanderCommand');
+    });
+
+    it('should return output and mark NSF supported when the command succeeds', async () => {
+      executeSpy.mockResolvedValue('[]');
+
+      await expect(cliService.executeNsfCommand('nsf-list', ['--format=json'])).resolves.toBe('[]');
+      await expect(cliService.isNsfSupported()).resolves.toBe(true);
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null and skip later nsf commands when Commander prints its help', async () => {
+      executeSpy.mockResolvedValue(helpOutput);
+
+      await expect(cliService.executeNsfCommand('nsf-list')).resolves.toBeNull();
+      await expect(cliService.executeNsfCommand('nsf-list')).resolves.toBeNull();
+      await expect(cliService.isNsfSupported()).resolves.toBe(false);
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not treat JSON containing the help heading as unsupported', async () => {
+      const output = '[{"Title": "Available Commands", "UID": "abc"}]';
+      executeSpy.mockResolvedValue(output);
+
+      await expect(cliService.executeNsfCommand('nsf-list')).resolves.toBe(output);
+    });
+
+    it('should probe once with nsf-list and cache the result', async () => {
+      executeSpy.mockResolvedValue(helpOutput);
+
+      await expect(cliService.isNsfSupported()).resolves.toBe(false);
+      await expect(cliService.isNsfSupported()).resolves.toBe(false);
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(executeSpy).toHaveBeenCalledWith('nsf-list', ['--records', '--format=json']);
+      expect(mockSpinner.show).toHaveBeenCalled();
+      expect(mockSpinner.hide).toHaveBeenCalled();
+    });
+
+    it('should not cache the result when the probe fails', async () => {
+      executeSpy.mockRejectedValueOnce(new Error('network error')).mockResolvedValue('[]');
+
+      await expect(cliService.isNsfSupported()).resolves.toBe(false);
+      await expect(cliService.isNsfSupported()).resolves.toBe(true);
+      expect(executeSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should re-check support after the CLI service resets', async () => {
+      executeSpy.mockResolvedValueOnce(helpOutput).mockResolvedValue('[]');
+
+      await expect(cliService.isNsfSupported()).resolves.toBe(false);
+      (cliService as any).resetCliService();
+      await expect(cliService.isNsfSupported()).resolves.toBe(true);
+    });
+  });
+
   describe('executeCommanderCommandLegacy', () => {
     it('should execute command successfully', async () => {
       mockExecFunction.mockResolvedValue({ stdout: 'test output', stderr: '' });

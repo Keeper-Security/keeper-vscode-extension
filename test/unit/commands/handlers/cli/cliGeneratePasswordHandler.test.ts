@@ -59,6 +59,7 @@ describe('CliGeneratePasswordHandler', () => {
     mockCliService = {
       isCLIReady: jest.fn(),
       executeCommanderCommand: jest.fn(),
+      isNsfSupported: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<CliService>;
 
     mockSpinner = {

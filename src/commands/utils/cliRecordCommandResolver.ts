@@ -7,6 +7,7 @@ import {
 } from '../../utils/helper';
 import { CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER, KEEPER_RECORD_TYPES } from '../../utils/constants';
 import { CLI_ERROR_MESSAGES, CLI_INFO_MESSAGES } from '../../utils/cli-messages';
+import { CliService } from '../../services/cli';
 
 export const RECORD_ADD_COMMANDS = {
   CLASSIC: 'record-add',
@@ -83,16 +84,21 @@ export function buildRecordAddArgs(
  * Resolves which `record-add` command variant to use based on the current storage.
  *
  * - "My Vault" (root folder) — prompts the user to choose between the classic
- *   and the new (nested share folder) permission model.
+ *   and the new (nested share folder) permission model, or uses `record-add`
+ *   without prompting when nested share folders are not supported.
  * - Nested share folder — `nsf-record-add` (no prompt).
  * - Any other folder — `record-add` (no prompt).
  *
  * Returns `undefined` only when the user dismisses the permission model quick pick.
  */
 export async function resolveRecordAddCommand(
-  currentStorage: IFolder | null
+  currentStorage: IFolder | null,
+  cliService: Pick<CliService, 'isNsfSupported'>
 ): Promise<RecordAddCommand | undefined> {
   if (currentStorage?.folderUid === '/') {
+    if (!(await cliService.isNsfSupported())) {
+      return RECORD_ADD_COMMANDS.CLASSIC;
+    }
     return await promptForPermissionModel();
   }
 
