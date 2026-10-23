@@ -69,6 +69,10 @@ function extractCommandOutput(
   return extractedOutput;
 }
 
+// Commander prints its generic help (headed by this line) when it does not
+// recognise a command, e.g. `nsf-*` commands for accounts without nested share folders
+const UNKNOWN_COMMAND_OUTPUT_PATTERN = /^\s*Available Commands\s*$/m;
+
 // Create a special error type that won't trigger persistent mode fallback
 class CommandBlockedError extends Error {
   constructor(message: string) {
@@ -86,6 +90,8 @@ export class CliService {
   private shellReady = false;
   private shellReadyPromise: Promise<void> | null = null;
   private isExecutingCommand = false;
+  // null = not yet known; resolved from the first nsf-* command output
+  private nsfSupported: boolean | null = null;
 
   // Add reset cli timeout
   private resetCliTimeout: NodeJS.Timeout | null = null;
@@ -197,6 +203,7 @@ export class CliService {
     this.shellReady = false;
     this.shellReadyPromise = null;
     this.isExecutingCommand = false;
+    this.nsfSupported = null;
 
     // Kill and clear persistent process
     if (this.persistentProcess) {
@@ -448,6 +455,55 @@ export class CliService {
 
       return this.executeCommanderCommandLegacy(command, args);
     }
+  }
+
+  /**
+   * Executes an `nsf-*` command. Returns `null` without running anything once
+   * nested share folders are known to be unsupported for the account, or when
+   * Commander does not recognise the command. Support is cached until the CLI
+   * service resets; failed commands are not cached so transient errors do not
+   * disable NSF for the session.
+   */
+  public async executeNsfCommand(
+    command: string,
+    args: string[] = []
+  ): Promise<string | null> {
+    if (this.nsfSupported === false) {
+      logger.logDebug(`Skipping ${command}: nested share folders are not supported`);
+      return null;
+    }
+
+    const output = await this.executeCommanderCommand(command, args);
+
+    if (UNKNOWN_COMMAND_OUTPUT_PATTERN.test(output)) {
+      logger.logInfo(
+        `Commander did not recognise ${command}; nested share folders are not supported for this account`
+      );
+      this.nsfSupported = false;
+      return null;
+    }
+
+    this.nsfSupported = true;
+    return output;
+  }
+
+  // Check whether nested share folder (nsf-*) commands are available, probing once if unknown
+  public async isNsfSupported(): Promise<boolean> {
+    if (this.nsfSupported !== null) {
+      return this.nsfSupported;
+    }
+
+    this.spinner.show('Checking nested share folder support...');
+    try {
+      await this.executeNsfCommand('nsf-list', ['--records', '--format=json']);
+    } catch (error) {
+      logger.logError('Failed to check nested share folder support', error);
+      return false;
+    } finally {
+      this.spinner.hide();
+    }
+
+    return this.nsfSupported ?? false;
   }
 
   // Simple persistent command execution with timeout protection (NO persistent mode kill)

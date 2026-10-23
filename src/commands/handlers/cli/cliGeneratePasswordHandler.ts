@@ -56,7 +56,7 @@ export class CliGeneratePasswordHandler extends BaseGeneratePasswordHandler {
       const currentStorage = this.storageManager.getCurrentStorage();
 
       const recordCommandToExecute =
-        await resolveRecordAddCommand(currentStorage);
+        await resolveRecordAddCommand(currentStorage, this.cliService);
       if (!recordCommandToExecute) {
         logger.logDebug(
           this.constructor.name +

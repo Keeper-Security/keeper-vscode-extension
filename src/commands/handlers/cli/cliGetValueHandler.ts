@@ -224,17 +224,29 @@ export class CliGetValueHandler extends BaseGetValueHandler {
 
   /**
    * Fetches records from a nested share folder via `nsf-list --records --format=json`
-   * and maps them into quick-pick items.
+   * and maps them into quick-pick items. Returns no records when nested share
+   * folders are unsupported or the output cannot be parsed, so classic records
+   * can still be shown.
    */
   private async fetchAndProcessNsfRecords(): Promise<IRecordQuickPick[]> {
-    const nsfRecordsRaw = await this.cliService.executeCommanderCommand(
-      'nsf-list',
-      ['--records', '--format=json']
-    );
-    const nsfRecords: ICliNsfListRecordResponse[] = safeJsonParse(
-      nsfRecordsRaw,
-      []
-    );
+    const nsfRecordsRaw = await this.cliService.executeNsfCommand('nsf-list', [
+      '--records',
+      '--format=json',
+    ]);
+    if (nsfRecordsRaw === null) {
+      return [];
+    }
+
+    let nsfRecords: ICliNsfListRecordResponse[];
+    try {
+      nsfRecords = safeJsonParse(nsfRecordsRaw, []);
+    } catch (error) {
+      logger.logError(
+        this.constructor.name + ': Failed to parse nested share folder records',
+        error
+      );
+      return [];
+    }
 
     return nsfRecords.map((record) => ({
       label: `${record.Title} (Nested)`,

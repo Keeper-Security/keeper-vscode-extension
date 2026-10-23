@@ -7,7 +7,10 @@ import {
   escapeCommanderDoubleQuotedValue,
   serializeCommanderShellCommand,
 } from '../../../../src/utils/helper';
-import { KEEPER_RECORD_TYPES } from '../../../../src/utils/constants';
+import {
+  CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+  KEEPER_RECORD_TYPES,
+} from '../../../../src/utils/constants';
 import { CLI_ERROR_MESSAGES } from '../../../../src/utils/cli-messages';
 import { window } from 'vscode';
 
@@ -126,19 +129,51 @@ describe('cliRecordCommandResolver', () => {
   });
 
   describe('resolveRecordAddCommand', () => {
+    const myVault = {
+      folderUid: '/',
+      name: 'My Vault',
+      parentUid: '/',
+      folderPath: '/',
+      source: '',
+    };
+    let mockCliService: { isNsfSupported: jest.Mock };
+
+    beforeEach(() => {
+      mockCliService = { isNsfSupported: jest.fn().mockResolvedValue(true) };
+    });
+
+    it('should use record-add without prompting when NSF is not supported in My Vault', async () => {
+      mockCliService.isNsfSupported.mockResolvedValue(false);
+
+      const result = await resolveRecordAddCommand(myVault, mockCliService);
+
+      expect(result).toBe(RECORD_ADD_COMMANDS.CLASSIC);
+      expect(window.showQuickPick).not.toHaveBeenCalled();
+    });
+
+    it('should use nsf-record-add for a nested share folder without checking support', async () => {
+      const result = await resolveRecordAddCommand(
+        {
+          folderUid: 'nsf1',
+          name: 'Nested',
+          parentUid: '/',
+          folderPath: '/Nested',
+          source: CLI_FOLDER_SOURCE_NESTED_SHARE_FOLDER,
+        },
+        mockCliService
+      );
+
+      expect(result).toBe(RECORD_ADD_COMMANDS.NESTED_SHARE_FOLDER);
+      expect(mockCliService.isNsfSupported).not.toHaveBeenCalled();
+    });
+
     it('should prompt for permission model when storage is My Vault', async () => {
       (window.showQuickPick as jest.Mock).mockResolvedValue({
         label: 'Use classic permission model',
         value: RECORD_ADD_COMMANDS.CLASSIC,
       });
 
-      const result = await resolveRecordAddCommand({
-        folderUid: '/',
-        name: 'My Vault',
-        parentUid: '/',
-        folderPath: '/',
-        source: '',
-      });
+      const result = await resolveRecordAddCommand(myVault, mockCliService);
 
       expect(result).toBe(RECORD_ADD_COMMANDS.CLASSIC);
       expect(window.showQuickPick).toHaveBeenCalled();
