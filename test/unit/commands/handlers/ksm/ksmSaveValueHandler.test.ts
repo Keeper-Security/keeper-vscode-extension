@@ -58,7 +58,7 @@ describe('KsmSaveValueHandler', () => {
     spyGetRecordNameFromUser().mockResolvedValue('Rec');
     spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
     spyGetFieldType().mockReturnValue('text');
     (mockKsmService.executeKsmCommand as jest.Mock).mockImplementation(async (cb: any) => cb());
     (mockKsmService.getFolders as jest.Mock).mockResolvedValue([{ folderUid: 'root' }]);
@@ -79,7 +79,7 @@ describe('KsmSaveValueHandler', () => {
     spyGetRecordNameFromUser().mockResolvedValue('Rec');
     spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: 'f1', name: 'Folder', parentUid: '/', folderPath: '/Folder' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: 'f1', name: 'Folder', parentUid: '/', folderPath: '/Folder', source: '' });
     spyGetFieldType().mockReturnValue('secret');
     (mockKsmService.executeKsmCommand as jest.Mock).mockImplementation(async (cb: any) => cb());
     (mockKsmService.getFolders as jest.Mock).mockResolvedValue([{ folderUid: 'root' }]);
@@ -131,7 +131,7 @@ describe('KsmSaveValueHandler', () => {
     spyGetRecordNameFromUser().mockResolvedValue('Rec');
     spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
     spyGetFieldType().mockReturnValue('text');
     (mockKsmService.executeKsmCommand as jest.Mock).mockImplementation(async (cb: any) => cb());
     (mockKsmService.getFolders as jest.Mock).mockResolvedValue([{ folderUid: 'root' }]);
@@ -147,7 +147,7 @@ describe('KsmSaveValueHandler', () => {
     spyGetRecordNameFromUser().mockResolvedValue('Rec');
     spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
     spyGetFieldType().mockReturnValue('text');
     (mockKsmService.executeKsmCommand as jest.Mock).mockImplementation(async (cb: any) => cb());
     (mockKsmService.createSecret as jest.Mock).mockResolvedValue('uid');

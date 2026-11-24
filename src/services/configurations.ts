@@ -8,12 +8,16 @@ export enum ConfigurationKey {
   DebugEnabled = 'debug.enabled',
   SecretDetectionEnabled = 'editor.secretDetection',
   ModeType = 'mode.type',
+  CliFlavor = 'cli.flavor',
+  CliPath = 'cli.path',
 }
 
 interface ConfigurationItems {
   [ConfigurationKey.DebugEnabled]: boolean;
   [ConfigurationKey.SecretDetectionEnabled]: boolean;
   [ConfigurationKey.ModeType]: Mode;
+  [ConfigurationKey.CliFlavor]: 'auto' | 'commander' | 'smk';
+  [ConfigurationKey.CliPath]: string;
 }
 
 class Configuration {

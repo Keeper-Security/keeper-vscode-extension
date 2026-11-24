@@ -8,6 +8,8 @@ import {
 } from '../../types';
 import { logger } from '../../utils/logger';
 import { CliService } from '../../services/cli';
+import { CLI_STORAGE_OWNER_KEY } from '../../utils/constants';
+import { CLI_LOGGER_DEBUG_MESSAGES } from '../../utils/cli-messages';
 
 function parseParentUidFromDetails(details?: string): string | undefined {
   if (!details?.includes(', Parent:')) {
@@ -23,6 +25,39 @@ export class CliStorageManager extends BaseStorageManager {
     private cliService: CliService
   ) {
     super(context, spinner);
+  }
+
+  /**
+   * The saved folder is tagged with the CLI it came from. Commander and each SMK
+   * host have separate vaults, so a folder saved under another CLI (e.g. in this
+   * workspace before a switch made from another window) is dropped.
+   * Untagged folders saved by older versions are kept.
+   */
+  getCurrentStorage(): IFolder | null {
+    const storage = super.getCurrentStorage();
+    if (!storage) {
+      return null;
+    }
+    const activeCliId = this.cliService.getActiveCliId();
+    const ownerCliId = this.context.workspaceState.get<string>(CLI_STORAGE_OWNER_KEY);
+    if (activeCliId && ownerCliId && ownerCliId !== activeCliId) {
+      logger.logInfo(
+        this.constructor.name +
+          ': ' +
+          CLI_LOGGER_DEBUG_MESSAGES.SAVED_FOLDER_BELONGS_TO_ANOTHER_CLI
+      );
+      this.setCurrentStorage(null);
+      return null;
+    }
+    return storage;
+  }
+
+  setCurrentStorage(storage: IFolder | null): void {
+    super.setCurrentStorage(storage);
+    this.context.workspaceState.update(
+      CLI_STORAGE_OWNER_KEY,
+      storage ? (this.cliService.getActiveCliId() ?? undefined) : undefined
+    );
   }
 
   async ensureValidStorage(): Promise<boolean> {

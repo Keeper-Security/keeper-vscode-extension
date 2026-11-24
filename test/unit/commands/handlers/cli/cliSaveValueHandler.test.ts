@@ -100,7 +100,7 @@ describe('CliSaveValueHandler', () => {
       spyGetRecordNameFromUser().mockResolvedValue('My Record');
       spyGetSecretFieldNameFromUser().mockResolvedValue('password');
       mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
       spyGetFieldType().mockReturnValue('secret');
       mockCliService.executeCommanderCommand.mockResolvedValue('rec123');
       mockedCreateKeeperReference.mockReturnValue('keeper://rec123/field/password');
@@ -131,6 +131,7 @@ describe('CliSaveValueHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       spyGetFieldType().mockReturnValue('secret');
       mockCliService.executeCommanderCommand.mockResolvedValue('rec123');
@@ -152,7 +153,7 @@ describe('CliSaveValueHandler', () => {
       spyGetRecordNameFromUser().mockResolvedValue('My Record');
       spyGetSecretFieldNameFromUser().mockResolvedValue('apiKey');
       mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: 'folder123', name: 'Custom', parentUid: '/', folderPath: '/Custom' });
+      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: 'folder123', name: 'Custom', parentUid: '/', folderPath: '/Custom', source: '' });
       spyGetFieldType().mockReturnValue('secret');
       mockCliService.executeCommanderCommand.mockResolvedValue('rec123');
       mockedCreateKeeperReference.mockReturnValue('keeper://rec123/custom_field/apiKey');
@@ -240,7 +241,7 @@ describe('CliSaveValueHandler', () => {
       spyGetRecordNameFromUser().mockResolvedValue('Rec');
       spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
       mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
       spyGetFieldType().mockReturnValue('text');
       mockCliService.executeCommanderCommand.mockResolvedValue('rec789');
       mockedCreateKeeperReference.mockReturnValue(null);
@@ -260,7 +261,7 @@ describe('CliSaveValueHandler', () => {
       spyGetRecordNameFromUser().mockResolvedValue('Rec');
       spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
       mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
       spyGetFieldType().mockReturnValue('text');
       mockCliService.executeCommanderCommand.mockResolvedValue('rec789');
       mockedCreateKeeperReference.mockReturnValue('keeper://rec789/custom_field/Field');
@@ -278,7 +279,7 @@ describe('CliSaveValueHandler', () => {
       spyGetRecordNameFromUser().mockResolvedValue('Rec');
       spyGetSecretFieldNameFromUser().mockResolvedValue('Field');
       mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+      mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
       spyGetFieldType().mockReturnValue('text');
       mockCliService.executeCommanderCommand.mockRejectedValue(new Error('cmd failed'));
 

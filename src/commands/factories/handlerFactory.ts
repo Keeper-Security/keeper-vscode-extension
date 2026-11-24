@@ -8,6 +8,7 @@ import { COMMANDS } from '../../utils/constants';
 import { KsmGetValueHandler } from '../handlers/ksm/ksmGetValueHandler';
 import { SwitchToCliHandler } from '../handlers/ksm/switchToCliHandler';
 import { SwitchToKsmHandler } from '../handlers/cli/switchToKsmHandler';
+import { SwitchCliHandler } from '../handlers/cli/switchCliHandler';
 import { KsmSaveValueHandler } from '../handlers/ksm/ksmSaveValueHandler';
 import { KsmRunSecurelyHandler } from '../handlers/ksm/ksmRunSecurelyHandler';
 import { KsmGeneratePasswordHandler } from '../handlers/ksm/ksmGeneratePasswordHandler';
@@ -64,6 +65,10 @@ export class HandlerFactory {
       handlers.set(
         COMMANDS.SWITCH_TO_KSM,
         new SwitchToKsmHandler(context, storageManager)
+      );
+      handlers.set(
+        COMMANDS.SWITCH_CLI,
+        new SwitchCliHandler(context, spinner, cliService, storageManager)
       );
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;
