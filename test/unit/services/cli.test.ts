@@ -1841,6 +1841,38 @@ describe('CliService with the Keeper CLI resolver', () => {
     expect(CliManager.resolve).toHaveBeenCalledTimes(2);
   });
 
+  describe('harmless Commander warnings on stderr (Linux/WSL)', () => {
+    // Captured from Commander 18.1.11 on WSL: every line is informational
+    const WSL_STDERR = [
+      'Logging in to Keeper as user@example.com',
+      "QRC encryption failed: ML-KEM implementation not available: No module named 'mlkem.fastmath'",
+      "QRC encryption failed (ML-KEM implementation not available: No module named 'mlkem.fastmath'), falling back to EC encryption",
+      'Failed to initialize platform handler: Biometric authentication not supported on Linux',
+      'Successfully authenticated with Persistent Login',
+    ].join('\n');
+
+    beforeEach(() => {
+      (CliManager.resolve as jest.Mock).mockResolvedValue({
+        kind: 'active', install: COMMANDER_ON_PATH, source: 'single', autoPickedFromMany: false,
+      });
+    });
+
+    it('does not treat them as a failed command', async () => {
+      mockExecFunction.mockResolvedValue({ stdout: '[]', stderr: WSL_STDERR });
+
+      await expect(cliService.executeCommanderCommandLegacy('ls', ['--format=json'])).resolves.toBe('[]');
+    });
+
+    it('still fails on a real error that comes with them', async () => {
+      mockExecFunction.mockResolvedValue({
+        stdout: '',
+        stderr: `${WSL_STDERR}\nError: record not found`,
+      });
+
+      await expect(cliService.executeCommanderCommandLegacy('get', ['abc'])).rejects.toThrow('record not found');
+    });
+  });
+
   it('runs detection once for concurrent actions', async () => {
     let finish: (value: unknown) => void = () => undefined;
     (CliManager.resolve as jest.Mock).mockReturnValue(new Promise((resolve) => (finish = resolve)));

@@ -75,6 +75,9 @@ const BENIGN_PATTERNS = [
   /and use default login method/i,
   /Syncing\.\.\./i,
   /Decrypted\s*\[\d+\]\s*record\(s\)/i,
+  // Linux warnings from newer Commander: it falls back and carries on
+  /QRC encryption failed/i,
+  /Failed to initialize platform handler/i,
   /^keeper shell$/i,
   /^\r$/, // stray carriage returns
 ];
