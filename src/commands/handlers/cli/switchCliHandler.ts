@@ -5,13 +5,13 @@ import { CliManager } from '../../../services/managers/cliManager';
 import {
   getCliDescription,
   getCliDisplayLabel,
-  getCliInstallId,
   getCliTerminalCommand,
 } from '../../../services/cliResolver';
 import { CliStorageManager } from '../../storage/cliStorageManager';
 import {
   commonQuickPickOptions,
   getKeeperCliSwitchedMessage,
+  getKeeperCliUnusableMessage,
   StatusBarSpinner,
 } from '../../../utils/helper';
 import { logger } from '../../../utils/logger';
@@ -20,52 +20,66 @@ import {
   CLI_INFO_MESSAGES,
   CLI_LOGGER_DEBUG_MESSAGES,
 } from '../../../utils/cli-messages';
-import { HELPER_MESSAGES } from '../../../utils/constants';
-import { ICliInstall } from '../../../types';
+import { CliFlavor, ICliInstall } from '../../../types';
 
 interface ICliQuickPickItem extends QuickPickItem {
   install: ICliInstall;
 }
 
 /**
- * "Keeper Security: Switch Keeper CLI". Lists every detected Keeper Commander and
- * Keeper SMK install, saves the pick, and stops the running shell so the next
- * Keeper action starts with the new CLI.
+ * "Switch to Keeper SMK" / "Switch to Keeper Commander" (CLI mode). Each is shown
+ * only when there's another CLI of that flavor to switch to. With several (e.g.
+ * SMK hosts) the user picks one. The pick is saved and the running shell stopped,
+ * so the next Keeper action starts with the new CLI.
  */
 export class SwitchCliHandler extends BaseCommandHandler {
   constructor(
     private context: ExtensionContext,
     private spinner: StatusBarSpinner,
     private cliService: CliService,
-    private storageManager: CliStorageManager
+    private storageManager: CliStorageManager,
+    private targetFlavor: CliFlavor
   ) {
     super();
   }
 
   async execute(): Promise<void> {
     try {
-      this.spinner.show(CLI_INFO_MESSAGES.DETECTING_KEEPER_CLIS);
-      const installs = await this.cliService.detectInstalls();
-      this.spinner.hide();
+      const targets = CliManager.getSwitchTargets(
+        this.context,
+        this.cliService.getActiveCli()
+      );
+      const candidates =
+        this.targetFlavor === CliFlavor.SMK
+          ? targets.toSmk
+          : targets.toCommander;
 
-      if (installs.length === 0) {
-        window.showErrorMessage(HELPER_MESSAGES.CLI_NOT_INSTALLED);
+      if (candidates.length === 0) {
+        window.showErrorMessage(
+          this.targetFlavor === CliFlavor.SMK
+            ? CLI_ERROR_MESSAGES.NO_KEEPER_SMK_TO_SWITCH_TO
+            : CLI_ERROR_MESSAGES.NO_KEEPER_COMMANDER_TO_SWITCH_TO
+        );
         return;
       }
 
-      const currentId =
-        this.cliService.getActiveCliId() ??
-        CliManager.getSavedChoice(this.context)?.id;
+      // Only the possible targets are run (`--version`), not every install
+      this.spinner.show(CLI_INFO_MESSAGES.DETECTING_KEEPER_CLIS);
+      const { installs, rejected } =
+        await CliManager.verifyCandidates(candidates);
+      this.spinner.hide();
 
-      const selected = await window.showQuickPick(
-        installs.map((install) => this.toQuickPickItem(install, currentId)),
-        {
-          title: CLI_INFO_MESSAGES.QUICK_PICK_FOR_KEEPER_CLI_TITLE,
-          placeHolder: CLI_INFO_MESSAGES.QUICK_PICK_FOR_KEEPER_CLI_PLACEHOLDER,
-          ...commonQuickPickOptions,
-        }
-      );
-      if (!selected) {
+      if (installs.length === 0) {
+        window.showErrorMessage(
+          getKeeperCliUnusableMessage(
+            rejected.map((r) => `${r.path} (${r.reason})`)
+          )
+        );
+        return;
+      }
+
+      const chosen = await this.pickInstall(installs);
+      if (!chosen) {
         logger.logDebug(
           this.constructor.name +
             ': ' +
@@ -74,15 +88,10 @@ export class SwitchCliHandler extends BaseCommandHandler {
         return;
       }
 
-      const chosen = selected.install;
-      const changed = getCliInstallId(chosen) !== currentId;
-
       await CliManager.saveChoice(this.context, chosen);
       this.cliService.switchCli();
-      if (changed) {
-        // Folder UIDs from one vault are meaningless in another
-        this.storageManager.setCurrentStorage(null);
-      }
+      // Folder UIDs from one vault are meaningless in another
+      this.storageManager.setCurrentStorage(null);
       logger.logInfo(
         `${this.constructor.name}: Keeper CLI switched to ${getCliDescription(chosen)}`
       );
@@ -97,7 +106,7 @@ export class SwitchCliHandler extends BaseCommandHandler {
         getKeeperCliSwitchedMessage(
           getCliDisplayLabel(chosen),
           chosen.path,
-          changed,
+          true,
           getCliTerminalCommand(chosen)
         )
       );
@@ -112,17 +121,26 @@ export class SwitchCliHandler extends BaseCommandHandler {
     }
   }
 
-  private toQuickPickItem(
-    install: ICliInstall,
-    currentId: string | undefined | null
-  ): ICliQuickPickItem {
-    const isCurrent = getCliInstallId(install) === currentId;
-    return {
-      label: `${isCurrent ? '$(check) ' : ''}${getCliDisplayLabel(install)}`,
+  // A single target is used directly; several (SMK hosts) are picked from a list
+  private async pickInstall(
+    installs: ICliInstall[]
+  ): Promise<ICliInstall | undefined> {
+    if (installs.length === 1) {
+      return installs[0];
+    }
+    const items: ICliQuickPickItem[] = installs.map((install) => ({
+      label: getCliDisplayLabel(install),
       description: install.path,
-      detail: isCurrent ? CLI_INFO_MESSAGES.CURRENT_KEEPER_CLI : undefined,
-      picked: isCurrent,
       install,
-    };
+    }));
+    const selected = await window.showQuickPick(items, {
+      title:
+        this.targetFlavor === CliFlavor.SMK
+          ? CLI_INFO_MESSAGES.QUICK_PICK_FOR_KEEPER_SMK_TITLE
+          : CLI_INFO_MESSAGES.QUICK_PICK_FOR_KEEPER_COMMANDER_TITLE,
+      placeHolder: CLI_INFO_MESSAGES.QUICK_PICK_FOR_KEEPER_CLI_PLACEHOLDER,
+      ...commonQuickPickOptions,
+    });
+    return selected?.install;
   }
 }

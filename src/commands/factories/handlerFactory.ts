@@ -1,7 +1,7 @@
 import { ExtensionContext } from 'vscode';
 import { CliService } from '../../services/cli';
 import { KsmService } from '../../services/ksm';
-import { Mode, ModeType } from '../../types';
+import { CliFlavor, Mode, ModeType } from '../../types';
 import { StatusBarSpinner } from '../../utils/helper';
 import { ICommandHandler } from '../handlers/base/baseCommandHandler';
 import { COMMANDS } from '../../utils/constants';
@@ -67,8 +67,12 @@ export class HandlerFactory {
         new SwitchToKsmHandler(context, storageManager)
       );
       handlers.set(
-        COMMANDS.SWITCH_CLI,
-        new SwitchCliHandler(context, spinner, cliService, storageManager)
+        COMMANDS.SWITCH_TO_KEEPER_SMK,
+        new SwitchCliHandler(context, spinner, cliService, storageManager, CliFlavor.SMK)
+      );
+      handlers.set(
+        COMMANDS.SWITCH_TO_KEEPER_COMMANDER,
+        new SwitchCliHandler(context, spinner, cliService, storageManager, CliFlavor.COMMANDER)
       );
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;

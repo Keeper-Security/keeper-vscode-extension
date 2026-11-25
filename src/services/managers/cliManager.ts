@@ -2,11 +2,14 @@ import { execFile, ExecFileException } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ExtensionContext } from 'vscode';
+import { commands, ExtensionContext } from 'vscode';
 import { configuration, ConfigurationKey } from '../configurations';
 import {
+  CliCandidate,
   CliDetector,
   filterCliInstallsByFlavor,
+  getCliSwitchTargets,
+  selectCli,
   getCliDisplayLabel,
   getCliInstallId,
   resolveCli,
@@ -17,13 +20,17 @@ import {
   CliFlavorSetting,
   CliResolution,
   CliVersionProbeResult,
+  ICliDetectionResult,
   ICliEnvironment,
   ICliInstall,
   ICliSettings,
+  ICliSwitchTargets,
   ISavedCliChoice,
   ISpawnSpec,
 } from '../../types';
 import {
+  CLI_CAN_SWITCH_TO_COMMANDER_CONTEXT_KEY,
+  CLI_CAN_SWITCH_TO_SMK_CONTEXT_KEY,
   CLI_SELECTED_ID_KEY,
   CLI_SELECTED_LABEL_KEY,
   CLI_VERSION_PROBE_TIMEOUT_MS,
@@ -281,9 +288,68 @@ export class CliManager {
     );
   }
 
-  // Installs for the "Switch Keeper CLI" picker, honoring the flavor setting
+  // Working installs for the switch commands' pickers, honoring the flavor setting
   static async detectInstalls(): Promise<ICliInstall[]> {
     const { installs } = await CliManager.createDetector().detectAll();
     return filterCliInstallsByFlavor(installs, CliManager.getSettings().flavor);
+  }
+
+  /**
+   * What the user can switch to from the active CLI. Before the first Keeper
+   * action the active CLI isn't resolved yet, so it's predicted with the same
+   * rules (saved pick, else the default) from unprobed installs.
+   */
+  static getSwitchTargets(
+    context: ExtensionContext,
+    active: ICliInstall | null
+  ): ICliSwitchTargets {
+    const candidates = CliManager.findCandidates();
+    const predicted = selectCli(
+      candidates as ICliInstall[],
+      CliManager.getSavedChoice(context),
+      'auto'
+    );
+    const current =
+      active ?? (predicted.kind === 'active' ? predicted.install : undefined);
+    return getCliSwitchTargets(candidates, current);
+  }
+
+  // Verify only the given installs (switch targets), not every install
+  static verifyCandidates(
+    candidates: CliCandidate[]
+  ): Promise<ICliDetectionResult> {
+    return CliManager.createDetector().verifyCandidates(candidates);
+  }
+
+  // Installs on disk (not yet run), honoring the flavor setting. File checks only.
+  static findCandidates(): CliCandidate[] {
+    const candidates = CliManager.createDetector().findCandidates();
+    return filterCliInstallsByFlavor(
+      candidates as ICliInstall[],
+      CliManager.getSettings().flavor
+    );
+  }
+
+  /**
+   * Show "Switch to Keeper SMK" / "Switch to Keeper Commander" only when there's
+   * another CLI to switch to. Before the first Keeper action the active CLI isn't
+   * resolved yet, so the saved pick stands in for it.
+   */
+  static async updateSwitchContext(
+    context: ExtensionContext,
+    active: ICliInstall | null
+  ): Promise<void> {
+    const { toSmk, toCommander } = CliManager.getSwitchTargets(context, active);
+
+    await commands.executeCommand(
+      'setContext',
+      CLI_CAN_SWITCH_TO_SMK_CONTEXT_KEY,
+      toSmk.length > 0
+    );
+    await commands.executeCommand(
+      'setContext',
+      CLI_CAN_SWITCH_TO_COMMANDER_CONTEXT_KEY,
+      toCommander.length > 0
+    );
   }
 }

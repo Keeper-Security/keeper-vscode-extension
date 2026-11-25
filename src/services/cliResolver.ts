@@ -11,6 +11,7 @@ import {
   ICliInstall,
   ICliRejectedCandidate,
   ICliSettings,
+  ICliSwitchTargets,
   ISavedCliChoice,
   ISpawnSpec,
 } from '../types';
@@ -172,7 +173,8 @@ function listHostDirs(root: string): string[] {
   }
 }
 
-type CliCandidate = Omit<ICliInstall, 'version'>;
+// An install found on disk but not yet verified with `--version`
+export type CliCandidate = Omit<ICliInstall, 'version'>;
 
 /**
  * Finds every working Keeper Commander / Keeper SMK CLI. Machine details and the
@@ -195,6 +197,48 @@ export class CliDetector {
   ) {}
 
   async detectAll(): Promise<ICliDetectionResult> {
+    const candidates = this.findCandidates();
+
+    const rejected: ICliRejectedCandidate[] = [];
+    const probed = await Promise.all(
+      candidates.map((candidate) => this.verify(candidate, rejected))
+    );
+    const installs = probed.filter(
+      (install): install is ICliInstall => install !== null
+    );
+
+    if (!installs.some((install) => install.flavor === CliFlavor.COMMANDER)) {
+      const fallback = await this.detectFallbackCommand();
+      if (fallback) {
+        installs.push(fallback);
+      }
+    }
+
+    return { installs, rejected };
+  }
+
+  // Run `--version` on just these candidates (e.g. only the CLIs a switch can target)
+  async verifyCandidates(
+    candidates: CliCandidate[]
+  ): Promise<ICliDetectionResult> {
+    const rejected: ICliRejectedCandidate[] = [];
+    const probed = await Promise.all(
+      candidates.map((candidate) => this.verify(candidate, rejected))
+    );
+    return {
+      installs: probed.filter(
+        (install): install is ICliInstall => install !== null
+      ),
+      rejected,
+    };
+  }
+
+  /**
+   * Installs present on disk, classified and deduplicated, without running them.
+   * File checks only (milliseconds), so it's cheap enough to decide which switch
+   * commands to show. OS-resolved fallback commands are not included.
+   */
+  findCandidates(): CliCandidate[] {
     const { isWindows, pathDirs, homeDirs, knownCommanderPaths } = this.env;
     const candidates: CliCandidate[] = [];
     const seen = new Set<string>();
@@ -228,22 +272,7 @@ export class CliDetector {
     );
     knownCommanderPaths.forEach(consider);
 
-    const rejected: ICliRejectedCandidate[] = [];
-    const probed = await Promise.all(
-      candidates.map((candidate) => this.verify(candidate, rejected))
-    );
-    const installs = probed.filter(
-      (install): install is ICliInstall => install !== null
-    );
-
-    if (!installs.some((install) => install.flavor === CliFlavor.COMMANDER)) {
-      const fallback = await this.detectFallbackCommand();
-      if (fallback) {
-        installs.push(fallback);
-      }
-    }
-
-    return { installs, rejected };
+    return candidates;
   }
 
   /**
@@ -456,4 +485,27 @@ export async function resolveCli(
   return resolution.kind === 'noneFound'
     ? { kind: 'noneFound', rejected }
     : resolution;
+}
+
+/**
+ * Which "Switch to ..." options apply: SMK hosts other than the active one, and
+ * Commander only while it isn't already active. With no known active CLI every
+ * install is a target.
+ */
+export function getCliSwitchTargets(
+  candidates: CliCandidate[],
+  active?: Pick<ICliInstall, 'flavor' | 'path' | 'realPath' | 'isCommand'>
+): ICliSwitchTargets {
+  const activeId = active ? getCliInstallId(active as ICliInstall) : undefined;
+  return {
+    toSmk: candidates.filter(
+      (c) =>
+        c.flavor === CliFlavor.SMK &&
+        getCliInstallId(c as ICliInstall) !== activeId
+    ),
+    toCommander:
+      active?.flavor === CliFlavor.COMMANDER
+        ? []
+        : candidates.filter((c) => c.flavor === CliFlavor.COMMANDER),
+  };
 }

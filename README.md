@@ -99,7 +99,11 @@ The extension looks for Keeper CLIs in this order: `keeper-smk` on PATH, `~/.kee
 
 - If only one is found, it's used.
 - If several are found and you haven't chosen one, Keeper Commander is used: a pip install (`pip install keepercommander`) first, then any other Commander in PATH order. Keeper SMK (first host alphabetically) is used only when no Commander is installed. A one-time notification tells you how to switch.
-- Run **Keeper Security: Switch Keeper CLI** to choose. Your choice is remembered for this machine. Switching stops the running Keeper shell and clears the saved folder, because folders belong to the previous vault. Log in to the new CLI separately if you haven't already.
+- **Switching from KSM mode:** **Keeper Security: Switch to CLI** asks which Keeper CLI to use when more than one works on this machine (for example *Keeper Commander* or *Keeper SMK: keeper.example.com*).
+- **Switching in CLI mode:** the Command Palette shows only the switch that applies:
+  - **Keeper Security: Switch to Keeper SMK** while Keeper Commander is active and an SMK install exists. With several SMK hosts it asks which one, and it also appears while on one SMK host if another host exists.
+  - **Keeper Security: Switch to Keeper Commander** while Keeper SMK is active and Keeper Commander is installed.
+- Your choice is remembered for this machine. Switching stops the running Keeper shell and clears the saved folder, because folders belong to the previous vault. Log in to the new CLI separately if you haven't already.
 - If the CLI you chose is removed or renamed, the extension shows an error listing what it found instead. It never switches to another CLI on its own.
 - To pin a CLI regardless of detection, set `keeper-security.cli.path` (see [Extension Settings](#extension-settings)).
 
@@ -165,7 +169,7 @@ Once authenticated, you can access the following commands through the Command Pa
 | **Open Logs**                    | View extension activity logs                            | Debug and monitor extension operations                    |
 | **Authenticate** (KSM Mode only) | Authenticate KSM using various configuration options.   | To use different secrets manager application              |
 | **Switch to CLI / KSM**          | Switch to CLI / KSM mode for current workspace          | Toggle between Commander CLI and KSM modes                |
-| **Switch Keeper CLI** (CLI Mode only) | Choose between detected Keeper Commander and Keeper SMK installs | Use a different Keeper server, login and vault |
+| **Switch to Keeper SMK / Keeper Commander** (CLI Mode only, shown when the other CLI is installed) | Switch between Keeper Commander and Keeper SMK (or another SMK host) | Use a different Keeper server, login and vault |
 
 ### Commands Details:
 
@@ -352,7 +356,7 @@ The extension provides configuration options:
 | **Secret Detection** | Enable automatic secret detection     | `true`  |
 | **Mode Type**        | Switch between CLI or KSM mode        | `cli`   |
 | **Cli: Flavor**      | Which Keeper CLI to use in CLI mode: `auto`, `commander` (Keeper Commander only) or `smk` (Keeper SMK only) | `auto` |
-| **Cli: Path**        | Path to a Keeper Commander or Keeper SMK executable. Overrides detection and **Switch Keeper CLI**. Machine setting, can't be set per workspace. | empty |
+| **Cli: Path**        | Path to a Keeper Commander or Keeper SMK executable. Overrides detection and the CLI you chose. Machine setting, can't be set per workspace. | empty |
 
 > **Note:** "Debug mode" and "Mode Type" requires reloading the extension to take effect. "Cli: Flavor" and "Cli: Path" apply on the next Keeper action (the Keeper shell is restarted).<br>
 > Press **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`
@@ -460,7 +464,7 @@ Enable debug logging to see detailed information about extension operations:
 
 **Solutions**:
 
-- The CLI you chose with **Switch Keeper CLI** was removed or renamed. Reinstall it, or run **Switch Keeper CLI** to choose another one (you'll need to log in to it separately).
+- The CLI you chose was removed or renamed. Reinstall it, or use the **Switch to Keeper Commander** / **Switch to Keeper SMK** button in the error (or the Command Palette) to choose another one. You'll need to log in to it separately.
 
 #### 8. Authentication Failures (CLI Mode)
 

@@ -30,6 +30,8 @@ jest.mock('../../../src/services/managers/cliManager', () => ({
     detectInstalls: jest.fn(),
     getResolutionKey: jest.fn(),
     isStillAvailable: jest.fn(),
+    updateSwitchContext: jest.fn(),
+    findCandidates: jest.fn(),
   },
 }));
 jest.mock('child_process', () => ({
@@ -1898,6 +1900,25 @@ describe('CliService with the Keeper CLI resolver', () => {
     await pending;
 
     expect(cliService.getActiveCli()).toBeNull();
+  });
+
+  it('offers a switch button per installed flavor when the saved CLI is gone, and runs it', async () => {
+    const { window: vsWindow, commands: vsCommands } = require('vscode');
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'savedMissing',
+      saved: { id: SMK.realPath, label: 'Keeper SMK: keeper.example.com (18.1.8)' },
+      available: [COMMANDER_ON_PATH],
+    });
+    (vsWindow.showErrorMessage as jest.Mock).mockResolvedValue('Switch to Keeper Commander');
+    vsCommands.executeCommand = jest.fn();
+
+    await cliService.isCLIReady();
+
+    expect(vsWindow.showErrorMessage).toHaveBeenCalledWith(
+      expect.stringContaining('no longer available'),
+      'Switch to Keeper Commander'
+    );
+    expect(vsCommands.executeCommand).toHaveBeenCalledWith('ks-vscode.switchToKeeperCommander');
   });
 
   it('tells the user which files were found but unusable', async () => {

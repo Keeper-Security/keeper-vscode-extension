@@ -109,8 +109,9 @@ describe('HandlerFactory', () => {
       );
 
       // Verify all CLI handlers are created and mapped
-      expect(handlers.size).toBe(8);
-      expect(handlers.has(COMMANDS.SWITCH_CLI)).toBe(true);
+      expect(handlers.size).toBe(9);
+      expect(handlers.has(COMMANDS.SWITCH_TO_KEEPER_SMK)).toBe(true);
+      expect(handlers.has(COMMANDS.SWITCH_TO_KEEPER_COMMANDER)).toBe(true);
       expect(handlers.has(COMMANDS.SAVE_VALUE_TO_VAULT)).toBe(true);
       expect(handlers.has(COMMANDS.GET_VALUE_FROM_VAULT)).toBe(true);
       expect(handlers.has(COMMANDS.GENERATE_PASSWORD)).toBe(true);

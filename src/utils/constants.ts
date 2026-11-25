@@ -14,7 +14,8 @@ export const COMMANDS = {
   OPEN_LOGS: makeCommand('openLogs'),
   SWITCH_TO_CLI: makeCommand('switchToCli'),
   SWITCH_TO_KSM: makeCommand('switchToKsm'),
-  SWITCH_CLI: makeCommand('switchCli'),
+  SWITCH_TO_KEEPER_SMK: makeCommand('switchToKeeperSmk'),
+  SWITCH_TO_KEEPER_COMMANDER: makeCommand('switchToKeeperCommander'),
 };
 
 /** Keeper record UIDs are URL-safe base64 tokens of exactly 22 characters (no slashes, whitespace, or control chars). */
@@ -44,7 +45,8 @@ export const KEEPER_COMMANDER_DOCS_URLS = {
 export const HELPER_MESSAGES = {
   OPEN_INSTALLATION_DOCS: 'Open Installation Documentation',
   OPEN_AUTHENTICATION_DOCS: 'Open Authentication Documentation',
-  SWITCH_KEEPER_CLI: 'Switch Keeper CLI',
+  SWITCH_TO_KEEPER_SMK: 'Switch to Keeper SMK',
+  SWITCH_TO_KEEPER_COMMANDER: 'Switch to Keeper Commander',
   OPEN_SETTINGS: 'Open Settings',
   CLI_NOT_INSTALLED:
     'No Keeper Commander or Keeper SMK CLI was found. Install Keeper Commander (pip install keepercommander or the official installer), or run your SMK deployment\'s Commander setup.sh, then try again.',
@@ -336,6 +338,9 @@ export const CLI_VERSION_PROBE_TIMEOUT_MS = 60 * 1000;
 export const CLI_SELECTED_ID_KEY = 'keeperCli.selectedId';
 export const CLI_SELECTED_LABEL_KEY = 'keeperCli.selectedLabel';
 export const CLI_MULTIPLE_INSTALLS_NOTICE_SHOWN_KEY = 'keeperCli.multipleInstallsNoticeShown';
+// Context keys read by package.json `when` clauses to show the CLI switch commands
+export const CLI_CAN_SWITCH_TO_SMK_CONTEXT_KEY = 'keeper-security.cli.canSwitchToSmk';
+export const CLI_CAN_SWITCH_TO_COMMANDER_CONTEXT_KEY = 'keeper-security.cli.canSwitchToCommander';
 // workspaceState key: id of the Keeper CLI the saved folder belongs to
 export const CLI_STORAGE_OWNER_KEY = 'currentStorageCliId';
 

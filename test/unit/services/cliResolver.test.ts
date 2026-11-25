@@ -7,6 +7,7 @@ import {
   getCliDescription,
   getCliDisplayLabel,
   getCliInstallId,
+  getCliSwitchTargets,
   getCliTerminalCommand,
   parseCliVersion,
   resolveCli,
@@ -340,6 +341,35 @@ describePosix('CliDetector (fake CLIs in temp dirs)', () => {
     expect(probe).not.toHaveBeenCalledWith(
       expect.objectContaining({ file: 'python3' })
     );
+  });
+
+  it('lists installs on disk without running them (findCandidates)', async () => {
+    const wrapper = smkWrapper('keeper.example.com');
+    const keeper = writeScript(path.join(pathDir, 'keeper'));
+    const probe = jest.fn();
+
+    const candidates = new CliDetector(env(), probe).findCandidates();
+
+    expect(probe).not.toHaveBeenCalled();
+    expect(candidates.map((c) => [c.flavor, c.path])).toEqual([
+      [CliFlavor.SMK, wrapper],
+      [CliFlavor.COMMANDER, keeper],
+    ]);
+  });
+
+  it('verifies only the given candidates', async () => {
+    smkWrapper('keeper.example.com');
+    const broken = writeScript(path.join(pathDir, 'keeper'), 'exit 1');
+    const detector = new CliDetector(env(), probeVersion);
+    const [smk, commanderCandidate] = detector.findCandidates();
+
+    expect(
+      (await detector.verifyCandidates([smk])).installs.map((i) => i.smkHost)
+    ).toEqual(['keeper.example.com']);
+    expect(await detector.verifyCandidates([commanderCandidate])).toEqual({
+      installs: [],
+      rejected: [{ path: broken, reason: "'--version' exited with 1" }],
+    });
   });
 
   describe('inspect (cli.path override)', () => {
@@ -691,5 +721,52 @@ describe('CLI install helpers', () => {
       '18.1.8'
     );
     expect(parseCliVersion('something else')).toBeUndefined();
+  });
+});
+
+describe('getCliSwitchTargets (which switch commands show)', () => {
+  const localhost: ICliInstall = {
+    ...smkExample,
+    path: '/home/u/.keeper-smk/localhost/bin/keeper-smk',
+    realPath: '/home/u/.keeper-smk/localhost/bin/keeper-smk',
+    smkHost: 'localhost',
+  };
+
+  it('on Commander: offers SMK, not Commander', () => {
+    expect(getCliSwitchTargets([commander, smkExample], commander)).toEqual({
+      toSmk: [smkExample],
+      toCommander: [],
+    });
+  });
+
+  it('on SMK: offers Commander, and SMK only if another host exists', () => {
+    expect(getCliSwitchTargets([commander, smkExample], smkExample)).toEqual({
+      toSmk: [],
+      toCommander: [commander],
+    });
+    expect(
+      getCliSwitchTargets([commander, smkExample, localhost], smkExample)
+    ).toEqual({
+      toSmk: [localhost],
+      toCommander: [commander],
+    });
+  });
+
+  it('offers nothing when only the active CLI is installed', () => {
+    expect(getCliSwitchTargets([commander], commander)).toEqual({
+      toSmk: [],
+      toCommander: [],
+    });
+    expect(getCliSwitchTargets([smkExample], smkExample)).toEqual({
+      toSmk: [],
+      toCommander: [],
+    });
+  });
+
+  it('offers every install when no CLI is active yet', () => {
+    expect(getCliSwitchTargets([commander, smkExample])).toEqual({
+      toSmk: [smkExample],
+      toCommander: [commander],
+    });
   });
 });

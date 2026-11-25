@@ -9,8 +9,12 @@
   - A chosen CLI that is no longer installed is reported as an error listing what was found. The extension never falls back to another CLI, because each one talks to a different server and vault.
   - Detection runs once, and the verified CLI is reused across the automatic shell resets (10-minute timer, process exit, expired login) while its file still exists and your settings and saved pick are unchanged. The `--version` check is not repeated for a CLI that detection already verified.
   - The active CLI (flavor, SMK host, version, path) is logged, and login hints show that CLI's real command (the full wrapper path for SMK).
-- **Switch Keeper CLI** command (In CLI mode): Lists detected Keeper Commander and Keeper SMK installs, remembers your choice for this machine, restarts the Keeper shell and clears the saved folder, since folders belong to the previous vault.
+- **Choosing the Keeper CLI**:
+  - **Switch to CLI** (from KSM mode) asks which Keeper CLI to use when more than one works on this machine. With a single CLI it behaves as before.
+  - In CLI mode, **Switch to Keeper SMK** and **Switch to Keeper Commander** appear only when the other CLI is installed (no separate "Switch Keeper CLI" command, to avoid confusion with "Switch to CLI"). With several SMK hosts, **Switch to Keeper SMK** asks which host.
+  - Switching remembers the choice for this machine, restarts the Keeper shell and clears the saved folder, since folders belong to the previous vault. Only the CLIs you can switch to are run to check them, and deciding which commands to show uses file checks only, so it adds no startup cost.
 - **New settings**: `keeper-security.cli.flavor` (`auto`, `commander`, `smk`) and `keeper-security.cli.path` (explicit executable, overrides detection). Changing them restarts the Keeper shell on the next action.
+- **Fix**: Switching mode (e.g. KSM to CLI) could revert to the previous mode after the reload, mostly over slow WSL/remote connections, because the saved mode was not written before the window reloaded.
 - **Remote development**: Declared `extensionKind: ["workspace"]` so the Keeper CLI is always detected and run on the workspace machine (Remote-SSH, WSL, dev containers).
 - **Fix**: `record-add` / `nsf-record-add` are no longer re-run through the fallback executor when the persistent shell reports an error or times out. The first attempt may already have created the record, so the retry could create a duplicate.
 

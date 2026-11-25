@@ -194,4 +194,73 @@ describe('CliManager', () => {
       ).toBe(false);
     });
   });
+
+  describe('updateSwitchContext', () => {
+    const { commands } = require('vscode');
+    const commander: ICliInstall = {
+      path: '/usr/local/bin/keeper',
+      realPath: '/usr/local/keepercommandercli/bin/keeper-commander',
+      flavor: CliFlavor.COMMANDER,
+    };
+    const contextWith = (savedId?: string): ExtensionContext =>
+      ({
+        globalState: {
+          get: (key: string) =>
+            key === CLI_SELECTED_ID_KEY ? savedId : undefined,
+        },
+      }) as unknown as ExtensionContext;
+    const contextKeys = (): Record<string, unknown> =>
+      Object.fromEntries(
+        (commands.executeCommand as jest.Mock).mock.calls
+          .filter(([name]: [string]) => name === 'setContext')
+          .map(([, key, value]: [string, string, unknown]) => [key, value])
+      );
+
+    beforeEach(() => {
+      mockSettings({});
+      jest
+        .spyOn(CliManager, 'findCandidates')
+        .mockReturnValue([commander, smk]);
+    });
+
+    it('shows only "Switch to Keeper SMK" while Commander is active', async () => {
+      await CliManager.updateSwitchContext(contextWith(), commander);
+      expect(contextKeys()).toEqual({
+        'keeper-security.cli.canSwitchToSmk': true,
+        'keeper-security.cli.canSwitchToCommander': false,
+      });
+    });
+
+    it('shows only "Switch to Keeper Commander" while the only SMK host is active', async () => {
+      await CliManager.updateSwitchContext(contextWith(), smk);
+      expect(contextKeys()).toEqual({
+        'keeper-security.cli.canSwitchToSmk': false,
+        'keeper-security.cli.canSwitchToCommander': true,
+      });
+    });
+
+    it('before the first action, predicts the active CLI from the saved pick or the default', async () => {
+      await CliManager.updateSwitchContext(contextWith(smk.realPath), null);
+      expect(contextKeys()['keeper-security.cli.canSwitchToCommander']).toBe(
+        true
+      );
+
+      (commands.executeCommand as jest.Mock).mockClear();
+      // No saved pick: Commander is the default when both are installed
+      await CliManager.updateSwitchContext(contextWith(), null);
+      expect(contextKeys()).toEqual({
+        'keeper-security.cli.canSwitchToSmk': true,
+        'keeper-security.cli.canSwitchToCommander': false,
+      });
+    });
+
+    it('shows neither when only one CLI is installed', async () => {
+      (CliManager.findCandidates as jest.Mock).mockReturnValue([commander]);
+      await CliManager.updateSwitchContext(contextWith(), commander);
+      expect(contextKeys()).toEqual({
+        'keeper-security.cli.canSwitchToSmk': false,
+        'keeper-security.cli.canSwitchToCommander': false,
+      });
+    });
+  });
 });

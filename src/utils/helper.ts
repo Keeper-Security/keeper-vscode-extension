@@ -308,7 +308,7 @@ const KEEPER_CLI_LOGIN_STEPS = (command: string): string =>
   `run "${command} shell" in a terminal, log in, then run "this-device persistent-login on".`;
 
 export function getKeeperCliAutoPickedMessage(cliLabel: string): string {
-  return `Several Keeper CLIs are installed. Using ${cliLabel}. Each CLI has its own login and vault; use "Switch Keeper CLI" to choose another.`;
+  return `Several Keeper CLIs are installed. Using ${cliLabel}. Each CLI has its own login and vault; use "Switch to Keeper Commander" or "Switch to Keeper SMK" to change it.`;
 }
 
 export function getKeeperCliNoLongerAvailableMessage(
@@ -317,7 +317,7 @@ export function getKeeperCliNoLongerAvailableMessage(
 ): string {
   const found =
     availableLabels.length > 0
-      ? `Found: ${availableLabels.join(', ')}. Run "Switch Keeper CLI" to choose one.`
+      ? `Found: ${availableLabels.join(', ')}. Use "Switch to Keeper Commander" or "Switch to Keeper SMK" to choose one.`
       : 'No other Keeper CLI was found.';
   return `The selected Keeper CLI (${savedLabel}) is no longer available. The extension won't switch to another CLI automatically, because each one uses its own server and vault. ${found}`;
 }

@@ -86,8 +86,13 @@
         "category": "Keeper Security"
       },
       {
-        "command": "ks-vscode.switchCli",
-        "title": "Switch Keeper CLI",
+        "command": "ks-vscode.switchToKeeperSmk",
+        "title": "Switch to Keeper SMK",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToKeeperCommander",
+        "title": "Switch to Keeper Commander",
         "category": "Keeper Security"
       }
     ],
@@ -110,8 +115,12 @@
           "when": "config.keeper-security.mode.type === 'ksm'"
         },
         {
-          "command": "ks-vscode.switchCli",
-          "when": "config.keeper-security.mode.type === 'cli'"
+          "command": "ks-vscode.switchToKeeperSmk",
+          "when": "config.keeper-security.mode.type === 'cli' && keeper-security.cli.canSwitchToSmk"
+        },
+        {
+          "command": "ks-vscode.switchToKeeperCommander",
+          "when": "config.keeper-security.mode.type === 'cli' && keeper-security.cli.canSwitchToCommander"
         }
       ]
     },
@@ -158,7 +167,7 @@
               "smk"
             ],
             "enumDescriptions": [
-              "Detect Keeper Commander and Keeper SMK installs. If several are found and none was chosen with \"Switch Keeper CLI\", Keeper Commander is used (a pip install first), and Keeper SMK only when no Commander is installed.",
+              "Detect Keeper Commander and Keeper SMK installs. If several are found and none was chosen (Switch to CLI, Switch to Keeper SMK / Keeper Commander), Keeper Commander is used (a pip install first), and Keeper SMK only when no Commander is installed.",
               "Only use Keeper Commander (keeper).",
               "Only use Keeper SMK (~/.keeper-smk/<host>/bin/keeper-smk)."
             ],
@@ -169,7 +178,7 @@
             "type": "string",
             "default": "",
             "scope": "machine",
-            "description": "Path to a Keeper Commander or Keeper SMK executable. Overrides detection and \"Switch Keeper CLI\". For SMK, the host's bin/keeper-smk wrapper is always used. Leave empty to detect automatically."
+            "description": "Path to a Keeper Commander or Keeper SMK executable. Overrides detection and the CLI you chose. For SMK, the host's bin/keeper-smk wrapper is always used. Leave empty to detect automatically."
           }
         }
       }

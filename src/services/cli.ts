@@ -28,9 +28,15 @@ import {
   getCliDescription,
   getCliDisplayLabel,
   getCliInstallId,
+  getCliSwitchTargets,
   getCliTerminalCommand,
 } from './cliResolver';
-import { CliUnavailableResolution, ICliInstall, ISpawnSpec } from '../types';
+import {
+  CliFlavor,
+  CliUnavailableResolution,
+  ICliInstall,
+  ISpawnSpec,
+} from '../types';
 
 /**
  * Commands that create something in the vault. They are never re-run through the
@@ -39,6 +45,17 @@ import { CliUnavailableResolution, ICliInstall, ISpawnSpec } from '../types';
  * would create a duplicate.
  */
 const NON_RETRYABLE_COMMANDS = new Set(['record-add', 'nsf-record-add']);
+
+// CLI mode command that switches to another Keeper CLI of `flavor` (read at call
+// time, not import time)
+function getCliSwitchAction(flavor: CliFlavor): { label: string; command: string } {
+  return flavor === CliFlavor.SMK
+    ? { label: HELPER_MESSAGES.SWITCH_TO_KEEPER_SMK, command: COMMANDS.SWITCH_TO_KEEPER_SMK }
+    : {
+        label: HELPER_MESSAGES.SWITCH_TO_KEEPER_COMMANDER,
+        command: COMMANDS.SWITCH_TO_KEEPER_COMMANDER,
+      };
+}
 
 function describeUnavailableCli(resolution: CliUnavailableResolution): string {
   switch (resolution.kind) {
@@ -169,6 +186,9 @@ export class CliService {
     private spinner: StatusBarSpinner
   ) {
     // Restart the shell with the new CLI when keeper-security.cli.* changes
+    // Show the right "Switch to Keeper SMK/Commander" commands from the start
+    this.refreshSwitchContext();
+
     this.context.subscriptions.push(
       configuration.onDidChange((event) => {
         if (event.affectsConfiguration(`${CONFIG_NAMESPACE}.cli`)) {
@@ -189,7 +209,7 @@ export class CliService {
     return this.activeCli ? getCliInstallId(this.activeCli) : null;
   }
 
-  // Every Keeper CLI on this machine, for the "Switch Keeper CLI" picker
+  // Every working Keeper CLI on this machine, for the switch commands' pickers
   public detectInstalls(): Promise<ICliInstall[]> {
     return CliManager.detectInstalls();
   }
@@ -198,6 +218,7 @@ export class CliService {
   public switchCli(): void {
     this.knownCli = null;
     this.resetCliService();
+    this.refreshSwitchContext();
   }
 
   // Resolve which CLI to execute; cached until the next reset
@@ -227,6 +248,7 @@ export class CliService {
       CliManager.isStillAvailable(this.knownCli.install)
     ) {
       this.activeCli = this.knownCli.install;
+      this.refreshSwitchContext();
       return this.knownCli.install;
     }
     this.knownCli = null;
@@ -239,6 +261,7 @@ export class CliService {
     // A reset while detecting means the result may be stale (settings/switch changed)
     if (generation === this.cliGeneration) {
       this.activeCli = resolution.install;
+      this.refreshSwitchContext();
       this.knownCli = { install: resolution.install, key };
     }
     logger.logInfo(
@@ -256,13 +279,41 @@ export class CliService {
       return;
     }
     await this.context.globalState.update(CLI_MULTIPLE_INSTALLS_NOTICE_SHOWN_KEY, true);
-    const action = await window.showInformationMessage(
-      getKeeperCliAutoPickedMessage(getCliDisplayLabel(install)),
-      HELPER_MESSAGES.SWITCH_KEEPER_CLI
+    const { toSmk, toCommander } = getCliSwitchTargets(
+      CliManager.findCandidates(),
+      install
     );
-    if (action === HELPER_MESSAGES.SWITCH_KEEPER_CLI) {
-      await commands.executeCommand(COMMANDS.SWITCH_CLI);
+    await this.showWithSwitchActions(
+      (message, ...actions) => window.showInformationMessage(message, ...actions),
+      getKeeperCliAutoPickedMessage(getCliDisplayLabel(install)),
+      [
+        ...(toCommander.length > 0 ? [CliFlavor.COMMANDER] : []),
+        ...(toSmk.length > 0 ? [CliFlavor.SMK] : []),
+      ]
+    );
+  }
+
+  // Message with "Switch to Keeper Commander/SMK" buttons for the given flavors
+  private async showWithSwitchActions(
+    show: (message: string, ...actions: string[]) => Thenable<string | undefined>,
+    message: string,
+    flavors: CliFlavor[]
+  ): Promise<void> {
+    const actions = [...new Set(flavors)].map(getCliSwitchAction);
+    const picked = await show(message, ...actions.map((action) => action.label));
+    const action = actions.find((candidate) => candidate.label === picked);
+    if (action) {
+      await commands.executeCommand(action.command);
     }
+  }
+
+  // Keep the "Switch to Keeper SMK/Commander" commands in step with the active CLI
+  private refreshSwitchContext(): void {
+    Promise.resolve(
+      CliManager.updateSwitchContext(this.context, this.activeCli)
+    ).catch((error) =>
+      logger.logError('Failed to update the Keeper CLI switch commands', error)
+    );
   }
 
   private spawnSpec(install: ICliInstall, args: string[]): ISpawnSpec {
@@ -1034,13 +1085,12 @@ export class CliService {
       return;
     }
 
-    const action = await window.showErrorMessage(
+    // Saved CLI is gone: offer to switch to what's still installed, never automatically
+    await this.showWithSwitchActions(
+      (message, ...actions) => window.showErrorMessage(message, ...actions),
       error.message,
-      HELPER_MESSAGES.SWITCH_KEEPER_CLI
+      resolution.available.map((install) => install.flavor)
     );
-    if (action === HELPER_MESSAGES.SWITCH_KEEPER_CLI) {
-      await commands.executeCommand(COMMANDS.SWITCH_CLI);
-    }
   }
 
   // Show user-friendly error when authentication fails

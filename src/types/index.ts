@@ -130,7 +130,7 @@ export interface ICliDetectionResult {
   rejected: ICliRejectedCandidate[];
 }
 
-/** The user's explicit pick from "Switch Keeper CLI". */
+/** The user's explicit pick of a Keeper CLI (Switch to CLI / Keeper SMK / Keeper Commander). */
 export interface ISavedCliChoice {
   id: string;
   label?: string;
@@ -164,3 +164,11 @@ export type CliResolution =
   | { kind: 'noneFound'; rejected: ICliRejectedCandidate[] };
 
 export type CliUnavailableResolution = Exclude<CliResolution, { kind: 'active' }>;
+
+/** Installs the user can switch to from the active CLI (CLI mode switch commands). */
+export interface ICliSwitchTargets {
+  /** SMK hosts other than the active one. */
+  toSmk: Omit<ICliInstall, 'version'>[];
+  /** Commander installs; empty while Commander is already active. */
+  toCommander: Omit<ICliInstall, 'version'>[];
+}
