@@ -76,7 +76,7 @@ describe('KsmGeneratePasswordHandler', () => {
     mockKsmService.isKsmReady.mockResolvedValue(true);
     (window.showInputBox as jest.Mock).mockResolvedValue('Rec');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
     mockKsmService.getFolders = jest.fn().mockResolvedValue([{ folderUid: 'root-folder' }]) as any;
 
     const recordUid = 'uid123';
@@ -98,7 +98,7 @@ describe('KsmGeneratePasswordHandler', () => {
     mockKsmService.isKsmReady.mockResolvedValue(true);
     (window.showInputBox as jest.Mock).mockResolvedValue('Rec');
     mockStorageManager.ensureValidStorage.mockResolvedValue(true);
-    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' });
+    mockStorageManager.getCurrentStorage.mockReturnValue({ folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' });
     mockKsmService.getFolders = jest.fn().mockResolvedValue([{ folderUid: 'root-folder' }]) as any;
     (mockKsmService.executeKsmCommand as jest.Mock).mockImplementation(async (cb: any) => cb());
     mockKsmService.createSecret = jest.fn().mockResolvedValue('uid123') as any;

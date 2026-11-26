@@ -1,13 +1,14 @@
 import { ExtensionContext } from 'vscode';
 import { CliService } from '../../services/cli';
 import { KsmService } from '../../services/ksm';
-import { Mode, ModeType } from '../../types';
+import { CliFlavor, Mode, ModeType } from '../../types';
 import { StatusBarSpinner } from '../../utils/helper';
 import { ICommandHandler } from '../handlers/base/baseCommandHandler';
 import { COMMANDS } from '../../utils/constants';
 import { KsmGetValueHandler } from '../handlers/ksm/ksmGetValueHandler';
 import { SwitchToCliHandler } from '../handlers/ksm/switchToCliHandler';
 import { SwitchToKsmHandler } from '../handlers/cli/switchToKsmHandler';
+import { SwitchCliHandler } from '../handlers/cli/switchCliHandler';
 import { KsmSaveValueHandler } from '../handlers/ksm/ksmSaveValueHandler';
 import { KsmRunSecurelyHandler } from '../handlers/ksm/ksmRunSecurelyHandler';
 import { KsmGeneratePasswordHandler } from '../handlers/ksm/ksmGeneratePasswordHandler';
@@ -64,6 +65,14 @@ export class HandlerFactory {
       handlers.set(
         COMMANDS.SWITCH_TO_KSM,
         new SwitchToKsmHandler(context, storageManager)
+      );
+      handlers.set(
+        COMMANDS.SWITCH_TO_KEEPER_SMK,
+        new SwitchCliHandler(context, spinner, cliService, storageManager, CliFlavor.SMK)
+      );
+      handlers.set(
+        COMMANDS.SWITCH_TO_KEEPER_COMMANDER,
+        new SwitchCliHandler(context, spinner, cliService, storageManager, CliFlavor.COMMANDER)
       );
     } else if (serviceMode === ModeType.KSM) {
       const ksmService = service as KsmService;

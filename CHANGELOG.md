@@ -1,5 +1,23 @@
 # Change Log
 
+## 
+
+- **Keeper SMK support** (In CLI mode): The extension now works with Keeper SMK as well as Keeper Commander, without a `keeper -> keeper-smk` symlink.
+  - Detects `keeper-smk` on PATH and `~/.keeper-smk/<host>/bin/keeper-smk` (not on PATH by default), plus `keeper` on PATH, common install locations (`/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`, Python user dirs) and `python3 -m keepercommander`. Each candidate must answer `--version` with "Keeper Commander". Installs are deduplicated by symlink-resolved path.
+  - Anything under `~/.keeper-smk/<host>/` is always run through that host's `bin/keeper-smk` wrapper, which selects the right server. A host without a wrapper is skipped.
+  - With several CLIs and no choice made, Keeper Commander is used (a pip install first, then other Commanders in PATH order), so machines that already have Commander keep using it. Keeper SMK (first host alphabetically) is used only when no Commander is installed. A one-time notification explains how to switch.
+  - A chosen CLI that is no longer installed is reported as an error listing what was found. The extension never falls back to another CLI, because each one talks to a different server and vault.
+  - Detection runs once, and the verified CLI is reused across the automatic shell resets (10-minute timer, process exit, expired login) while its file still exists and your settings and saved pick are unchanged. The `--version` check is not repeated for a CLI that detection already verified.
+  - The active CLI (flavor, SMK host, version, path) is logged, and login hints show that CLI's real command (the full wrapper path for SMK).
+- **Choosing the Keeper CLI**:
+  - **Switch to CLI** (from KSM mode) asks which Keeper CLI to use when more than one works on this machine. With a single CLI it behaves as before.
+  - In CLI mode, **Switch to Keeper SMK** and **Switch to Keeper Commander** appear only when the other CLI is installed (no separate "Switch Keeper CLI" command, to avoid confusion with "Switch to CLI"). With several SMK hosts, **Switch to Keeper SMK** asks which host.
+  - Switching remembers the choice for this machine, restarts the Keeper shell and clears the saved folder, since folders belong to the previous vault. Only the CLIs you can switch to are run to check them, and deciding which commands to show uses file checks only, so it adds no startup cost.
+- **New settings**: `keeper-security.cli.flavor` (`auto`, `commander`, `smk`) and `keeper-security.cli.path` (explicit executable, overrides detection). Changing them restarts the Keeper shell on the next action.
+- **Fix**: Switching mode (e.g. KSM to CLI) could revert to the previous mode after the reload, mostly over slow WSL/remote connections, because the saved mode was not written before the window reloaded.
+- **Remote development**: Declared `extensionKind: ["workspace"]` so the Keeper CLI is always detected and run on the workspace machine (Remote-SSH, WSL, dev containers).
+- **Fix**: `record-add` / `nsf-record-add` are no longer re-run through the fallback executor when the persistent shell reports an error or times out. The first attempt may already have created the record, so the retry could create a duplicate.
+
 ## 2.3.0
 
 - **Accounts without Nested Share Folders** (In CLI mode): The extension now detects when nested share folders are not enabled for the logged-in account and skips `nsf-*` commands instead of failing.

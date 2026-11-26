@@ -130,6 +130,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(keeperRef);
@@ -170,6 +171,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'Custom Folder',
         parentUid: '/',
         folderPath: '/Custom Folder',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(keeperRef);
@@ -242,6 +244,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(null);
@@ -271,6 +274,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(undefined);
@@ -295,6 +299,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(keeperRef);
@@ -320,6 +325,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: folderName,
         parentUid: '/',
         folderPath: '/Custom Folder',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(keeperRef);
@@ -345,6 +351,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockRejectedValue(error);
 
@@ -387,6 +394,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue('record123');
       (createKeeperReference as jest.Mock).mockReturnValue('keeper://ref');
@@ -418,6 +426,7 @@ describe('CliGeneratePasswordHandler', () => {
         name: 'My Vault',
         parentUid: '/',
         folderPath: '/',
+        source: '',
       });
       mockCliService.executeCommanderCommand.mockResolvedValue(recordUid);
       (createKeeperReference as jest.Mock).mockReturnValue(keeperRef);

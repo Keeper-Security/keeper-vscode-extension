@@ -1,6 +1,11 @@
-import { env, ExtensionContext, Uri, window } from 'vscode';
+import { commands, env, ExtensionContext, Uri, window } from 'vscode';
 import { logger } from '../utils/logger';
 import {
+  getKeeperCliAutoPickedMessage,
+  getKeeperCliLoginHintMessage,
+  getKeeperCliNoLongerAvailableMessage,
+  getKeeperCliPathInvalidMessage,
+  getKeeperCliUnusableMessage,
   hasKeeperNotationControlCharacters,
   isValidKeeperRecordUid,
   promisifyExec,
@@ -8,9 +13,75 @@ import {
   StatusBarSpinner,
 } from '../utils/helper';
 import { execFile, spawn, ChildProcess } from 'child_process';
-import { KEEPER_COMMANDER_DOCS_URLS } from '../utils/constants';
-import { HELPER_MESSAGES } from '../utils/constants';
-import { CLI_ERROR_MESSAGES } from '../utils/cli-messages';
+import {
+  CLI_MULTIPLE_INSTALLS_NOTICE_SHOWN_KEY,
+  COMMANDS,
+  CONFIG_NAMESPACE,
+  HELPER_MESSAGES,
+  KEEPER_COMMANDER_DOCS_URLS,
+} from '../utils/constants';
+import { CLI_ERROR_MESSAGES, CLI_LOGGER_DEBUG_MESSAGES } from '../utils/cli-messages';
+import { configuration } from './configurations';
+import { CliManager } from './managers/cliManager';
+import {
+  buildSpawnSpec,
+  getCliDescription,
+  getCliDisplayLabel,
+  getCliInstallId,
+  getCliSwitchTargets,
+  getCliTerminalCommand,
+} from './cliResolver';
+import {
+  CliFlavor,
+  CliUnavailableResolution,
+  ICliInstall,
+  ISpawnSpec,
+} from '../types';
+
+/**
+ * Commands that create something in the vault. They are never re-run through the
+ * legacy executor after a persistent-shell failure: the first attempt may already
+ * have created the record (e.g. a stderr warning or a slow response), and a retry
+ * would create a duplicate.
+ */
+const NON_RETRYABLE_COMMANDS = new Set(['record-add', 'nsf-record-add']);
+
+// CLI mode command that switches to another Keeper CLI of `flavor` (read at call
+// time, not import time)
+function getCliSwitchAction(flavor: CliFlavor): { label: string; command: string } {
+  return flavor === CliFlavor.SMK
+    ? { label: HELPER_MESSAGES.SWITCH_TO_KEEPER_SMK, command: COMMANDS.SWITCH_TO_KEEPER_SMK }
+    : {
+        label: HELPER_MESSAGES.SWITCH_TO_KEEPER_COMMANDER,
+        command: COMMANDS.SWITCH_TO_KEEPER_COMMANDER,
+      };
+}
+
+function describeUnavailableCli(resolution: CliUnavailableResolution): string {
+  switch (resolution.kind) {
+    case 'noneFound':
+      return resolution.rejected.length > 0
+        ? getKeeperCliUnusableMessage(
+            resolution.rejected.map((r) => `${r.path} (${r.reason})`)
+          )
+        : HELPER_MESSAGES.CLI_NOT_INSTALLED;
+    case 'overrideInvalid':
+      return getKeeperCliPathInvalidMessage(resolution.path, resolution.rejected[0]?.reason);
+    case 'savedMissing':
+      return getKeeperCliNoLongerAvailableMessage(
+        resolution.saved.label ?? resolution.saved.id,
+        resolution.available.map(getCliDisplayLabel)
+      );
+  }
+}
+
+// Thrown when no usable Keeper CLI is selected (none found, saved choice gone, bad override)
+class CliUnavailableError extends Error {
+  constructor(public readonly resolution: CliUnavailableResolution) {
+    super(describeUnavailableCli(resolution));
+    this.name = 'CliUnavailableError';
+  }
+}
 
 // Patterns to filter out from Keeper Commander output (not real errors)
 const BENIGN_PATTERNS = [
@@ -21,6 +92,9 @@ const BENIGN_PATTERNS = [
   /and use default login method/i,
   /Syncing\.\.\./i,
   /Decrypted\s*\[\d+\]\s*record\(s\)/i,
+  // Linux warnings from newer Commander: it falls back and carries on
+  /QRC encryption failed/i,
+  /Failed to initialize platform handler/i,
   /^keeper shell$/i,
   /^\r$/, // stray carriage returns
 ];
@@ -92,16 +166,159 @@ export class CliService {
   private isExecutingCommand = false;
   // null = not yet known; resolved from the first nsf-* command output
   private nsfSupported: boolean | null = null;
+  // Resolved on first use and after every reset, so a removed CLI is noticed
+  private activeCli: ICliInstall | null = null;
+  // In-flight resolution, shared so concurrent actions detect only once
+  private activeCliPromise: Promise<ICliInstall> | null = null;
+  // Bumped on every reset, so a detection that finishes after a reset is not cached
+  private cliGeneration = 0;
+  // Last verified CLI, kept across automatic resets (10-minute timer, process exit,
+  // expired login) so they don't re-probe every candidate. Dropped when the user
+  // switches or changes settings, or when its file is gone.
+  private knownCli: { install: ICliInstall; key: string } | null = null;
 
   // Add reset cli timeout
   private resetCliTimeout: NodeJS.Timeout | null = null;
   private readonly RESET_CLI_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
   public constructor(
-    // @ts-ignore
     private context: ExtensionContext,
     private spinner: StatusBarSpinner
-  ) { }
+  ) {
+    // Restart the shell with the new CLI when keeper-security.cli.* changes
+    // Show the right "Switch to Keeper SMK/Commander" commands from the start
+    this.refreshSwitchContext();
+
+    this.context.subscriptions.push(
+      configuration.onDidChange((event) => {
+        if (event.affectsConfiguration(`${CONFIG_NAMESPACE}.cli`)) {
+          logger.logInfo(CLI_LOGGER_DEBUG_MESSAGES.KEEPER_CLI_SETTINGS_CHANGED);
+          this.knownCli = null;
+          this.resetCliService();
+        }
+      })
+    );
+  }
+
+  // The CLI currently in use, or null before the first action / after a reset
+  public getActiveCli(): ICliInstall | null {
+    return this.activeCli;
+  }
+
+  public getActiveCliId(): string | null {
+    return this.activeCli ? getCliInstallId(this.activeCli) : null;
+  }
+
+  // Every working Keeper CLI on this machine, for the switch commands' pickers
+  public detectInstalls(): Promise<ICliInstall[]> {
+    return CliManager.detectInstalls();
+  }
+
+  // Stop the running shell so the next action starts with the newly saved CLI
+  public switchCli(): void {
+    this.knownCli = null;
+    this.resetCliService();
+    this.refreshSwitchContext();
+  }
+
+  // Resolve which CLI to execute; cached until the next reset
+  private ensureActiveCli(): Promise<ICliInstall> {
+    if (this.activeCli) {
+      return Promise.resolve(this.activeCli);
+    }
+    if (!this.activeCliPromise) {
+      const pending = this.resolveActiveCli().finally(() => {
+        if (this.activeCliPromise === pending) {
+          this.activeCliPromise = null;
+        }
+      });
+      this.activeCliPromise = pending;
+    }
+    return this.activeCliPromise;
+  }
+
+  private async resolveActiveCli(): Promise<ICliInstall> {
+    const generation = this.cliGeneration;
+    const key = CliManager.getResolutionKey(this.context);
+
+    // Same settings and saved pick, and the file is still there: no need to detect again
+    if (
+      this.knownCli !== null &&
+      this.knownCli.key === key &&
+      CliManager.isStillAvailable(this.knownCli.install)
+    ) {
+      this.activeCli = this.knownCli.install;
+      this.refreshSwitchContext();
+      return this.knownCli.install;
+    }
+    this.knownCli = null;
+
+    const resolution = await CliManager.resolve(this.context);
+    if (resolution.kind !== 'active') {
+      throw new CliUnavailableError(resolution);
+    }
+
+    // A reset while detecting means the result may be stale (settings/switch changed)
+    if (generation === this.cliGeneration) {
+      this.activeCli = resolution.install;
+      this.refreshSwitchContext();
+      this.knownCli = { install: resolution.install, key };
+    }
+    logger.logInfo(
+      `Active Keeper CLI: ${getCliDescription(resolution.install)} (${resolution.source})`
+    );
+    if (resolution.autoPickedFromMany) {
+      void this.notifyAutoPickedOnce(resolution.install);
+    }
+    return resolution.install;
+  }
+
+  // One-time notice when several CLIs exist and none was chosen explicitly
+  private async notifyAutoPickedOnce(install: ICliInstall): Promise<void> {
+    if (this.context.globalState.get<boolean>(CLI_MULTIPLE_INSTALLS_NOTICE_SHOWN_KEY)) {
+      return;
+    }
+    await this.context.globalState.update(CLI_MULTIPLE_INSTALLS_NOTICE_SHOWN_KEY, true);
+    const { toSmk, toCommander } = getCliSwitchTargets(
+      CliManager.findCandidates(),
+      install
+    );
+    await this.showWithSwitchActions(
+      (message, ...actions) => window.showInformationMessage(message, ...actions),
+      getKeeperCliAutoPickedMessage(getCliDisplayLabel(install)),
+      [
+        ...(toCommander.length > 0 ? [CliFlavor.COMMANDER] : []),
+        ...(toSmk.length > 0 ? [CliFlavor.SMK] : []),
+      ]
+    );
+  }
+
+  // Message with "Switch to Keeper Commander/SMK" buttons for the given flavors
+  private async showWithSwitchActions(
+    show: (message: string, ...actions: string[]) => Thenable<string | undefined>,
+    message: string,
+    flavors: CliFlavor[]
+  ): Promise<void> {
+    const actions = [...new Set(flavors)].map(getCliSwitchAction);
+    const picked = await show(message, ...actions.map((action) => action.label));
+    const action = actions.find((candidate) => candidate.label === picked);
+    if (action) {
+      await commands.executeCommand(action.command);
+    }
+  }
+
+  // Keep the "Switch to Keeper SMK/Commander" commands in step with the active CLI
+  private refreshSwitchContext(): void {
+    Promise.resolve(
+      CliManager.updateSwitchContext(this.context, this.activeCli)
+    ).catch((error) =>
+      logger.logError('Failed to update the Keeper CLI switch commands', error)
+    );
+  }
+
+  private spawnSpec(install: ICliInstall, args: string[]): ISpawnSpec {
+    return buildSpawnSpec(install, args, process.platform === 'win32');
+  }
 
   // Lazy initialization method - only runs when first needed
   private async lazyInitialize(): Promise<void> {
@@ -115,6 +332,22 @@ export class CliService {
     try {
       logger.logDebug('CliService.lazyInitialize: Starting initialization');
       this.spinner.show('Initializing Keeper Security Extension...');
+
+      // Decide which CLI (Commander or an SMK host) to run before anything else.
+      // No silent fallback: each CLI talks to a different server and vault.
+      try {
+        await this.ensureActiveCli();
+      } catch (error) {
+        if (error instanceof CliUnavailableError) {
+          logger.logError(error.message);
+          this.isInstalled = false;
+          this.isAuthenticated = false;
+          this.spinner.hide();
+          await this.promptCliUnavailableError(error);
+          return;
+        }
+        throw error;
+      }
 
       logger.logDebug(
         'CliService.lazyInitialize: Checking commander installation and authentication'
@@ -204,6 +437,10 @@ export class CliService {
     this.shellReadyPromise = null;
     this.isExecutingCommand = false;
     this.nsfSupported = null;
+    // Re-resolve on next use so settings changes, switches and removed CLIs apply
+    this.activeCli = null;
+    this.activeCliPromise = null;
+    this.cliGeneration++;
 
     // Kill and clear persistent process
     if (this.persistentProcess) {
@@ -217,6 +454,13 @@ export class CliService {
   // Check if Keeper Commander CLI is installed by running --version
   private async checkCommanderInstallation(): Promise<boolean> {
     try {
+      // Detection already ran `--version` on this exact file and read a version
+      // from it, so don't start another (slow) Commander process to ask again.
+      if (this.activeCli?.version) {
+        logger.logInfo(`Keeper Commander CLI Installed: YES`);
+        return true;
+      }
+
       // Use the legacy method for initial checks (before persistent process is ready)
       const stdout = await this.executeCommanderCommandLegacy('--version');
 
@@ -240,6 +484,9 @@ export class CliService {
      * TODO: IN FUTURE WE WILL NOT USE this-device command, WILL USE 'login-status' command instead
      * CURRENTLY THAT COMMAND IS NOT RELEASED YET
      */
+    if (this.activeCli) {
+      logger.logInfo(`Checking login for ${getCliDescription(this.activeCli)}`);
+    }
     try {
       // Create timeout promise to prevent hanging on interactive login prompts
       let timeoutId: NodeJS.Timeout | null = null;
@@ -353,18 +600,18 @@ export class CliService {
   /**
    * Raw executor for the Keeper Commander CLI (no output cleaning).
    *
-   * Spawns `keeper` directly via `execFile` with a pre-tokenized argv. No
-   * shell is involved, so shell metacharacters in `command` or `args`
+   * Spawns the resolved Keeper CLI (Commander or an SMK host's `keeper-smk`
+   * wrapper, see `cliResolver`) directly via `execFile` with a pre-tokenized
+   * argv. No shell is involved, so shell metacharacters in `command` or `args`
    * (`;`, `&&`, `|`, `$`, backticks, redirections, globs, ...) are passed
    * to the child as plain bytes and cannot be interpreted as syntax. This
    * is the structural defense behind `assertSafeCommanderArgs` — the regex
    * is the policy, this is the mechanism.
    *
-   * On Windows the `keeper` entry point may be a `.cmd` shim that Node's
-   * `execFile` does not always resolve, so we route through `cmd /c` (the
-   * same pattern the persistent-process path already uses). Args are still
-   * passed as a tokenized array; cmd.exe receives them as separate argv
-   * entries, not concatenated into a string.
+   * On Windows, `.cmd`/`.bat` shims and OS-resolved commands are routed
+   * through `cmd /c` (see `buildSpawnSpec`). Args are still passed as a
+   * tokenized array; cmd.exe receives them as separate argv entries, not
+   * concatenated into a string.
    *
    * `command` must be a single argv token (e.g. `"get"`, `"login-status"`).
    * Multi-word subcommands such as `biometric verify` must be passed as
@@ -374,11 +621,9 @@ export class CliService {
     command: string,
     args: string[] = []
   ): Promise<{ stdout: string; stderr: string }> {
-    const isWindows = process.platform === 'win32';
-    const file = isWindows ? 'cmd' : 'keeper';
-    const argv = isWindows
-      ? ['/c', 'keeper', command, ...args]
-      : [command, ...args];
+    // Cached CLI is used synchronously; detection only runs after a reset
+    const cli = this.activeCli ?? (await this.ensureActiveCli());
+    const { file, args: argv } = this.spawnSpec(cli, [command, ...args]);
 
     const { stdout, stderr } = await promisifyExec(execFile)(file, argv, {
       maxBuffer: 10 * 1024 * 1024,
@@ -445,6 +690,16 @@ export class CliService {
       // Don't fallback to legacy mode for blocked commands
       if (error instanceof CommandBlockedError) {
         throw error; // Re-throw without disabling persistent mode
+      }
+
+      if (NON_RETRYABLE_COMMANDS.has(command)) {
+        // The record may already exist; retrying would create a duplicate.
+        logger.logError(
+          `Persistent process failed for ${command}; not retrying, to avoid creating a duplicate record`,
+          error
+        );
+        this.resetCliService();
+        throw error;
       }
 
       logger.logError(`Persistent process failed, falling back to legacy mode:`, error);
@@ -550,25 +805,19 @@ export class CliService {
   // Create new persistent Keeper Commander shell process
   private async createPersistentProcess(): Promise<void> {
     try {
-      logger.logInfo('Creating persistent Keeper Commander process...');
-
       this.shellReady = false;
       this.shellReadyPromise = null;
 
-      // Use platform-aware spawning
-      if (process.platform === 'win32') {
-        // On Windows, use CMD to handle the 'keeper' alias
-        this.persistentProcess = spawn('cmd', ['/c', 'keeper', 'shell'], {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          shell: false,
-        });
-      } else {
-        // On other platforms, spawn directly
-        this.persistentProcess = spawn('keeper', ['shell'], {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          shell: false,
-        });
-      }
+      // Cached CLI is used synchronously; detection only runs after a reset
+      const cli = this.activeCli ?? (await this.ensureActiveCli());
+      logger.logInfo(`Creating persistent Keeper shell process with ${getCliDescription(cli)}...`);
+
+      // Platform-aware argv (cmd /c for Windows .cmd shims), never a shell string
+      const { file, args } = this.spawnSpec(cli, ['shell']);
+      this.persistentProcess = spawn(file, args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false,
+      });
 
       // Handle process creation errors
       this.persistentProcess.on('error', (error) => {
@@ -772,12 +1021,13 @@ export class CliService {
 
   // Simple authentication expiration handler
   private handleAuthenticationExpired(): void {
-
+    // Keep the CLI for the login hint; the reset clears it
+    const cli = this.activeCli;
 
     // Reset CLI service when authentication expires
     this.resetCliService();
 
-    this.promptManualAuthenticationError();
+    this.promptManualAuthenticationError(cli);
   }
 
   // Enhanced error handling with detailed logging
@@ -797,9 +1047,11 @@ export class CliService {
   }
 
   // Show user-friendly error when Keeper Commander is not installed
-  private async promptCommanderInstallationError(): Promise<void> {
+  private async promptCommanderInstallationError(
+    message: string = HELPER_MESSAGES.CLI_NOT_INSTALLED
+  ): Promise<void> {
     const action = await window.showErrorMessage(
-      HELPER_MESSAGES.CLI_NOT_INSTALLED,
+      message,
       HELPER_MESSAGES.OPEN_INSTALLATION_DOCS
     );
 
@@ -810,10 +1062,51 @@ export class CliService {
     }
   }
 
+  // No usable CLI: none installed, saved choice removed, or invalid cli.path override
+  private async promptCliUnavailableError(error: CliUnavailableError): Promise<void> {
+    const { resolution } = error;
+    if (resolution.kind === 'noneFound') {
+      // Includes which files were found but unusable, and why
+      await this.promptCommanderInstallationError(error.message);
+      return;
+    }
+
+    if (resolution.kind === 'overrideInvalid') {
+      const action = await window.showErrorMessage(
+        error.message,
+        HELPER_MESSAGES.OPEN_SETTINGS
+      );
+      if (action === HELPER_MESSAGES.OPEN_SETTINGS) {
+        await commands.executeCommand(
+          'workbench.action.openSettings',
+          `${CONFIG_NAMESPACE}.cli`
+        );
+      }
+      return;
+    }
+
+    // Saved CLI is gone: offer to switch to what's still installed, never automatically
+    await this.showWithSwitchActions(
+      (message, ...actions) => window.showErrorMessage(message, ...actions),
+      error.message,
+      resolution.available.map((install) => install.flavor)
+    );
+  }
+
   // Show user-friendly error when authentication fails
-  private async promptManualAuthenticationError(): Promise<void> {
+  private async promptManualAuthenticationError(
+    cli: ICliInstall | null = this.activeCli
+  ): Promise<void> {
+    // Name the CLI in use and its real command: the SMK wrapper isn't on PATH,
+    // and each CLI has its own login.
+    const message = cli
+      ? `${HELPER_MESSAGES.CLI_NOT_AUTHENTICATED} ${getKeeperCliLoginHintMessage(
+          getCliDisplayLabel(cli),
+          getCliTerminalCommand(cli)
+        )}`
+      : HELPER_MESSAGES.CLI_NOT_AUTHENTICATED;
     const action = await window.showErrorMessage(
-      HELPER_MESSAGES.CLI_NOT_AUTHENTICATED,
+      message,
       HELPER_MESSAGES.OPEN_AUTHENTICATION_DOCS
     );
 

@@ -304,6 +304,48 @@ export function getSwitchModeMessage(mode: Mode): string {
   return `Mode switched to ${mode}. Window reload is mandatory for this change to work properly. Reload now?`;
 }
 
+const KEEPER_CLI_LOGIN_STEPS = (command: string): string =>
+  `run "${command} shell" in a terminal, log in, then run "this-device persistent-login on".`;
+
+export function getKeeperCliAutoPickedMessage(cliLabel: string): string {
+  return `Several Keeper CLIs are installed. Using ${cliLabel}. Each CLI has its own login and vault; use "Switch to Keeper Commander" or "Switch to Keeper SMK" to change it.`;
+}
+
+export function getKeeperCliNoLongerAvailableMessage(
+  savedLabel: string,
+  availableLabels: string[]
+): string {
+  const found =
+    availableLabels.length > 0
+      ? `Found: ${availableLabels.join(', ')}. Use "Switch to Keeper Commander" or "Switch to Keeper SMK" to choose one.`
+      : 'No other Keeper CLI was found.';
+  return `The selected Keeper CLI (${savedLabel}) is no longer available. The extension won't switch to another CLI automatically, because each one uses its own server and vault. ${found}`;
+}
+
+export function getKeeperCliPathInvalidMessage(cliPath: string, reason?: string): string {
+  return `The Keeper CLI set in keeper-security.cli.path is not a working Keeper Commander or Keeper SMK executable: ${cliPath}.${reason ? ` Reason: ${reason}.` : ''} Fix or clear the setting.`;
+}
+
+export function getKeeperCliUnusableMessage(rejected: string[]): string {
+  return `No working Keeper Commander or Keeper SMK CLI was found. Found but not usable: ${rejected.join('; ')}. Check that it runs in a terminal (for example "keeper --version"), or set keeper-security.cli.path.`;
+}
+
+export function getKeeperCliLoginHintMessage(cliLabel: string, command: string): string {
+  return `Active CLI: ${cliLabel}. Logins are separate for each CLI. To log in, ${KEEPER_CLI_LOGIN_STEPS(command)}`;
+}
+
+export function getKeeperCliSwitchedMessage(
+  cliLabel: string,
+  cliPath: string,
+  folderCleared: boolean,
+  command: string
+): string {
+  const folder = folderCleared
+    ? 'The saved folder was cleared because it belongs to the previous vault. '
+    : '';
+  return `Now using ${cliLabel} (${cliPath}). ${folder}Logins are separate for each CLI. If you haven't logged in to this one yet, ${KEEPER_CLI_LOGIN_STEPS(command)}`;
+}
+
 export const commonQuickPickOptions = {
   ignoreFocusOut: true,
   matchOnDetail: true,

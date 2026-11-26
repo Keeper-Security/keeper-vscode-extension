@@ -13,7 +13,10 @@ export class ModeManager {
 
   static async setMode(context: ExtensionContext, mode: Mode): Promise<void> {
     await configuration.set(ConfigurationKey.ModeType, mode);
-    context.workspaceState.update(PREVIOUS_USER_SELECTED_MODE_KEY, mode);
+    // Awaited: the window reloads right after a mode switch, and at startup this
+    // saved value wins over the setting. A write lost to the reload (more likely
+    // over a slow WSL/remote connection) would switch the mode back.
+    await context.workspaceState.update(PREVIOUS_USER_SELECTED_MODE_KEY, mode);
   }
 
   static async promptForModeSelection(): Promise<Mode> {

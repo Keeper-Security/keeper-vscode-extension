@@ -23,7 +23,7 @@ This enable developers to manage secrets securely without leaving their developm
 
 - **Secret Management**: Save, retrieve, and generate secrets directly from VS Code using Keeper Security vault
 - **Dual Mode Support**: Choose between
-  - **CLI mode** (Keeper Commander CLI) - Default
+  - **CLI mode** (Keeper Commander CLI or Keeper SMK) - Default
   - **KSM mode** (Keeper Secrets Manager)
 - **Secret Detection**: Automatically detect potential secrets from configuration files using pattern recognition (API keys, passwords, tokens, JWT, AWS keys, Stripe keys, and more)
 - **Secure Execution**: Run commands with secrets injected from Keeper vault
@@ -39,6 +39,7 @@ This enable developers to manage secrets securely without leaving their developm
 - **Keeper Commander CLI**:
   - The **Keeper Commander CLI v18.0.5 or later** must be installed globally on your system using the official binary.
   - Authenticated using [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)
+- **Or Keeper SMK**: the Commander CLI installed by your SMK deployment's `setup.sh` (`~/.keeper-smk/<host>/bin/keeper-smk`). It doesn't need to be on your PATH.
 
 ### For KSM Mode:
 
@@ -83,6 +84,30 @@ This enable developers to manage secrets securely without leaving their developm
      - A biometric authentication prompt (fingerprint or Face ID) will be displayed.<br>With successful fingerprint or faceID authentication the registration will be completed.
 
 Refer to the [Logging in](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in) guide for full details.
+
+#### Using Keeper SMK
+
+CLI mode also works with Keeper SMK. SMK's `setup.sh` installs a wrapper at `~/.keeper-smk/<host>/bin/keeper-smk`, where `<host>` is your SMK server (an enterprise domain, `localhost`, an IP or `host:port`). The extension finds it automatically, even when it isn't on your PATH. No `keeper -> keeper-smk` symlink is needed.
+
+- Log in with the wrapper, not `keeper`: run `~/.keeper-smk/<host>/bin/keeper-smk shell`, log in, then enable persistent login (`this-device persistent-login on`) or biometric login as described above.
+- The extension always runs the host's `bin/keeper-smk` wrapper (never the `venv/bin/keeper` inside it), because the wrapper selects the right server.
+- Each SMK host and regular Commander have their **own login and vault**. Secrets saved with one CLI are not visible in another.
+
+#### Choosing between several Keeper CLIs
+
+The extension looks for Keeper CLIs in this order: `keeper-smk` on PATH, `~/.keeper-smk/*/bin/keeper-smk`, `keeper` on PATH and common install locations (including `/usr/local/bin`, `/opt/homebrew/bin` and `~/.local/bin`), and finally `python3 -m keepercommander`. Each one must answer `--version` with `Keeper Commander, version ...`.
+
+- If only one is found, it's used.
+- If several are found and you haven't chosen one, Keeper Commander is used: a pip install (`pip install keepercommander`) first, then any other Commander in PATH order. Keeper SMK (first host alphabetically) is used only when no Commander is installed. A one-time notification tells you how to switch.
+- **Switching from KSM mode:** **Keeper Security: Switch to CLI** asks which Keeper CLI to use when more than one works on this machine (for example *Keeper Commander* or *Keeper SMK: keeper.example.com*).
+- **Switching in CLI mode:** the Command Palette shows only the switch that applies:
+  - **Keeper Security: Switch to Keeper SMK** while Keeper Commander is active and an SMK install exists. With several SMK hosts it asks which one, and it also appears while on one SMK host if another host exists.
+  - **Keeper Security: Switch to Keeper Commander** while Keeper SMK is active and Keeper Commander is installed.
+- Your choice is remembered for this machine. Switching stops the running Keeper shell and clears the saved folder, because folders belong to the previous vault. Log in to the new CLI separately if you haven't already.
+- If the CLI you chose is removed or renamed, the extension shows an error listing what it found instead. It never switches to another CLI on its own.
+- To pin a CLI regardless of detection, set `keeper-security.cli.path` (see [Extension Settings](#extension-settings)).
+
+In Remote-SSH, WSL and dev containers, the extension runs on the remote side, so it uses the Keeper CLI installed there.
 
 > **Note**: If you've made configuration changes to the Commander CLI manually, please reload your editor window by pressing **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`.
 
@@ -144,6 +169,7 @@ Once authenticated, you can access the following commands through the Command Pa
 | **Open Logs**                    | View extension activity logs                            | Debug and monitor extension operations                    |
 | **Authenticate** (KSM Mode only) | Authenticate KSM using various configuration options.   | To use different secrets manager application              |
 | **Switch to CLI / KSM**          | Switch to CLI / KSM mode for current workspace          | Toggle between Commander CLI and KSM modes                |
+| **Switch to Keeper SMK / Keeper Commander** (CLI Mode only, shown when the other CLI is installed) | Switch between Keeper Commander and Keeper SMK (or another SMK host) | Use a different Keeper server, login and vault |
 
 ### Commands Details:
 
@@ -329,8 +355,10 @@ The extension provides configuration options:
 | **Debug Enabled**    | Enable detailed logging for debugging | `false` |
 | **Secret Detection** | Enable automatic secret detection     | `true`  |
 | **Mode Type**        | Switch between CLI or KSM mode        | `cli`   |
+| **Cli: Flavor**      | Which Keeper CLI to use in CLI mode: `auto`, `commander` (Keeper Commander only) or `smk` (Keeper SMK only) | `auto` |
+| **Cli: Path**        | Path to a Keeper Commander or Keeper SMK executable. Overrides detection and the CLI you chose. Machine setting, can't be set per workspace. | empty |
 
-> **Note:** "Debug mode" and "Mode Type" requires reloading the extension to take effect.<br>
+> **Note:** "Debug mode" and "Mode Type" requires reloading the extension to take effect. "Cli: Flavor" and "Cli: Path" apply on the next Keeper action (the Keeper shell is restarted).<br>
 > Press **Ctrl+Shift+P** (or **Cmd+Shift+P** on Mac), then select `Developer: Reload Window`
 
 ## Troubleshooting
@@ -423,13 +451,20 @@ Enable debug logging to see detailed information about extension operations:
 
 #### 7. Keeper Commander CLI Not Found
 
-**Problem**: "Keeper Commander CLI is not installed" error
+**Problem**: "No Keeper Commander or Keeper SMK CLI was found" error
 
 **Solutions**:
 
-- Install Keeper Commander CLI Binary for your OS by following the [installation guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup)
-- Ensure CLI is accessible from your system PATH
-- Verify installation with `keeper --version` in terminal
+- Install Keeper Commander CLI Binary for your OS by following the [installation guide](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup), or `pip install keepercommander`
+- For Keeper SMK, run your SMK deployment's Commander `setup.sh`. It installs `~/.keeper-smk/<host>/bin/keeper-smk`.
+- Verify the installation with `keeper --version` (or `~/.keeper-smk/<host>/bin/keeper-smk --version`) in a terminal
+- If the CLI is somewhere unusual, set `keeper-security.cli.path` to it
+
+**Problem**: "The selected Keeper CLI ... is no longer available" error
+
+**Solutions**:
+
+- The CLI you chose was removed or renamed. Reinstall it, or use the **Switch to Keeper Commander** / **Switch to Keeper SMK** button in the error (or the Command Palette) to choose another one. You'll need to log in to it separately.
 
 #### 8. Authentication Failures (CLI Mode)
 
@@ -438,7 +473,7 @@ Enable debug logging to see detailed information about extension operations:
 **Solutions**:
 
 - Open your terminal or command prompt.
-- Run the following command: `keeper shell`
+- Run the following command: `keeper shell` (for Keeper SMK: `~/.keeper-smk/<host>/bin/keeper-smk shell`; the error message shows the exact command for the active CLI)
 - If you're not already logged in, you'll be prompted to enter your Keeper credentials. Follow the prompts to complete the login process.
 - Upon successful login, you'll see the command prompt change to: `My Vault>`
 - Then follow these steps to enable [Persistent login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#persistent-login-sessions-stay-logged-in) or [Biometric login](https://docs.keeper.io/en/keeperpam/commander-cli/commander-installation-setup/logging-in#logging-in-with-biometric-authentication)

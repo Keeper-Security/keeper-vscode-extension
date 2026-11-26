@@ -8,6 +8,15 @@ export const CLI_INFO_MESSAGES = {
   NO_FIELDS_TO_SHOW: 'No renderable fields. Field list is empty or only contains object-type values that were excluded from display.',
   QUICK_PICK_FOR_PERMISSION_MODEL_TITLE: 'Select permission model',
   QUICK_PICK_FOR_PERMISSION_MODEL_PLACEHOLDER: 'Choose how the new record should be created in My Vault',
+  DETECTING_KEEPER_CLIS: 'Detecting Keeper CLIs...',
+  QUICK_PICK_FOR_KEEPER_SMK_TITLE: 'Switch to Keeper SMK',
+  QUICK_PICK_FOR_KEEPER_COMMANDER_TITLE: 'Switch to Keeper Commander',
+  QUICK_PICK_FOR_CLI_MODE_TITLE: 'Switch to CLI',
+  QUICK_PICK_FOR_CLI_MODE_PLACEHOLDER: 'Which Keeper CLI should CLI mode use? Each one has its own login and vault.',
+  QUICK_PICK_FOR_KEEPER_CLI_PLACEHOLDER: 'Choose the Keeper CLI to use. Each one has its own login and vault.',
+  CURRENT_KEEPER_CLI: 'Current',
+  KEEPER_CLI_PATH_OVERRIDES_SELECTION:
+    'keeper-security.cli.path is set and overrides this choice. Clear that setting to use the CLI you picked.',
 } as const;
 
 export const CLI_SUCCESS_MESSAGES = {
@@ -23,6 +32,11 @@ export const CLI_ERROR_MESSAGES = {
   FAILED_TO_CHOOSE_FOLDER: 'Failed to choose folder',
   FAILED_TO_SAVE_SECRET: 'Failed to save secret',
   FAILED_TO_SWITCH_TO_KSM: 'Failed to switch to KSM mode',
+  FAILED_TO_SWITCH_KEEPER_CLI: 'Failed to switch Keeper CLI',
+  NO_KEEPER_SMK_TO_SWITCH_TO:
+    'No other Keeper SMK install was found. Run your SMK deployment\'s Commander setup.sh to install it (~/.keeper-smk/<host>/bin/keeper-smk).',
+  NO_KEEPER_COMMANDER_TO_SWITCH_TO:
+    'No Keeper Commander install was found. Install it with pip install keepercommander or the official installer.',
   INVALID_COMMANDER_ARGUMENT:
     'Invalid Keeper Commander argument: control characters are not allowed.',
   INVALID_COMMANDER_RECORD_ADD_VALUE:
@@ -44,6 +58,9 @@ export const CLI_LOGGER_DEBUG_MESSAGES = {
   RETRIEVED_RECORDS_FROM_VAULT: 'Retrieved records from vault',
   RETRIEVED_RECORD_DETAILS: 'Retrieved record details',
   NO_VALUE_FOUND_TO_SAVE: 'Please make a text selection to save its value in the keeper vault.',
+  USER_CANCELLED_KEEPER_CLI_SELECTION: 'User cancelled while selecting Keeper CLI',
+  KEEPER_CLI_SETTINGS_CHANGED: 'Keeper CLI settings changed; the shell restarts on the next Keeper action',
+  SAVED_FOLDER_BELONGS_TO_ANOTHER_CLI: 'Saved folder belongs to a different Keeper CLI (another vault); clearing it',
 } as const;
 
 export const CLI_LOGGER_ERROR_MESSAGES = {

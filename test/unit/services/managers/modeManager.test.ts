@@ -113,6 +113,26 @@ describe('ModeManager', () => {
       expect(mockContext.workspaceState.update).toHaveBeenCalledWith(PREVIOUS_USER_SELECTED_MODE_KEY, ModeType.KSM);
     });
 
+    it('waits for the saved mode to be written before resolving (the window reloads right after)', async () => {
+      (configuration.set as jest.Mock).mockResolvedValue(undefined);
+      let finishWrite: () => void = () => undefined;
+      (mockContext.workspaceState.update as jest.Mock).mockReturnValue(
+        new Promise<void>((resolve) => (finishWrite = resolve))
+      );
+      let resolved = false;
+
+      const pending = ModeManager.setMode(mockContext, ModeType.CLI).then(() => {
+        resolved = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(resolved).toBe(false);
+
+      finishWrite();
+      await pending;
+      expect(resolved).toBe(true);
+    });
+
     it('should handle configuration set errors', async () => {
       const error = new Error('Configuration failed');
       (configuration.set as jest.Mock).mockRejectedValue(error);

@@ -5,6 +5,17 @@ import { ExtensionContext } from 'vscode';
 import { logger } from '../../../src/utils/logger';
 import { promisifyExec } from '../../../src/utils/helper';
 import { spawn } from 'child_process';
+import { CliManager } from '../../../src/services/managers/cliManager';
+import { CliFlavor, ICliInstall } from '../../../src/types';
+
+// Same argv as before SMK support: the bare `keeper` resolved from PATH. No version
+// (as if detection couldn't read one), so the service still runs its own `--version`
+// check and every existing test keeps exercising the original code path.
+const COMMANDER_ON_PATH: ICliInstall = {
+  path: 'keeper',
+  realPath: 'keeper',
+  flavor: CliFlavor.COMMANDER,
+};
 
 // Mock dependencies
 jest.mock('../../../src/utils/helper', () => ({
@@ -12,6 +23,17 @@ jest.mock('../../../src/utils/helper', () => ({
   promisifyExec: jest.fn()
 }));
 jest.mock('../../../src/utils/logger');
+// Resolve to a plain Commander `keeper` so argv assertions match the pre-SMK behavior
+jest.mock('../../../src/services/managers/cliManager', () => ({
+  CliManager: {
+    resolve: jest.fn(),
+    detectInstalls: jest.fn(),
+    getResolutionKey: jest.fn(),
+    isStillAvailable: jest.fn(),
+    updateSwitchContext: jest.fn(),
+    findCandidates: jest.fn(),
+  },
+}));
 jest.mock('child_process', () => ({
   exec: jest.fn(),
   execFile: jest.fn(),
@@ -75,6 +97,13 @@ describe('CliService', () => {
     mockPromisifyExec = promisifyExec as jest.MockedFunction<typeof promisifyExec>;
     mockExecFunction = jest.fn();
     mockPromisifyExec.mockReturnValue(mockExecFunction);
+
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active',
+      install: COMMANDER_ON_PATH,
+      source: 'single',
+      autoPickedFromMany: false,
+    });
 
     cliService = new CliService(mockContext, mockSpinner);
   });
@@ -1693,3 +1722,265 @@ describe('CliService', () => {
     }, 2000); // Short timeout
   });
 }); 
+
+
+describe('CliService with the Keeper CLI resolver', () => {
+  let cliService: CliService;
+  let mockExecFunction: jest.Mock;
+  const spinner = {
+    show: jest.fn(),
+    updateMessage: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  } as unknown as StatusBarSpinner;
+  const SMK: ICliInstall = {
+    path: '/home/u/.keeper-smk/keeper.example.com/bin/keeper-smk',
+    realPath: '/home/u/.keeper-smk/keeper.example.com/bin/keeper-smk',
+    flavor: CliFlavor.SMK,
+    smkHost: 'keeper.example.com',
+    version: '18.1.8',
+  };
+
+  beforeEach(() => {
+    mockExecFunction = jest.fn();
+    (promisifyExec as jest.Mock).mockReturnValue(mockExecFunction);
+    (require('vscode').window.showErrorMessage as jest.Mock).mockResolvedValue(undefined);
+    cliService = new CliService(
+      { subscriptions: [], globalState: { get: jest.fn(), update: jest.fn() } } as unknown as ExtensionContext,
+      spinner
+    );
+  });
+
+  it('runs the resolved SMK wrapper, not `keeper`', async () => {
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false,
+    });
+    mockExecFunction.mockResolvedValue({ stdout: 'Keeper Commander, version 18.1.8', stderr: '' });
+
+    await cliService.executeCommanderCommandLegacy('--version');
+
+    expect(mockExecFunction).toHaveBeenCalledWith(SMK.path, ['--version'], expect.anything());
+    expect(cliService.getActiveCli()).toBe(SMK);
+  });
+
+  it('does not fall back to another CLI when the saved choice is gone', async () => {
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'savedMissing',
+      saved: { id: SMK.realPath, label: 'Keeper SMK: keeper.example.com (18.1.8)' },
+      available: [{ ...COMMANDER_ON_PATH, version: '17.1.8' }],
+    });
+
+    const ready = await cliService.isCLIReady();
+
+    expect(ready).toBe(false);
+    expect(mockExecFunction).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+    const message = (require('vscode').window.showErrorMessage as jest.Mock).mock.calls[0][0];
+    expect(message).toContain('no longer available');
+    expect(message).toContain('Keeper Commander (17.1.8)');
+  });
+
+  it('does not run a second --version when detection already verified the CLI', async () => {
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false,
+    });
+    mockExecFunction.mockImplementation((file: string, args: string[]) =>
+      Promise.resolve({ stdout: args.includes('login-status') ? 'Logged in' : '', stderr: '' })
+    );
+
+    expect(await cliService.isCLIReady()).toBe(true);
+
+    const versionCalls = mockExecFunction.mock.calls.filter(([, args]) => args.includes('--version'));
+    expect(versionCalls).toEqual([]);
+  });
+
+  it('reuses the verified CLI after an automatic reset instead of detecting again', async () => {
+    (CliManager.getResolutionKey as jest.Mock).mockReturnValue('same');
+    (CliManager.isStillAvailable as jest.Mock).mockReturnValue(true);
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false,
+    });
+    mockExecFunction.mockResolvedValue({ stdout: '', stderr: '' });
+
+    await cliService.executeCommanderCommandLegacy('ls');
+    (cliService as any).resetCliService(); // e.g. the 10-minute timer
+    await cliService.executeCommanderCommandLegacy('ls');
+
+    expect(CliManager.resolve).toHaveBeenCalledTimes(1);
+    expect(mockExecFunction).toHaveBeenLastCalledWith(SMK.path, ['ls'], expect.anything());
+  });
+
+  it.each([
+    ['its file is gone', 'same', false],
+    ['the saved pick or settings changed', 'other', true],
+  ])('detects again after a reset when %s', async (_name, nextKey, available) => {
+    (CliManager.getResolutionKey as jest.Mock).mockReturnValueOnce('same').mockReturnValue(nextKey);
+    (CliManager.isStillAvailable as jest.Mock).mockReturnValue(available);
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false,
+    });
+    mockExecFunction.mockResolvedValue({ stdout: '', stderr: '' });
+
+    await cliService.executeCommanderCommandLegacy('ls');
+    (cliService as any).resetCliService();
+    await cliService.executeCommanderCommandLegacy('ls');
+
+    expect(CliManager.resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it('forgets the verified CLI when the user switches', async () => {
+    (CliManager.getResolutionKey as jest.Mock).mockReturnValue('same');
+    (CliManager.isStillAvailable as jest.Mock).mockReturnValue(true);
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false,
+    });
+    mockExecFunction.mockResolvedValue({ stdout: '', stderr: '' });
+
+    await cliService.executeCommanderCommandLegacy('ls');
+    cliService.switchCli();
+    await cliService.executeCommanderCommandLegacy('ls');
+
+    expect(CliManager.resolve).toHaveBeenCalledTimes(2);
+  });
+
+  describe('harmless Commander warnings on stderr (Linux/WSL)', () => {
+    // Captured from Commander 18.1.11 on WSL: every line is informational
+    const WSL_STDERR = [
+      'Logging in to Keeper as user@example.com',
+      "QRC encryption failed: ML-KEM implementation not available: No module named 'mlkem.fastmath'",
+      "QRC encryption failed (ML-KEM implementation not available: No module named 'mlkem.fastmath'), falling back to EC encryption",
+      'Failed to initialize platform handler: Biometric authentication not supported on Linux',
+      'Successfully authenticated with Persistent Login',
+    ].join('\n');
+
+    beforeEach(() => {
+      (CliManager.resolve as jest.Mock).mockResolvedValue({
+        kind: 'active', install: COMMANDER_ON_PATH, source: 'single', autoPickedFromMany: false,
+      });
+    });
+
+    it('does not treat them as a failed command', async () => {
+      mockExecFunction.mockResolvedValue({ stdout: '[]', stderr: WSL_STDERR });
+
+      await expect(cliService.executeCommanderCommandLegacy('ls', ['--format=json'])).resolves.toBe('[]');
+    });
+
+    it('still fails on a real error that comes with them', async () => {
+      mockExecFunction.mockResolvedValue({
+        stdout: '',
+        stderr: `${WSL_STDERR}\nError: record not found`,
+      });
+
+      await expect(cliService.executeCommanderCommandLegacy('get', ['abc'])).rejects.toThrow('record not found');
+    });
+  });
+
+  it('runs detection once for concurrent actions', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    (CliManager.resolve as jest.Mock).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    mockExecFunction.mockResolvedValue({ stdout: 'Keeper Commander, version 18.1.8', stderr: '' });
+
+    const first = cliService.executeCommanderCommandLegacy('--version');
+    const second = cliService.executeCommanderCommandLegacy('--version');
+    finish({ kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false });
+    await Promise.all([first, second]);
+
+    expect(CliManager.resolve).toHaveBeenCalledTimes(1);
+    expect(cliService.getActiveCli()).toBe(SMK);
+  });
+
+  it('does not cache a CLI whose detection finished after a reset', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    (CliManager.resolve as jest.Mock).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    mockExecFunction.mockResolvedValue({ stdout: '', stderr: '' });
+
+    const pending = cliService.executeCommanderCommandLegacy('--version');
+    cliService.switchCli();
+    finish({ kind: 'active', install: SMK, source: 'single', autoPickedFromMany: false });
+    await pending;
+
+    expect(cliService.getActiveCli()).toBeNull();
+  });
+
+  it('offers a switch button per installed flavor when the saved CLI is gone, and runs it', async () => {
+    const { window: vsWindow, commands: vsCommands } = require('vscode');
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'savedMissing',
+      saved: { id: SMK.realPath, label: 'Keeper SMK: keeper.example.com (18.1.8)' },
+      available: [COMMANDER_ON_PATH],
+    });
+    (vsWindow.showErrorMessage as jest.Mock).mockResolvedValue('Switch to Keeper Commander');
+    vsCommands.executeCommand = jest.fn();
+
+    await cliService.isCLIReady();
+
+    expect(vsWindow.showErrorMessage).toHaveBeenCalledWith(
+      expect.stringContaining('no longer available'),
+      'Switch to Keeper Commander'
+    );
+    expect(vsCommands.executeCommand).toHaveBeenCalledWith('ks-vscode.switchToKeeperCommander');
+  });
+
+  it('tells the user which files were found but unusable', async () => {
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'noneFound',
+      rejected: [{ path: '/usr/local/bin/keeper', reason: "'--version' did not finish within 60s" }],
+    });
+
+    expect(await cliService.isCLIReady()).toBe(false);
+
+    const message = (require('vscode').window.showErrorMessage as jest.Mock).mock.calls[0][0];
+    expect(message).toContain("/usr/local/bin/keeper ('--version' did not finish within 60s)");
+  });
+
+  it.each(['record-add', 'nsf-record-add'])(
+    'does not retry %s through the legacy path after a persistent failure',
+    async (command) => {
+      const service = cliService as any;
+      service.isInitialized = true;
+      service.usePersistentProcess = true;
+      service.activeCli = COMMANDER_ON_PATH;
+      jest.spyOn(service, 'executeCommanderCommandPersistent').mockRejectedValue(new Error('stderr: error'));
+      const legacy = jest.spyOn(cliService, 'executeCommanderCommandLegacy');
+
+      await expect(cliService.executeCommanderCommand(command, ['--title="x"'])).rejects.toThrow('stderr: error');
+      expect(legacy).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still falls back to legacy for read-only commands', async () => {
+    const service = cliService as any;
+    service.isInitialized = true;
+    service.usePersistentProcess = true;
+    service.activeCli = COMMANDER_ON_PATH;
+    (CliManager.resolve as jest.Mock).mockResolvedValue({
+      kind: 'active', install: COMMANDER_ON_PATH, source: 'single', autoPickedFromMany: false,
+    });
+    jest.spyOn(service, 'executeCommanderCommandPersistent').mockRejectedValue(new Error('boom'));
+    const legacy = jest.spyOn(cliService, 'executeCommanderCommandLegacy').mockResolvedValue('[]');
+
+    await expect(cliService.executeCommanderCommand('ls', ['--format=json'])).resolves.toBe('[]');
+    expect(legacy).toHaveBeenCalledWith('ls', ['--format=json']);
+  });
+
+  it('resets the shell when keeper-security.cli settings change', () => {
+    // Capture this instance's listener only (the configuration singleton is shared across tests)
+    const { configuration } = require('../../../src/services/configurations');
+    let listener: (event: { affectsConfiguration(section: string): boolean }) => void = () => undefined;
+    jest.spyOn(configuration, 'onDidChange', 'get').mockReturnValue(((l: typeof listener) => {
+      listener = l;
+      return { dispose: jest.fn() };
+    }) as any);
+    cliService = new CliService({ subscriptions: [] } as unknown as ExtensionContext, spinner);
+    const service = cliService as any;
+    service.activeCli = SMK;
+    service.isInitialized = true;
+
+    listener({ affectsConfiguration: (s: string) => s === 'keeper-security.mode' });
+    expect(cliService.getActiveCli()).toBe(SMK);
+
+    listener({ affectsConfiguration: (s: string) => s === 'keeper-security.cli' });
+    expect(cliService.getActiveCli()).toBeNull();
+    expect(service.isInitialized).toBe(false);
+  });
+});

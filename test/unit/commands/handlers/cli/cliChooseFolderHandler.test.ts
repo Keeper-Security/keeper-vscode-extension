@@ -116,7 +116,7 @@ describe('CliChooseFolderHandler', () => {
       expect(typeof boundFunction).toBe('function');
       
       // Verify it can be called (it's a bound method)
-      const mockFolders = { availableFolders: [], rootFolder: { folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/' } };
+      const mockFolders = { availableFolders: [], rootFolder: { folderUid: '/', name: 'My Vault', parentUid: '/', folderPath: '/', source: '' } };
       mockStorageManager.fetchAvailableFolders.mockResolvedValue(mockFolders);
       await boundFunction();
       expect(mockStorageManager.fetchAvailableFolders).toHaveBeenCalled();

@@ -35,6 +35,9 @@
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
   "contributes": {
     "commands": [
       {
@@ -81,6 +84,16 @@
         "command": "ks-vscode.authenticate",
         "title": "Authenticate",
         "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToKeeperSmk",
+        "title": "Switch to Keeper SMK",
+        "category": "Keeper Security"
+      },
+      {
+        "command": "ks-vscode.switchToKeeperCommander",
+        "title": "Switch to Keeper Commander",
+        "category": "Keeper Security"
       }
     ],
     "menus": {
@@ -100,6 +113,14 @@
         {
           "command": "ks-vscode.authenticate",
           "when": "config.keeper-security.mode.type === 'ksm'"
+        },
+        {
+          "command": "ks-vscode.switchToKeeperSmk",
+          "when": "config.keeper-security.mode.type === 'cli' && keeper-security.cli.canSwitchToSmk"
+        },
+        {
+          "command": "ks-vscode.switchToKeeperCommander",
+          "when": "config.keeper-security.mode.type === 'cli' && keeper-security.cli.canSwitchToCommander"
         }
       ]
     },
@@ -134,6 +155,30 @@
             "type": "boolean",
             "default": true,
             "description": "Suggest storing a value when it looks like a secret."
+          },
+          "keeper-security.cli.flavor": {
+            "order": 3,
+            "type": "string",
+            "default": "auto",
+            "scope": "machine",
+            "enum": [
+              "auto",
+              "commander",
+              "smk"
+            ],
+            "enumDescriptions": [
+              "Detect Keeper Commander and Keeper SMK installs. If several are found and none was chosen (Switch to CLI, Switch to Keeper SMK / Keeper Commander), Keeper Commander is used (a pip install first), and Keeper SMK only when no Commander is installed.",
+              "Only use Keeper Commander (keeper).",
+              "Only use Keeper SMK (~/.keeper-smk/<host>/bin/keeper-smk)."
+            ],
+            "description": "Which Keeper CLI to use in CLI mode. Each CLI has its own server, login and vault."
+          },
+          "keeper-security.cli.path": {
+            "order": 4,
+            "type": "string",
+            "default": "",
+            "scope": "machine",
+            "description": "Path to a Keeper Commander or Keeper SMK executable. Overrides detection and the CLI you chose. For SMK, the host's bin/keeper-smk wrapper is always used. Leave empty to detect automatically."
           }
         }
       }

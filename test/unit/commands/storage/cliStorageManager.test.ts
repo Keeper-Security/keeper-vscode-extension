@@ -51,6 +51,7 @@ describe('CliStorageManager', () => {
 
     mockCliService = {
       executeCommanderCommand: jest.fn(),
+      getActiveCliId: jest.fn().mockReturnValue(null),
     } as unknown as jest.Mocked<CliService>;
 
     mockSpinner = {
@@ -505,6 +506,40 @@ describe('CliStorageManager', () => {
       expect(result.find((f) => f.name === 'nested 2')?.folderPath).toBe(
         'My Vault / Engineering 2 / nested / nested 2'
       );
+    });
+  });
+
+  describe('folder tagged with the Keeper CLI it belongs to', () => {
+    const folder: IFolder = { folderUid: 'abc', name: 'Team', parentUid: '/', folderPath: 'My Vault / Team', source: '' };
+
+    function withState(state: Record<string, unknown>): void {
+      (mockContext.workspaceState.get as jest.Mock).mockImplementation((key: string, def?: unknown) =>
+        key in state ? state[key] : def
+      );
+    }
+
+    it('drops a folder saved under a different CLI (another vault)', () => {
+      withState({ currentStorage: folder, currentStorageCliId: '/usr/local/bin/keeper' });
+      (mockCliService.getActiveCliId as jest.Mock).mockReturnValue('/home/u/.keeper-smk/h/bin/keeper-smk');
+
+      expect(cliStorageManager.getCurrentStorage()).toBeNull();
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith('currentStorage', null);
+    });
+
+    it('keeps a folder saved under the active CLI, or saved before tagging existed', () => {
+      (mockCliService.getActiveCliId as jest.Mock).mockReturnValue('/usr/local/bin/keeper');
+      withState({ currentStorage: folder, currentStorageCliId: '/usr/local/bin/keeper' });
+      expect(cliStorageManager.getCurrentStorage()).toBe(folder);
+      withState({ currentStorage: folder });
+      expect(cliStorageManager.getCurrentStorage()).toBe(folder);
+    });
+
+    it('tags a newly saved folder with the active CLI', () => {
+      (mockCliService.getActiveCliId as jest.Mock).mockReturnValue('/usr/local/bin/keeper');
+
+      cliStorageManager.setCurrentStorage(folder);
+
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith('currentStorageCliId', '/usr/local/bin/keeper');
     });
   });
 });
